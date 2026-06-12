@@ -11,10 +11,11 @@
       └─ com.samsung.shealth.sleep.*.csv              → sleep_hours(수면시간)
     → from_samsung_export(...) → {"steps": int|None, "sleep_hours": float|None}
 
-⚠️ **미검증(format-v1).** 아래 ``_*_COLS`` 컬럼명과 "1행 메타 → 2행 헤더" 구조는 삼성헬스
-   export **일반 구조 기준 가정**이다. export 버전마다 컬럼명이 다르므로, **실제 export 파일
-   1건을 받기 전까지 신뢰하지 말 것.** 실파일이 오면 헤더 한 줄만 보고 아래 상수만 맞추면 된다
-   (파싱 로직·집계·엔진 연결은 합성 CSV로 검증됨 → tests/test_health_export_adapter.py).
+✅ **실 export 검증(2026-06-12).** 실제 삼성헬스 export로 컬럼 확정:
+   걸음 = `count`·`day_time`(epoch ms) / 수면 = `com.samsung.health.sleep.start_time`·`end_time`
+   (`shealth`가 아니라 `health`.sleep 주의). "1행 메타 → 2행 헤더" 구조 확인.
+   다른 export 버전은 컬럼이 다를 수 있어 ``_*_COLS`` 후보 리스트는 유지.
+   회귀 가드: tests/test_health_export_adapter.py `test_real_samsung_export_columns`.
 """
 
 from __future__ import annotations
@@ -37,11 +38,13 @@ _STEP_DATE_COLS = (
     "date",
 )
 _SLEEP_START_COLS = (
+    "com.samsung.health.sleep.start_time",  # 실 export 확인(2026-06-12): health.sleep
     "com.samsung.shealth.sleep.start_time",
     "start_time",
     "sleep_start_time",
 )
 _SLEEP_END_COLS = (
+    "com.samsung.health.sleep.end_time",  # 실 export 확인(2026-06-12)
     "com.samsung.shealth.sleep.end_time",
     "end_time",
     "sleep_end_time",

@@ -127,6 +127,27 @@ def test_only_one_source_present():
     }
 
 
+def test_real_samsung_export_columns():
+    # 실 삼성헬스 export(2026-06-12 검증) 컬럼명으로 회귀 가드.
+    # 걸음=count·day_time(epoch ms), 수면=com.samsung.health.sleep.start/end_time
+    step_csv = (
+        "com.samsung.shealth.step_daily_trend,6320001,6\n"
+        "binning_data,count,day_time\n"
+        "x,9092,1758067200000\n"  # 2025-09-17 UTC
+    )
+    sleep_csv = (
+        "com.samsung.shealth.sleep,6320001,11\n"
+        "com.samsung.health.sleep.start_time,com.samsung.health.sleep.end_time\n"
+        "2022-07-31 13:00:00.000,2022-07-31 16:30:00.000\n"  # 3.5h
+    )
+    assert parse_steps_csv(step_csv) == 9092
+    assert parse_sleep_csv(sleep_csv) == 3.5
+    assert from_samsung_export(step_csv, sleep_csv) == {
+        "steps": 9092,
+        "sleep_hours": 3.5,
+    }
+
+
 def test_end_to_end_into_health_signal():
     # export → {steps, sleep_hours} → health_signal 점수 엔진까지 연결
     out = from_samsung_export(DUMMY_STEP_CSV, DUMMY_SLEEP_CSV)

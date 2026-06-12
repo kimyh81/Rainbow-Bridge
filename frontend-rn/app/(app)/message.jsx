@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -248,6 +248,20 @@ export default function MessageScreen() {
     return () => cleanup();
   }, []);
 
+  // 홈/뒤로가기로 화면 벗어날 때 BGM 정지
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (bgmRef.current) {
+          bgmRef.current.stopAsync().catch(() => {});
+        }
+        if (ttsRef.current) {
+          ttsRef.current.stopAsync().catch(() => {});
+        }
+      };
+    }, [])
+  );
+
   async function initGate() {
     const petId = await AsyncStorage.getItem('pet_id');
     const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
@@ -477,7 +491,7 @@ export default function MessageScreen() {
   }
 
   return (
-    <LinearGradient colors={['#2a3445', '#2c2742', '#241e32']} style={styles.safe}>
+    <LinearGradient colors={['#2a3445', '#2c2742', '#241e32']} style={styles.safeGradient}>
       <SafeAreaView style={styles.safeInner}>
         {/* 헤더 — 홈·로그아웃 */}
         <View style={styles.msgHeader}>
@@ -632,8 +646,7 @@ export default function MessageScreen() {
 
                 {/* 편지 본문 — 전체 블록 슬라이드업 */}
                 <Animated.View style={{ opacity: contentFade, transform: [{ translateY: contentSlide }] }}>
-                  <ScrollView style={styles.bodyScroll} contentContainerStyle={styles.bodyContent}
-                    scrollEnabled={done} showsVerticalScrollIndicator={false}>
+                  <View style={styles.bodyContent}>
                     {lines.map((line, i) =>
                       i < visibleCount ? (
                         <Text key={i} style={[styles.line, isFirst && styles.lineFirst]}>
@@ -641,7 +654,7 @@ export default function MessageScreen() {
                         </Text>
                       ) : null
                     )}
-                  </ScrollView>
+                  </View>
                 </Animated.View>
 
                 {/* 편지 끝 AI 안내 */}
@@ -770,6 +783,7 @@ const FLAP_H = 80;
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  safeGradient: { flex: 1 },
   safeInner: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
 
@@ -861,7 +875,6 @@ const styles = StyleSheet.create({
   },
   videoWrapFirst: { borderColor: '#C9A84C', width: 140, height: 140, borderRadius: 70 },
   video: { width: '100%', height: '100%' },
-  bodyScroll: { maxHeight: 300, flexGrow: 0 },
   bodyContent: { gap: 16, paddingBottom: 4 },
   line: { fontSize: 16, color: '#3A2A1A', lineHeight: 27, textAlign: 'center', fontWeight: '400' },
   lineFirst: { color: '#4A2E0A', fontStyle: 'italic', fontWeight: '400' },

@@ -51,13 +51,13 @@ export default function EmotionScreen() {
         setSafetyOpen(true);
         return;
       }
-      router.push('/(app)/message');
+      router.push('/(app)/mission');
     } catch {
       if (RISK_MOODS.includes(selectedMood)) {
         setSafetyOpen(true);
         return;
       }
-      router.push('/(app)/message');
+      router.push('/(app)/mission');
     } finally {
       setLoading(false);
     }

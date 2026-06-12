@@ -25,6 +25,7 @@ from app.api.v1.endpoints import (
     timeline,
     tts,
     terminal_care,
+    usage_stats,
 )
 
 api_router = APIRouter()
@@ -48,4 +49,7 @@ api_router.include_router(vets.router, prefix="/vets", tags=["vets"])
 api_router.include_router(diaries.router, prefix="/diaries", tags=["diaries"])
 api_router.include_router(
     terminal_care.router, prefix="/terminal-care", tags=["terminal_care"]
+)
+api_router.include_router(
+    usage_stats.router, prefix="/usage-stats", tags=["usage_stats"]
 )

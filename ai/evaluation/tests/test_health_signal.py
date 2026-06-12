@@ -5,10 +5,58 @@ from __future__ import annotations
 from ..health_signal import (
     activity_to_score,
     blend_recovery_score,
+    condition_signal,
     cross_check,
     health_signal,
     sleep_to_score,
 )
+
+
+# ── condition_signal: 객관 수면 + 감정 → 컨디션 추정(회복점수와 별개, 강사 구상) ──
+def test_condition_good_when_sleep_and_mood_good():
+    # 수면점수 82 + 기분 좋음 → 양호/높음 (강사 예시)
+    out = condition_signal(8, sleep_score=82)
+    assert out["condition"] == "양호"
+    assert out["confidence"] == "높음"
+
+
+def test_condition_caution_when_both_bad():
+    # 수면 나쁨 + 기분 나쁨 → 주의/높음 (일치)
+    out = condition_signal(3, sleep_score=35)
+    assert out["condition"] == "주의"
+    assert out["confidence"] == "높음"
+
+
+def test_condition_hidden_risk_when_sensor_bad_but_user_ok():
+    # 수면 나쁨 + 기분 좋음 → 주의/낮음 (센서는 나쁜데 괜찮다 = 숨은 위험)
+    out = condition_signal(8, sleep_score=32)
+    assert out["condition"] == "주의"
+    assert out["confidence"] == "낮음"
+    assert out["cross_check"]["status"] == "mismatch_high_risk"
+
+
+def test_condition_caution_when_mood_bad_even_if_sleep_good():
+    # 기분 나쁨 → 수면 좋아도 '주의'(안전쪽). 수면좋음+기분나쁨이라 불일치 → 신뢰 낮음
+    out = condition_signal(3, sleep_score=80)
+    assert out["condition"] == "주의"
+    assert out["confidence"] == "낮음"
+
+
+def test_condition_emotion_boundaries():
+    # 감정 경계: 6.0=좋음(양호 가능), 4.0=나쁨(주의), 5.0=중간(보통)
+    assert condition_signal(6.0, sleep_score=80)["condition"] == "양호"
+    assert condition_signal(4.0, sleep_score=80)["condition"] == "주의"
+    assert condition_signal(5.0, sleep_score=80)["condition"] == "보통"
+
+
+def test_condition_from_sleep_hours_and_no_sleep():
+    # 수면시간만 있어도 환산되고, 수면 없으면 감정 단독(신뢰도 낮음)
+    assert condition_signal(7, sleep_hours=8)["condition"] == "양호"
+    no_sleep = condition_signal(8)
+    assert no_sleep["condition"] == "양호"
+    assert no_sleep["confidence"] == "낮음"  # 수면 없어 보수적
+    # 수면 없어도 기분 나쁨이면 주의(안전쪽 — reviewer 비대칭 지적 반영)
+    assert condition_signal(3)["condition"] == "주의"
 
 
 def test_sleep_score_passthrough():

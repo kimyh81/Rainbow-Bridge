@@ -141,6 +141,55 @@ def cross_check(
     return {"status": "agree_ok", "mismatch": False, "note": None}
 
 
+def condition_signal(
+    emotion_avg: float,
+    *,
+    sleep_score: Optional[float] = None,
+    sleep_hours: Optional[float] = None,
+) -> dict[str, Any]:
+    """객관 수면 + 주관 감정 → **오늘 컨디션** 추정 + 신뢰도(교차검증).
+
+    회복점수(콘텐츠 해금 게이트)와 **별개 출력**이다. 강사 구상: "주관 체크인뿐 아니라
+    삼성헬스 객관 수면을 함께 반영해 컨디션/스트레스를 추정"(점수 게이트는 결정문서 §2로
+    수면 제외 — 여기선 게이트를 안 건드리고 컨디션만 본다).
+
+    Returns: ``{condition, confidence, sleep_score, cross_check, message}``
+    - ``condition``: ``"양호"`` / ``"주의"`` / ``"보통"``
+    - ``confidence``: ``"높음"``(수면·감정 일치) / ``"낮음"``(불일치 — 교차검증 플래그)
+    - 수면이 없으면 감정 단독 추정(confidence 보수적으로 "낮음").
+
+    예) 수면점수 82 + 기분 좋음 → 양호/높음 · 수면 나쁨 + 기분 나쁨 → 주의/높음(일치)
+        수면 나쁨 + 기분 좋음 → 주의/낮음(센서는 나쁜데 괜찮다 = 숨은 위험)
+    """
+    s = sleep_to_score(sleep_score, sleep_hours)
+    check = cross_check(s, emotion_avg)
+
+    emo_good = emotion_avg >= _EMOTION_GOOD
+    emo_bad = emotion_avg <= _EMOTION_BAD
+
+    if check["status"] == "mismatch_high_risk":
+        condition = "주의"  # 센서상 수면 부족인데 본인은 괜찮다 → 숨은 위험
+    elif emo_bad:
+        # 기분이 나쁜 날은 수면 유무·질과 무관하게 '주의'(사별 케어 — 안전쪽으로 기울임).
+        condition = "주의"
+    elif emo_good and (s is None or s >= _SLEEP_GOOD):
+        condition = "양호"
+    else:
+        condition = "보통"
+
+    confidence = "낮음" if (check["mismatch"] or s is None) else "높음"
+    message = check["note"] or (
+        "오늘 컨디션은 양호해 보여요." if condition == "양호" else None
+    )
+    return {
+        "condition": condition,
+        "confidence": confidence,
+        "sleep_score": s,
+        "cross_check": check,
+        "message": message,
+    }
+
+
 def health_signal(
     emotion_avg: float,
     *,

@@ -6,14 +6,24 @@ services:
       - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: rainbow_redis
     ports:
       - "127.0.0.1:6379:6379"
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -31,9 +41,11 @@ services:
       - ../uploads:/app/backend/uploads
       - sqlite_data:/app/backend/data
     depends_on:
-      - mongo
-      - redis
-    restart: unless-stopped
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
 
 volumes:
   mongo_data:

@@ -104,14 +104,10 @@ async def run_liveportrait_gif(asset_id: str, source_path: str):
 
         await _collection().update_one(
             {"_id": ObjectId(asset_id)},
-            {"$set": {"gif_url": f"/uploads/videos/{gif_path.name}", "status": "done"}},
+            {"$set": {"gif_url": f"/uploads/videos/{gif_path.name}"}},
         )
     except Exception:
         logger.exception("GIF 생성 실패 asset_id=%s", asset_id)
-        await _collection().update_one(
-            {"_id": ObjectId(asset_id)},
-            {"$set": {"status": "error"}},
-        )
 
 
 async def run_liveportrait(asset_id: str, source_path: str, pet_id: str = ""):
@@ -163,6 +159,8 @@ async def run_liveportrait(asset_id: str, source_path: str, pet_id: str = ""):
                 "$set": update,
             },
         )
+        # MP4 완료 후 GIF 백그라운드 생성
+        asyncio.create_task(run_liveportrait_gif(asset_id, source_path))
     except Exception:
         logger.exception("LivePortrait 처리 실패 asset_id=%s", asset_id)
         await _collection().update_one(

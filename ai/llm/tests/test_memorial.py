@@ -146,9 +146,10 @@ def test_guardian_nickname_used_throughout_third_person():
         pet, {"emotion_score": 5}, generate=fake_generate, guardian_nickname="하늘"
     )
     prompt = captured["prompt"]
-    # 본문 묘사 지시("…이(가) 해준 일을")가 별명으로 채워지고, 엄마(caller)로 묘사하지 않는다.
-    assert "하늘님이(가) 해준 일을" in prompt
-    assert "엄마이(가) 해준 일을" not in prompt
+    # 본문 묘사 지시("…이 해준 일을")가 별명으로 채워지고(받침 맞춰 조사 교정),
+    # 엄마(caller)로 묘사하지 않는다.
+    assert "하늘님이 해준 일을" in prompt
+    assert "엄마가 해준 일을" not in prompt
     # 끝까지 같은 별명으로 부르라는 지시가 들어간다.
     assert "다른 호칭으로 바꾸지 마세요" in prompt
 

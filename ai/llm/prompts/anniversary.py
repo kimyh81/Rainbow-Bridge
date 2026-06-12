@@ -13,30 +13,67 @@
 
 from __future__ import annotations
 
+import re
 from typing import Final, Optional
 
 # 트리거 기념일 목록 — 추후 D+365 등 추가 시 여기에만 넣으면 됩니다.
 MILESTONE_DAYS: Final[tuple[int, ...]] = (30, 100)
+
+
+# --------------------------------------------------------------------------- #
+# 조사 자동 교정 — 템플릿에 "{name}이/가"처럼 적고, 앞 글자 받침에 맞춰 하나로 고정.
+# (받침 있는 이름 "푸딩" → "푸딩이/을/과", 없는 이름 "코코" → "코코가/를/와")
+# --------------------------------------------------------------------------- #
+_JOSA_RE = re.compile(r"(.)(이/가|을/를|과/와|은/는)")
+
+
+def _has_jongseong(text: str) -> bool:
+    """문자열 끝 글자에 받침이 있으면 True (한글이 아니면 False)."""
+    if not text:
+        return False
+    code = ord(text[-1])
+    if 0xAC00 <= code <= 0xD7A3:
+        return (code - 0xAC00) % 28 != 0
+    return False
+
+
+def apply_josa(text: str, *, friendly: bool = False) -> str:
+    """본문 속 '앞글자+이/가' 형태의 조사를 받침 여부에 맞게 교정합니다.
+
+    - friendly=True: 받침 있는 이름에 애칭 '이'를 붙여 다정한 호칭으로 만듭니다
+      (푸딩 → 푸딩이가/푸딩이를/푸딩이와). 추모·기념일 메시지용.
+    - friendly=False(기본): 표준 조사만 고릅니다(푸딩 → 푸딩이/푸딩을/푸딩과).
+      장례 안내처럼 격식이 필요한 곳에서 사용합니다.
+    """
+
+    def _repl(m: "re.Match[str]") -> str:
+        prev, pair = m.group(1), m.group(2)
+        jong, no_jong = pair.split("/")
+        if _has_jongseong(prev):
+            return prev + ("이" + no_jong if friendly else jong)
+        return prev + no_jong
+
+    return _JOSA_RE.sub(_repl, text)
 
 # --------------------------------------------------------------------------- #
 # 단계별 고정 안내 텍스트 — note 없을 때 반환. {name} 만 치환.
 # --------------------------------------------------------------------------- #
 MILESTONE_TEMPLATES: Final[dict[int, str]] = {
     30: (
-        "{name}가 무지개다리를 건넌 지 한 달이 지났습니다. "
+        "{name}이/가 무지개다리를 건넌 지 한 달이 지났습니다. "
         "지난 한 달이 얼마나 힘드셨을지, 그 무게를 잘 알고 있습니다.\n\n"
-        "조금씩 일상으로 돌아가는 것은 {name}를 잊는 게 아닙니다. "
-        "{name}가 보호자님의 일상 속에서도 늘 함께하기를 바랐을 테니까요. "
-        "밥을 챙겨 먹고, 바깥 공기를 마시는 작은 일들이 {name}를 향한 사랑의 연장입니다.\n\n"
+        "조금씩 일상으로 돌아가는 것은 {name}을/를 잊는 게 아닙니다. "
+        "{name}이/가 보호자님의 일상 속에서도 늘 함께하기를 바랐을 테니까요. "
+        "밥을 챙겨 먹고, 바깥 공기를 마시는 작은 일들이 {name}을/를 향한 사랑의 연장입니다.\n\n"
         "오늘도 충분히 잘 하고 계십니다. 천천히 걸어가셔도 됩니다."
     ),
     100: (
-        "{name}가 무지개다리를 건넌 지 100일이 지났습니다. "
+        "{name}이/가 무지개다리를 건넌 지 100일이 지났습니다. "
         "100일 동안 버텨오신 보호자님께 진심으로 경의를 표합니다.\n\n"
-        "{name}와 함께한 모든 순간은 사라지지 않습니다. "
+        "{name}과/와 함께한 모든 순간은 사라지지 않습니다. "
         "함께 나눈 온기, 함께한 아침과 저녁, 그 기억들이 보호자님의 마음속에서 "
         "지금도 살아 숨 쉬고 있습니다.\n\n"
-        "앞으로도 {name}를 그리워하는 날이 오겠지만, "
+        "앞으로도 {name}을/를 그리워하는 날이 오겠지만, "
         "그 그리움이 조금씩 따뜻한 추억으로 변해갈 거라 믿습니다. "
         "보호자님의 회복 여정을 언제나 응원합니다."
     ),
@@ -51,12 +88,12 @@ MILESTONE_LABELS: Final[dict[int, str]] = {
 # 단계별 안내 초점 — Gemini 호출 시 프롬프트에 삽입.
 MILESTONE_FOCUS: Final[dict[int, str]] = {
     30: (
-        "{name}가 떠난 지 한 달이 지났습니다. "
-        "일상 복귀가 {name}를 잊는 게 아님을 따뜻하게, "
+        "{name}이/가 떠난 지 한 달이 지났습니다. "
+        "일상 복귀가 {name}을/를 잊는 게 아님을 따뜻하게, "
         "억지로 괜찮아지라고 강요하지 않는 톤으로 안내해 주세요."
     ),
     100: (
-        "{name}가 떠난 지 100일이 지났습니다. "
+        "{name}이/가 떠난 지 100일이 지났습니다. "
         "100일 동안 버텨온 보호자님을 위로하고, "
         "{name}의 기억이 보호자님 곁에 영원히 남아있음을 희망적으로 전해 주세요."
     ),
@@ -130,7 +167,11 @@ def build_messages(
     """
     milestone_label = MILESTONE_LABELS.get(days_since, f"{days_since}일")
     raw_focus = MILESTONE_FOCUS.get(days_since, "")
-    milestone_focus = raw_focus.format(name=name or "반려동물") if raw_focus else ""
+    milestone_focus = (
+        apply_josa(raw_focus.format(name=name or "반려동물"), friendly=True)
+        if raw_focus
+        else ""
+    )
 
     user_content = _USER_TEMPLATE.format(
         name=name or "반려동물",

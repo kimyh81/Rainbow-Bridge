@@ -98,7 +98,7 @@ async def _qwen3_remote(data: TtsCreate, server_url: str) -> TtsResponse:
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{server_url.rstrip('/')}/synthesize",
-            json={"text": data.text, "tone": voice},
+            json={"text": data.text, "voice": voice},
         )
         resp.raise_for_status()
 

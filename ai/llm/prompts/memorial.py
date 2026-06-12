@@ -118,11 +118,11 @@ _USER_TEMPLATE: Final[str] = """\
 [요청]
 위 기억으로, {name}의 시선에서 본 추모 내레이션을 3인칭으로 {tone_guide}
 써 주세요.
-{greeting_block}- "{name}는 알고 있었습니다" 같은 담담한 어조로, {guardian_ref}이(가) 해준 일을 {name}의 시선에서 묘사하세요.
+{greeting_block}- "{name_subj} 알고 있었습니다" 같은 담담한 어조로, {guardian_subj} 해준 일을 {name}의 시선에서 묘사하세요.
 - 버킷리스트나 일기 속 구체적인 장면을 한두 가지 이상 반드시 인용하세요.
 - 중간에 "말할 순 없었지만, 기억으로 남겼습니다" 같은 한 줄을 넣으세요.
 - 마지막 두 줄은 짧게 끊어 여운을 남기세요. (예: "잘 가요, {name}." / "충분히 사랑받았습니다.") 마지막 줄의 이름은 반드시 반려동물({name}) 이름이어야 합니다. 보호자 이름·별명은 절대 넣지 마세요.
-- 전체 600자 안팎(8~12문장). {name}는 반드시 3인칭({name}는/{name}가)으로만 쓰고, 절대 1인칭("나는", "저는")으로 말하게 하지 마세요.
+- 전체 600자 안팎(8~12문장). {name_subj} 반드시 3인칭({name_subj}/{name_ga})으로만 쓰고, 절대 1인칭("나는", "저는")으로 말하게 하지 마세요.
 """
 
 # 1인칭 편지 모드 — SYSTEM_PROMPT_FIRST_PERSON 과 함께 사용.
@@ -146,6 +146,38 @@ _USER_TEMPLATE_FIRST_PERSON: Final[str] = """\
 - 마지막은 {caller}를 걱정하는 한 마디("조금만 울고, 밥 먹어. 알겠지?" 같은)로 끝맺으세요.
 - 전체 600자 안팎(8~12문장). 추억과 장면을 여러 개 충분히 담되, 부활·환생을 단정하는 표현("살아 돌아왔어요" 등)은 쓰지 마세요.
 """
+
+
+def _has_batchim(word: str) -> bool:
+    """한글 단어 마지막 글자가 받침(종성)을 가지는지 판단.
+
+    한글 음절은 (초성×21 + 중성)×28 + 종성 으로 인코딩되며, 종성 인덱스가
+    0이면 받침이 없다. 마지막 글자가 한글이 아니면(영문·숫자 등) 받침 판단이
+    불가하므로 받침 없음으로 본다.
+    """
+    if not word:
+        return False
+    last = word[-1]
+    if not ("가" <= last <= "힣"):
+        return False
+    return (ord(last) - 0xAC00) % 28 != 0
+
+
+def _josa(word: str, pair: str, *, friendly: bool = False) -> str:
+    """word 뒤에 받침 여부로 고른 조사를 붙여 'word+조사'로 반환.
+
+    Args:
+        word: 조사를 붙일 단어(이름·호칭 등).
+        pair: 받침 있을 때+없을 때 조사 2글자. 예) "은는" → 받침○ "은", 받침✕ "는".
+            "이가"(이/가), "을를", "과와" 등.
+        friendly: True면 받침 있는 반려동물 이름에 애칭 '이'를 붙여 다정하게
+            ("구름" → "구름이가"/"구름이는"). 보호자 호칭(○○님)엔 쓰지 마세요.
+
+    예) _josa("구름", "은는") → "구름은", _josa("구름", "은는", friendly=True) → "구름이는".
+    """
+    if _has_batchim(word):
+        return f"{word}이{pair[1]}" if friendly else f"{word}{pair[0]}"
+    return f"{word}{pair[1]}"
 
 
 def _format_memories(memories: Optional[list]) -> str:
@@ -260,10 +292,13 @@ def build_user_prompt(
     )
     return template.format(
         name=name,
+        name_subj=_josa(name, "은는", friendly=True),  # 친근형 "구름이는"/"뭉치는"
+        name_ga=_josa(name, "이가", friendly=True),  # 친근형 "구름이가"/"뭉치가"
         species=species,
         period=period,
         caller=caller,
         guardian_ref=guardian_ref,
+        guardian_subj=_josa(guardian_ref, "이가"),  # "○○님이"/"보호자가"
         score=score,
         note=note.strip() or "(없음)",
         bucketlist_block=_format_bucket_list(bucket_list),

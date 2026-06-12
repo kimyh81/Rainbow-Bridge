@@ -66,7 +66,7 @@ export default function BucketlistScreen() {
     >
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           style={{ flex: 1 }}
         >
           <ScrollView

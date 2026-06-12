@@ -108,7 +108,9 @@ def generate_anniversary_care(
     # (2) note 없으면 고정 템플릿 반환 — Gemini 호출 없음.
     if not note:
         template = anniversary_prompt.MILESTONE_TEMPLATES.get(days_since, "")
-        message = template.format(name=pet.get("name", "반려동물"))
+        message = anniversary_prompt.apply_josa(
+            template.format(name=pet.get("name") or "반려동물"), friendly=True
+        )
         return {
             "message": message,
             "days_since": days_since,

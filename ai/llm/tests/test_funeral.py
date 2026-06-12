@@ -14,6 +14,7 @@ import pytest
 
 from ..funeral import generate_funeral_guidance
 from ..prompts import funeral as funeral_prompt
+from ..prompts.anniversary import apply_josa
 from ..safety import CRISIS_HOTLINE
 
 PET = {"name": "봄이", "species": "고양이"}
@@ -185,7 +186,28 @@ def test_note_guidance_still_uses_template():
         "immediate", PET, note="뭘 해야 하나요", generate=fake_generate
     )
     assert PET["name"] in result["guidance"]
-    assert result["guidance"] == funeral_prompt.STEP_TEMPLATES["immediate"].format(name=PET["name"])
+    assert result["guidance"] == apply_josa(
+        funeral_prompt.STEP_TEMPLATES["immediate"].format(name=PET["name"]),
+        friendly=True,
+    )
+
+
+def test_template_josa_matches_batchim():
+    """받침 있는 이름은 조사가 '과/을/이'로, 없는 이름은 '와/를/가'로 교정된다."""
+    def fake_generate(prompt, *, max_tokens=350, temperature=0.5, json_mode=False):
+        return ""
+
+    # "콩" — 받침 있음 → 친근형(애칭 '이' + 와/를/가): 콩이와의 / 콩이를
+    g = generate_funeral_guidance("immediate", {"name": "콩", "species": "강아지"},
+                                  generate=fake_generate)["guidance"]
+    assert "콩이와의" in g and "콩이를" in g
+    assert "콩과의" not in g and "콩를" not in g and "콩/" not in g
+
+    # "코코" — 받침 없음 → 와/를/가
+    g2 = generate_funeral_guidance("venue", {"name": "코코", "species": "강아지"},
+                                   generate=fake_generate)["guidance"]
+    assert "코코가" in g2 and "코코와의" in g2
+    assert "코코/" not in g2
 
 
 def test_note_passes_step_in_prompt():

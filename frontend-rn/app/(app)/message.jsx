@@ -19,6 +19,10 @@ import { doLogout } from './_layout';
 const BGM_3RD = require('../../assets/audio/bgm_3rd.mp3');
 const BGM_1ST = require('../../assets/audio/bgm_1st.mp3');
 
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_URL ||
+  'https://rainbow-bridge.duckdns.org';
+
 const LINE_DELAY = 1500;
 const LINE_DURATION = 900;
 const BGM_FADE_DURATION = 500;
@@ -433,8 +437,11 @@ export default function MessageScreen() {
       if (!petId || !msgData.content) throw new Error('pet_id 또는 content 없음');
       const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone: msgData.tone || 'narration' });
       if (!ttsData?.audio_url) throw new Error('audio_url 없음');
+      const audioUri = ttsData.audio_url.startsWith('http')
+        ? ttsData.audio_url
+        : `${API_BASE}${ttsData.audio_url}`;
       const { sound } = await Audio.Sound.createAsync(
-        { uri: ttsData.audio_url },
+        { uri: audioUri },
         { volume: 1.0, shouldPlay: false },
       );
       ttsRef.current = sound;

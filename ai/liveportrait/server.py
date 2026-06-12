@@ -27,6 +27,9 @@ import tempfile
 import uuid
 from pathlib import Path
 
+import asyncio
+from typing import Any
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
@@ -36,6 +39,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pipeline import DRIVING_MULTIPLIER, LivePortraitError, generate_gif, generate_video  # noqa: E402
 
 app = FastAPI(title="LivePortrait 추론 서비스", version="1.0")
+
+# GPU 동시 추론 1건 제한 — RTX 3080 단일 GPU, 큐 쌓이면 300s 타임아웃 악순환 방지.
+_gpu_sem = asyncio.Semaphore(1)
+
+# 비동기 GIF job 인메모리 저장소 — Cloudflare 100초 타임아웃 우회용.
+# { job_id: {"status": "processing"|"done"|"error", "path": Path|None} }
+_gif_jobs: dict[str, dict[str, Any]] = {}
 
 # 생성 결과 임시 저장 폴더 (GPU 서버 로컬).
 _WORK_DIR = Path(tempfile.gettempdir()) / "liveportrait_service"
@@ -78,6 +88,12 @@ async def generate(source: UploadFile = File(...)) -> FileResponse:
     src_path.write_bytes(contents)
 
     try:
+        await asyncio.wait_for(_gpu_sem.acquire(), timeout=10.0)
+    except asyncio.TimeoutError:
+        src_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=503, detail="GPU 처리 중입니다. 잠시 후 다시 시도하세요.")
+
+    try:
         # 블로킹(subprocess) 호출 → 스레드풀에서 실행해 이벤트 루프 안 막음.
         result_path = await run_in_threadpool(
             generate_video, src_path, output_dir=str(out_dir)
@@ -87,6 +103,7 @@ async def generate(source: UploadFile = File(...)) -> FileResponse:
     except LivePortraitError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
+        _gpu_sem.release()
         src_path.unlink(missing_ok=True)  # 입력 사진은 바로 정리
 
     return FileResponse(
@@ -116,6 +133,12 @@ async def generate_memorial_gif(source: UploadFile = File(...)) -> FileResponse:
     src_path.write_bytes(contents)
 
     try:
+        await asyncio.wait_for(_gpu_sem.acquire(), timeout=10.0)
+    except asyncio.TimeoutError:
+        src_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=503, detail="GPU 처리 중입니다. 잠시 후 다시 시도하세요.")
+
+    try:
         result_path = await run_in_threadpool(
             generate_gif, src_path, str(out_dir)
         )
@@ -124,6 +147,7 @@ async def generate_memorial_gif(source: UploadFile = File(...)) -> FileResponse:
     except LivePortraitError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
+        _gpu_sem.release()
         src_path.unlink(missing_ok=True)
 
     return FileResponse(
@@ -131,6 +155,76 @@ async def generate_memorial_gif(source: UploadFile = File(...)) -> FileResponse:
         media_type="image/gif",
         filename=result_path.name,
     )
+
+
+@app.post("/generate/gif/async")
+async def generate_memorial_gif_async(source: UploadFile = File(...)) -> dict:
+    """비동기 GIF 생성 — job_id 즉시 반환, Cloudflare 100초 타임아웃 우회용.
+
+    백엔드는 job_id를 받은 뒤 /generate/gif/status/{job_id} 를 폴링하고
+    done 상태가 되면 /generate/gif/result/{job_id} 로 GIF를 내려받습니다.
+    """
+    ext = Path(source.filename or "").suffix.lower() or ".jpg"
+    if ext not in _ALLOWED_EXT:
+        raise HTTPException(status_code=400, detail=f"지원하지 않는 이미지 형식: {ext}")
+
+    job_id = uuid.uuid4().hex[:12]
+    src_path = _WORK_DIR / f"src_{job_id}{ext}"
+    out_dir = _WORK_DIR / job_id
+
+    contents = await source.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="빈 파일입니다.")
+    src_path.write_bytes(contents)
+
+    _gif_jobs[job_id] = {"status": "processing", "path": None}
+    asyncio.create_task(_run_gif_job(job_id, src_path, out_dir))
+    return {"job_id": job_id}
+
+
+@app.get("/generate/gif/status/{job_id}")
+async def gif_job_status(job_id: str) -> dict:
+    """비동기 GIF job 상태 조회."""
+    job = _gif_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job을 찾을 수 없습니다.")
+    return {"job_id": job_id, "status": job["status"]}
+
+
+@app.get("/generate/gif/result/{job_id}")
+async def gif_job_result(job_id: str) -> FileResponse:
+    """완성된 GIF 반환 후 job 정리."""
+    job = _gif_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job을 찾을 수 없습니다.")
+    if job["status"] != "done":
+        raise HTTPException(status_code=400, detail=f"아직 처리 중입니다: {job['status']}")
+    result_path: Path = job["path"]
+    del _gif_jobs[job_id]
+    return FileResponse(
+        path=str(result_path),
+        media_type="image/gif",
+        filename=result_path.name,
+    )
+
+
+async def _run_gif_job(job_id: str, src_path: Path, out_dir: Path) -> None:
+    """GIF job 백그라운드 처리 — 세마포어로 GPU 단일 처리 보장."""
+    try:
+        await asyncio.wait_for(_gpu_sem.acquire(), timeout=10.0)
+    except asyncio.TimeoutError:
+        src_path.unlink(missing_ok=True)
+        _gif_jobs[job_id] = {"status": "error", "path": None}
+        return
+
+    try:
+        result_path = await run_in_threadpool(generate_gif, src_path, str(out_dir))
+        _gif_jobs[job_id] = {"status": "done", "path": result_path}
+    except Exception:
+        _gif_jobs[job_id] = {"status": "error", "path": None}
+    finally:
+        _gpu_sem.release()
+        src_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 # ---------- 설정 (환경 변수 → 기본값) ----------
@@ -226,7 +227,12 @@ def generate_gif(
 
 
 def _generate_remote_gif(source: Path, output_dir: Path) -> Path:
-    """터널된 GPU 서비스의 /generate/gif 호출 — d9 드라이빙으로 GIF 생성."""
+    """터널된 GPU 서비스의 /generate/gif/async 호출 — Cloudflare 100초 타임아웃 우회.
+
+    1) /generate/gif/async POST → job_id 즉시 수신
+    2) /generate/gif/status/{job_id} 폴링 (30초 간격, 최대 10회 = 5분)
+    3) done 상태가 되면 /generate/gif/result/{job_id} 로 GIF 다운로드
+    """
     if not REMOTE_URL:
         raise LivePortraitError(
             "LIVEPORTRAIT_REMOTE_URL 이 설정되지 않았습니다 (remote 모드)."
@@ -239,21 +245,51 @@ def _generate_remote_gif(source: Path, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"{source.stem}--remote.gif"
 
+    # 1. 비동기 job 시작 (즉시 반환 — Cloudflare 100초 제한 이내)
     try:
         with open(source, "rb") as img:
             resp = requests.post(
-                f"{REMOTE_URL}/generate/gif",
+                f"{REMOTE_URL}/generate/gif/async",
                 files={"source": (source.name, img, "application/octet-stream")},
-                timeout=300,
+                timeout=30,
             )
         resp.raise_for_status()
     except requests.RequestException as e:
-        raise LivePortraitError(f"원격 GPU 서비스(gif) 호출 실패: {e}") from e
+        raise LivePortraitError(f"원격 GPU 서비스(gif/async) 호출 실패: {e}") from e
 
-    if not resp.content:
-        raise LivePortraitError("원격 GPU 서비스가 빈 응답을 반환했습니다.")
-    out_path.write_bytes(resp.content)
-    return out_path
+    job_id = resp.json().get("job_id")
+    if not job_id:
+        raise LivePortraitError("GPU 서버가 job_id를 반환하지 않았습니다.")
+
+    # 2. 폴링 — 30초 간격, 최대 10회(5분)
+    for _ in range(10):
+        time.sleep(30)
+        try:
+            status_resp = requests.get(
+                f"{REMOTE_URL}/generate/gif/status/{job_id}", timeout=10
+            )
+            status_resp.raise_for_status()
+            status = status_resp.json().get("status")
+        except requests.RequestException as e:
+            raise LivePortraitError(f"GIF job 상태 조회 실패: {e}") from e
+
+        if status == "done":
+            # 3. GIF 다운로드
+            try:
+                result_resp = requests.get(
+                    f"{REMOTE_URL}/generate/gif/result/{job_id}", timeout=30
+                )
+                result_resp.raise_for_status()
+            except requests.RequestException as e:
+                raise LivePortraitError(f"GIF 결과 다운로드 실패: {e}") from e
+            if not result_resp.content:
+                raise LivePortraitError("원격 GPU 서비스가 빈 GIF를 반환했습니다.")
+            out_path.write_bytes(result_resp.content)
+            return out_path
+        elif status == "error":
+            raise LivePortraitError("GPU 서버에서 GIF 생성 실패 (server error)")
+
+    raise LivePortraitError("GIF 생성 타임아웃 (5분 초과)")
 
 
 def generate_video(

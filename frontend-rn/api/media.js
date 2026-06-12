@@ -1,10 +1,17 @@
 import api from './axiosInstance';
 
-// 사진 업로드 → { asset_id } 반환. 영상 생성은 서버 백그라운드에서 진행됨.
+// 사진 업로드 → { asset_id } 반환. photos.jsx에서 사진 등록 시 사용.
 export async function uploadMedia(formData) {
   const res = await api.post('/api/v1/media/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return res.data;
+}
+
+// 추모 영상 자동 생성 → DB에서 최적 사진 자동 선택 후 LivePortrait 실행
+// { asset_id, message, selected_photo } 반환
+export async function generateMedia(petId) {
+  const res = await api.post(`/api/v1/media/generate/${petId}`);
   return res.data;
 }
 

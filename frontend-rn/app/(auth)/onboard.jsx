@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, ImageBackground } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -33,6 +33,7 @@ function Star({ top, left, size, delay }) {
 
 export default function Onboard() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // 상단 하늘 영역에 별 몇 개 (이미지 위 오버레이)
   const stars = useRef(
@@ -57,7 +58,7 @@ export default function Onboard() {
         ))}
 
         {/* 하단 시트 */}
-        <View style={s.sheet}>
+        <View style={[s.sheet, { paddingBottom: 36 + insets.bottom }]}>
           <View style={s.handle} />
           <View style={s.chip}>
             <Text style={s.chipTxt}>🌈 Rainbow Bridge</Text>
@@ -84,12 +85,12 @@ const s = StyleSheet.create({
   bg: { flex: 1 },
   safe: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: 'rgba(252,248,252,0.96)',
+    backgroundColor: 'rgba(248,242,255,0.84)',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 28,
     paddingTop: 16,
-    paddingBottom: 36,
+    paddingBottom: 36,  /* 기본값 — insets.bottom이 inline으로 덮어씀 */
     shadowColor: '#503C5A',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.22,

@@ -1,55 +1,34 @@
 import { useState, useRef, useEffect } from 'react';
-import { Text, StyleSheet, ScrollView, TouchableOpacity, Image, View } from 'react-native';
+import { Text, StyleSheet, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { uploadMedia, getMediaStatus } from '../../api/media';
+import { generateMedia, getMediaStatus } from '../../api/media';
 import { API_URL } from '../../api/axiosInstance';
 import { COLORS } from '../../constants/colors';
 
-const POLL_INTERVAL = 5000; // 5초 간격 폴링
-const POLL_MAX = 60; // 최대 ~5분 대기
+const POLL_INTERVAL = 5000;
+const POLL_MAX = 60;
 
 export default function MediaScreen() {
-  const [imageUri, setImageUri] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
   const pollRef = useRef(null);
 
-  // 화면 이탈 시 폴링 정리
   useEffect(() => () => clearTimeout(pollRef.current), []);
 
-  async function pickImage() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      setError('갤러리 접근 권한이 필요합니다.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
-      setVideoUrl(null);
-      setError('');
-    }
-  }
-
   async function handleGenerate() {
-    if (!imageUri) return;
     clearTimeout(pollRef.current);
     setLoading(true);
     setError('');
     setVideoUrl(null);
-    setStatusMsg('사진을 올리고 있어요...');
+    setStatusMsg('최적의 사진을 고르고 있어요...');
     try {
       const petId = await AsyncStorage.getItem('pet_id');
       if (!petId) {
@@ -57,34 +36,28 @@ export default function MediaScreen() {
         setLoading(false);
         return;
       }
-      const formData = new FormData();
-      const filename = imageUri.split('/').pop();
-      formData.append('file', { uri: imageUri, name: filename, type: 'image/jpeg' });
-      formData.append('pet_id', petId);
-      const { asset_id } = await uploadMedia(formData);
-      setStatusMsg('추모 영상을 만들고 있어요... (최대 1~2분)');
+      const { asset_id, selected_photo } = await generateMedia(petId);
+      setStatusMsg(`${selected_photo ? `"${selected_photo}" 사진으로 ` : ''}추모 영상을 만들고 있어요... (최대 1~2분)`);
       pollStatus(asset_id, 0);
     } catch {
-      setError('영상 생성에 실패했어요. 다시 시도해주세요.');
+      setError('영상 생성에 실패했어요. 사진을 먼저 등록했는지 확인해주세요.');
       setLoading(false);
     }
   }
 
-  // 영상 생성은 서버 백그라운드 작업 → done 될 때까지 폴링
   function pollStatus(assetId, attempt) {
     pollRef.current = setTimeout(async () => {
       try {
         const res = await getMediaStatus(assetId);
-        // 음성 합쳐진 voiced_url 우선, 없으면 무음 video_url. 상대경로 → 서버주소 붙임
         const url = res.voiced_url || res.video_url;
         if (res.status === 'done' && url) {
-          const fullUrl = `${API_URL}${url}`;
+          const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
           setVideoUrl(fullUrl);
           await AsyncStorage.setItem('pet_video_url', fullUrl);
           await AsyncStorage.setItem('pet_video_asset_id', assetId);
           setLoading(false);
         } else if (res.status === 'error') {
-          setError('영상 생성 중 문제가 생겼어요. 다른 사진으로 시도해보세요.');
+          setError('영상 생성 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.');
           setLoading(false);
         } else if (attempt >= POLL_MAX) {
           setError('영상 생성이 오래 걸리고 있어요. 잠시 후 다시 시도해주세요.');
@@ -101,63 +74,47 @@ export default function MediaScreen() {
 
   return (
     <LinearGradient colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']} locations={[0, 0.35, 0.6, 1]} style={styles.gradient}>
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>추모 영상 만들기</Text>
-        <Text style={styles.subtitle}>
-          사진으로 소중한 기억을 영상으로 담아드려요.
-        </Text>
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.title}>추모 영상 만들기</Text>
+          <Text style={styles.subtitle}>
+            등록된 사진 중 가장 잘 나온 사진으로{'\n'}소중한 기억을 영상으로 담아드려요.
+          </Text>
 
-        <Card style={styles.uploadCard}>
-          <TouchableOpacity onPress={pickImage} style={[styles.uploadArea, imageUri && styles.uploadAreaSelected]} activeOpacity={0.8}>
-            {imageUri ? (
-              <View style={styles.previewWrap}>
-                <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
-                <Text style={styles.uploadDone}>다시 선택하려면 탭하세요</Text>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.uploadIcon}>📷</Text>
-                <Text style={styles.uploadLabel}>사진 선택</Text>
-                <Text style={styles.uploadHint}>정면을 바라보는 또렷한 사진일수록 좋아요</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </Card>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {loading ? (
-          <LoadingSpinner message={statusMsg || '잠시만 기다려주세요...'} />
-        ) : (
-          <Button
-            onPress={handleGenerate}
-            disabled={!imageUri}
-            variant="primary"
-            style={styles.btn}
-          >
-            영상 생성하기
-          </Button>
-        )}
-
-        {videoUrl ? (
-          <Card style={styles.resultCard}>
-            <Text style={styles.resultTitle}>🎞️ 추모 영상이 준비됐어요</Text>
-            <Video
-              source={{ uri: videoUrl }}
-              style={styles.video}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              isLooping
-              shouldPlay
-            />
-            <Text style={styles.disclaimer}>
-              AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.
+          <View style={styles.infoCard}>
+            <Text style={styles.infoText}>
+              📸 사진 화면에서 사진을 먼저 등록해두면{'\n'}AI가 자동으로 가장 잘 나온 사진을 골라드려요.
             </Text>
-          </Card>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {loading ? (
+            <LoadingSpinner message={statusMsg || '잠시만 기다려주세요...'} />
+          ) : (
+            <Button onPress={handleGenerate} variant="primary" style={styles.btn}>
+              추모 영상 만들기
+            </Button>
+          )}
+
+          {videoUrl ? (
+            <Card style={styles.resultCard}>
+              <Text style={styles.resultTitle}>🎞️ 추모 영상이 준비됐어요</Text>
+              <Video
+                source={{ uri: videoUrl }}
+                style={styles.video}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                isLooping
+                shouldPlay
+              />
+              <Text style={styles.disclaimer}>
+                AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.
+              </Text>
+            </Card>
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -167,20 +124,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingVertical: 32 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 28 },
-  uploadCard: { marginBottom: 16 },
-  uploadArea: {
-    borderWidth: 2, borderColor: COLORS.secondary, borderStyle: 'dashed',
-    borderRadius: 14, paddingVertical: 36, alignItems: 'center', gap: 8,
-    backgroundColor: '#F5FBFA',
+  subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 22 },
+  infoCard: {
+    backgroundColor: '#F0EBF8', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#E0D5F0', marginBottom: 20,
   },
-  uploadAreaSelected: { paddingVertical: 16 },
-  uploadIcon: { fontSize: 40 },
-  uploadLabel: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  uploadHint: { fontSize: 13, color: COLORS.textSecondary },
-  uploadDone: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8 },
-  previewWrap: { width: '100%', alignItems: 'center', gap: 8 },
-  previewImage: { width: '100%', height: 220, borderRadius: 10 },
+  infoText: { fontSize: 13, color: '#6B5B8A', lineHeight: 20, textAlign: 'center' },
   error: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 12 },
   btn: { marginBottom: 16 },
   resultCard: { backgroundColor: '#F0F8F6', borderColor: COLORS.secondary, borderWidth: 1 },

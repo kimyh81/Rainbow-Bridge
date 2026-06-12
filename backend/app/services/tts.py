@@ -117,19 +117,21 @@ async def _qwen3_remote(data: TtsCreate, server_url: str) -> TtsResponse:
 
 async def _google_tts_fallback(data: TtsCreate) -> TtsResponse:
     """TTS_SERVER_URL 미설정 시 Google TTS → gTTS 폴백."""
-    from ai.tts import TtsTone, synthesize  # noqa: E402
-
+    filename = f"{data.pet_id}_{data.tone}_{abs(hash(data.text)) % 10_000_000}.mp3"
     try:
-        tone = TtsTone(data.tone)
-    except ValueError:
-        tone = TtsTone.NARRATION
+        from ai.tts import TtsTone, synthesize  # noqa: E402
 
-    filename = f"{data.pet_id}_{tone.value}_{abs(hash(data.text)) % 10_000_000}.mp3"
+        try:
+            tone = TtsTone(data.tone)
+        except ValueError:
+            tone = TtsTone.NARRATION
 
-    try:
+        filename = f"{data.pet_id}_{tone.value}_{abs(hash(data.text)) % 10_000_000}.mp3"
         result = await asyncio.to_thread(synthesize, data.text, tone, filename=filename)
-    except DefaultCredentialsError:
-        logger.warning("GCP 인증 없음 → gTTS 폴백 사용")
+    except (ImportError, DefaultCredentialsError):
+        logger.warning(
+            "Google TTS 불가(ImportError 또는 GCP 인증 없음) → gTTS 폴백 사용"
+        )
         result = await asyncio.to_thread(_gtts_fallback, data.text, filename)
 
     return TtsResponse(

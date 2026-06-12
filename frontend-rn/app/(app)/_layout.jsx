@@ -65,9 +65,9 @@ export default function AppLayout() {
       <Stack.Screen name="profile"       options={{ title: '프로필 등록', headerRight: () => <NavButtons showHome={false} /> }} />
       <Stack.Screen name="farewell"      options={{ title: '이별 안내' }} />
       <Stack.Screen name="funeral"       options={{ title: '장례 안내' }} />
-      <Stack.Screen name="mission"       options={{ title: '오늘의 미션' }} />
+      <Stack.Screen name="mission"       options={{ title: '오늘의 미션', headerShown: false }} />
       <Stack.Screen name="timeline"      options={{ title: '추모 타임라인' }} />
-      <Stack.Screen name="report"        options={{ title: '회복 리포트' }} />
+      <Stack.Screen name="report"        options={{ title: '회복 리포트', headerShown: false }} />
       <Stack.Screen name="emotion"       options={{ title: '감정 체크인' }} />
       <Stack.Screen name="message"       options={{ title: '추모 메시지', headerShown: false, contentStyle: { backgroundColor: '#241e32' } }} />
       <Stack.Screen name="tts"           options={{ title: 'TTS 음성' }} />

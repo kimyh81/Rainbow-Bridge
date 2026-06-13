@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { uploadMedia } from '../../api/media';
+import { uploadMedia, deleteMedia } from '../../api/media';
 import { COLORS } from '../../constants/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -94,13 +94,16 @@ export default function PhotosScreen() {
     setUploading(false);
   }
 
-  function confirmDelete(id) {
+  function confirmDelete(photo) {
     Alert.alert('사진 삭제', '이 사진을 삭제할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '삭제', style: 'destructive',
         onPress: async () => {
-          const updated = photos.filter(p => p.id !== id);
+          if (photo.asset_id) {
+            try { await deleteMedia(photo.asset_id); } catch {}
+          }
+          const updated = photos.filter(p => p.id !== photo.id);
           await persist(updated);
         },
       },
@@ -111,7 +114,7 @@ export default function PhotosScreen() {
     return (
       <TouchableOpacity
         style={[styles.cell, { width: CELL, height: CELL }]}
-        onLongPress={() => confirmDelete(item.id)}
+        onLongPress={() => confirmDelete(item)}
         activeOpacity={0.85}
         accessible
         accessibilityLabel={`사진 ${item.uploadedAt?.slice(0, 10) ?? ''}, 길게 눌러 삭제`}

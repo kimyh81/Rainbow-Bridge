@@ -145,7 +145,7 @@ export default function MemoriesScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.btn}
                 >
-                  <Text style={styles.btnText}>다음 — 감정 체크인</Text>
+                  <Text style={styles.btnText}>시작하기</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}

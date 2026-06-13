@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
-from pymongo import UpdateOne
 from datetime import datetime, timezone
 from typing import List
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from pymongo import UpdateOne
 
 from app.core.deps import get_current_user
 from app.db.mongodb import mongodb
@@ -12,7 +13,7 @@ router = APIRouter()
 
 class UsageStatItem(BaseModel):
     date: str
-    package: str
+    category: str
     minutes: int
     late_night_minutes: int
 
@@ -22,7 +23,7 @@ async def save_usage_stats(
     items: List[UsageStatItem],
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = str(current_user["_id"])
+    user_id = current_user["user_id"]
     operations = []
 
     for item in items:
@@ -31,14 +32,17 @@ async def save_usage_stats(
                 {
                     "userId": user_id,
                     "date": item.date,
-                    "package": item.package,
+                    "category": item.category,
                 },
                 {
                     "$set": {
                         "minutes": item.minutes,
                         "late_night_minutes": item.late_night_minutes,
+                        "updatedAt": datetime.now(timezone.utc),
+                    },
+                    "$setOnInsert": {
                         "createdAt": datetime.now(timezone.utc),
-                    }
+                    },
                 },
                 upsert=True,
             )

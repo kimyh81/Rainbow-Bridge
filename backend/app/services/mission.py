@@ -1,5 +1,7 @@
 import app.core.ai_path  # noqa: F401
-from datetime import datetime, timezone
+import asyncio
+import logging
+from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 
@@ -16,6 +18,12 @@ from app.db.mongodb import mongodb
 from app.db.redis_client import get_recent_emotions
 from app.schemas.mission import MissionResponse
 
+logger = logging.getLogger(__name__)
+
+# 슬라이드쇼 자동 생성 트리거 기준 (완료 미션 날 수)
+_SLIDESHOW_TRIGGER_DAYS = 2
+_SLIDESHOW_MISSION_TITLE = "추억 영상 만들기"
+
 
 def _collection():
     return mongodb.db["missions"]
@@ -27,6 +35,12 @@ async def get_missions(pet_id: str) -> list[MissionResponse]:
     async for doc in cursor:
         doc["id"] = str(doc.pop("_id"))
         results.append(MissionResponse(**doc))
+
+    # 슬라이드쇼 특별 미션 — 2일차 달성 시 자동 주입
+    slideshow_mission = await _get_or_create_slideshow_mission(pet_id)
+    if slideshow_mission and not any(m.id == slideshow_mission.id for m in results):
+        results.insert(0, slideshow_mission)
+
     return results
 
 
@@ -127,9 +141,94 @@ async def complete_mission(mission_id: str) -> MissionResponse | None:
     if not doc:
         return None
     doc["id"] = str(doc.pop("_id"))
-    return MissionResponse(**doc)
+    mission = MissionResponse(**doc)
+
+    # 2일차 달성 시 슬라이드쇼 자동 생성 트리거
+    completed_days = await get_mission_completed_days(mission.pet_id)
+    if completed_days >= _SLIDESHOW_TRIGGER_DAYS:
+        asyncio.create_task(_maybe_trigger_slideshow(mission.pet_id))
+
+    return mission
+
+
+async def _maybe_trigger_slideshow(pet_id: str) -> None:
+    """슬라이드쇼 미션이 아직 없을 때만 asset 생성 후 백그라운드 실행."""
+    from app.services.slideshow import run_slideshow
+
+    assets_col = mongodb.db["media_assets"]
+    existing = await assets_col.find_one(
+        {"pet_id": pet_id, "asset_type": "slideshow"},
+        {"_id": 1},
+    )
+    if existing:
+        return  # 이미 생성됨
+
+    now = datetime.now(timezone.utc)
+    result = await assets_col.insert_one(
+        {
+            "pet_id": pet_id,
+            "asset_type": "slideshow",
+            "status": "processing",
+            "slideshow_url": None,
+            "created_at": now,
+        }
+    )
+    asset_id = str(result.inserted_id)
+
+    asyncio.create_task(run_slideshow(pet_id, asset_id))
+    logger.info("슬라이드쇼 자동 생성 시작 pet_id=%s asset_id=%s", pet_id, asset_id)
+
+
+async def _get_or_create_slideshow_mission(pet_id: str) -> MissionResponse | None:
+    """슬라이드쇼 자산이 done 상태일 때 특별 미션 객체를 반환합니다."""
+    completed_days = await get_mission_completed_days(pet_id)
+    if completed_days < _SLIDESHOW_TRIGGER_DAYS:
+        return None
+
+    assets_col = mongodb.db["media_assets"]
+    asset = await assets_col.find_one(
+        {"pet_id": pet_id, "asset_type": "slideshow", "status": "done"},
+        {"_id": 1, "slideshow_url": 1, "created_at": 1},
+    )
+    if not asset:
+        return None
+
+    return MissionResponse(
+        id=f"slideshow_{pet_id}",
+        pet_id=pet_id,
+        title=_SLIDESHOW_MISSION_TITLE,
+        description="반려동물과의 추억 사진들로 만든 슬라이드쇼 영상입니다.",
+        category="추모",
+        completed=True,
+        created_at=asset.get("created_at", datetime.now(timezone.utc)),
+        completed_at=asset.get("created_at"),
+        video_url=asset.get("slideshow_url"),
+    )
 
 
 async def get_completed_mission_count(pet_id: str) -> int:
     """pet_id 기준 완료된 미션 누적 수 반환 (sticky 점수용)."""
     return await _collection().count_documents({"pet_id": pet_id, "completed": True})
+
+
+async def get_mission_completed_days(pet_id: str, days: int = 14) -> int:
+    """최근 N일 중 미션을 완료한 날 수 반환 (꾸준함 점수용)."""
+    since = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    since = since - timedelta(days=days - 1)
+
+    cursor = _collection().find(
+        {
+            "pet_id": pet_id,
+            "completed": True,
+            "completed_at": {"$gte": since},
+        },
+        {"completed_at": 1},
+    )
+    dates = set()
+    async for doc in cursor:
+        if doc.get("completed_at"):
+            dates.add(doc["completed_at"].date())
+    return len(dates)

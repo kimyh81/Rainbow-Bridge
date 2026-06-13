@@ -99,7 +99,7 @@ export default function LoginScreen() {
           {/* 상단 이미지 영역 */}
           <View style={styles.imageWrapper}>
             <Image
-              source={require('../../assets/마지막사진.jpeg')}
+              source={require('../../assets/last-photo.jpeg')}
               style={styles.mainImage}
             />
           </View>

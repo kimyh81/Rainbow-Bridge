@@ -12,7 +12,8 @@ class MissionResponse(BaseModel):
     rationale: Optional[str] = None
     completed: bool
     created_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: Optional[datetime] = None
+    video_url: Optional[str] = None  # 슬라이드쇼 등 자동 생성 영상 URL
 
 
 class MissionComplete(BaseModel):

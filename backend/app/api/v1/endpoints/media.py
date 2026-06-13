@@ -8,6 +8,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     UploadFile,
 )
 from fastapi.responses import FileResponse
@@ -15,8 +16,10 @@ from app.core.deps import get_current_user
 from app.schemas.media import MediaStatusResponse, MediaUploadResponse
 from app.services.media import (
     create_asset,
+    delete_asset,
     get_asset,
     run_liveportrait,
+    run_liveportrait_gif,
     run_perso,
     increment_play_count,
     select_best_pet_photo,
@@ -131,6 +134,7 @@ async def download_media(
 async def generate_memorial_video(
     pet_id: str,
     background_tasks: BackgroundTasks,
+    driving_type: str = Query("voiced", pattern="^(gif|voiced)$"),
     user: dict = Depends(get_current_user),
 ):
     """저장된 사진 중 LivePortrait 적합도 최고 사진을 자동 선택해 추모 영상 생성.
@@ -149,12 +153,16 @@ async def generate_memorial_video(
         )
 
     asset_id = await create_asset(pet_id, str(best_photo), user_id=user["user_id"])
-    background_tasks.add_task(run_liveportrait, asset_id, str(best_photo), pet_id)
+    if driving_type == "gif":
+        background_tasks.add_task(run_liveportrait_gif, asset_id, str(best_photo), True)
+    else:
+        background_tasks.add_task(run_liveportrait, asset_id, str(best_photo), pet_id)
 
     return {
         "asset_id": asset_id,
         "message": "추모 영상 생성이 시작됐습니다.",
         "selected_photo": best_photo.name,
+        "driving_type": driving_type,
     }
 
 
@@ -178,6 +186,14 @@ async def download_gif(asset_id: str, user: dict = Depends(get_current_user)):
         media_type="image/gif",
         filename=f"{asset_id}.gif",
     )
+
+
+@router.delete("/{asset_id}", status_code=204)
+async def delete_media(asset_id: str, user: dict = Depends(get_current_user)):
+    """사진 삭제 — MongoDB 문서 + 서버 파일 함께 제거."""
+    deleted = await delete_asset(asset_id, user_id=user["user_id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="asset을 찾을 수 없습니다.")
 
 
 @router.post("/{asset_id}/play", status_code=200)

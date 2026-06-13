@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, ImageBackground } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,6 +34,7 @@ function Star({ top, left, size, delay }) {
 export default function Onboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [agreed, setAgreed] = useState(false);
 
   // 상단 하늘 영역에 별 몇 개 (이미지 위 오버레이)
   const stars = useRef(
@@ -66,8 +67,16 @@ export default function Onboard() {
           <Text style={s.h1}>아이가 강아지별로{'\n'}이사를 준비하고 있어요</Text>
           <Text style={s.sub}>남은 시간을 함께 채우고,{'\n'}이별 후에도 곁에 있을게요.</Text>
 
-          <TouchableOpacity activeOpacity={0.85} style={s.btnShadow} onPress={() => router.push('/(auth)/register')}>
-            <LinearGradient colors={['#8A5CB0', '#B89ACA', '#C8A8D8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnMain}>
+          {/* 동의 체크박스 */}
+          <TouchableOpacity style={s.agreeRow} activeOpacity={0.7} onPress={() => setAgreed(v => !v)}>
+            <View style={[s.checkbox, agreed && s.checkboxOn]}>
+              {agreed && <Text style={s.checkmark}>✓</Text>}
+            </View>
+            <Text style={s.agreeTxt}>앱 사용 기록을 감정 회복 분석에 활용합니다</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity activeOpacity={agreed ? 0.85 : 1} style={[s.btnShadow, !agreed && s.btnDisabled]} onPress={() => agreed && router.push('/(auth)/register')}>
+            <LinearGradient colors={agreed ? ['#8A5CB0', '#B89ACA', '#C8A8D8'] : ['#C8BED8', '#D8CFE8', '#E0D8EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.btnMain}>
               <Text style={s.btnMainTxt}>시작하기</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -115,6 +124,17 @@ const s = StyleSheet.create({
   },
   btnMain: { paddingVertical: 15, borderRadius: 18, alignItems: 'center' },
   btnMainTxt: { color: '#fff', fontSize: 15, fontWeight: '500', letterSpacing: 0.3 },
+  agreeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 10 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 6,
+    borderWidth: 1.5, borderColor: 'rgba(138,92,176,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  checkboxOn: { backgroundColor: C.violet, borderColor: C.violet },
+  checkmark: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  agreeTxt: { flex: 1, fontSize: 12, color: C.inkM, lineHeight: 17 },
+  btnDisabled: { opacity: 0.6 },
   btnOut: { paddingVertical: 13, borderRadius: 18, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(138,92,176,0.25)' },
   btnOutTxt: { color: C.ink, fontSize: 14, fontWeight: '500' },
 });

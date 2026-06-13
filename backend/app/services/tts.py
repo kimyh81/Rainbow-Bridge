@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from google.auth.exceptions import DefaultCredentialsError
 
 from app.schemas.tts import TtsCreate, TtsResponse
+from app.db.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,8 @@ async def generate_tts(data: TtsCreate) -> TtsResponse:
     미설정 시 Google TTS → gTTS 순으로 폴백.
     TTS 완료 후 pet의 최신 무음 영상에 자동으로 음성을 합칩니다.
     """
-    tts_server_url = os.environ.get("TTS_SERVER_URL", "").strip()
+    dyn = await get_redis().get("tts:server_url")
+    tts_server_url = (dyn or os.environ.get("TTS_SERVER_URL", "")).strip()
 
     if tts_server_url:
         # 터널 끊김·타임아웃·5xx 등 remote 실패 시 500 대신 Google 폴백으로 자동 전환.
@@ -87,7 +89,12 @@ async def generate_tts(data: TtsCreate) -> TtsResponse:
 
 
 async def _qwen3_remote(data: TtsCreate, server_url: str) -> TtsResponse:
-    """Qwen3 GPU 서버 /synthesize 호출 (B안)."""
+    """Qwen3 GPU 서버 비동기 잡 호출 — 제출→폴링→결과 다운로드.
+
+    긴 메시지(70~210초 합성)가 단일 동기 호출의 60초 타임아웃을 넘겨 끊기던 문제를
+    LivePortrait 와 동일한 비동기 잡 패턴으로 해결. 각 HTTP 호출이 짧아 안전.
+    실패/타임아웃 시 httpx.HTTPError 를 올려 기존 Google 폴백 그대로 유지.
+    """
     voice = _map_tone_to_voice(data.tone)
     filename = f"{data.pet_id}_{voice}_{abs(hash(data.text)) % 10_000_000}.wav"
 
@@ -95,18 +102,35 @@ async def _qwen3_remote(data: TtsCreate, server_url: str) -> TtsResponse:
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / filename
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            f"{server_url.rstrip('/')}/synthesize",
+    base = server_url.rstrip("/")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # 1) 제출 → job_id 즉시 수신
+        submit = await client.post(
+            f"{base}/synthesize/async",
             json={"text": data.text, "voice": voice},
         )
-        resp.raise_for_status()
+        submit.raise_for_status()
+        job_id = submit.json()["job_id"]
 
-        # 응답 wav 파일 저장
-        out_path.write_bytes(resp.content)
+        # 2) 상태 폴링(3초 간격, 최대 ~360초) — 긴 메시지 합성시간 수용
+        for _ in range(120):
+            await asyncio.sleep(3)
+            st = await client.get(f"{base}/synthesize/status/{job_id}")
+            st.raise_for_status()
+            status = st.json()["status"]
+            if status == "done":
+                break
+            if status == "error":
+                raise httpx.HTTPError(f"원격 합성 실패: {st.json().get('error')}")
+        else:
+            raise httpx.HTTPError("원격 합성 타임아웃(360s 초과)")
 
-        duration = float(resp.headers.get("X-Audio-Duration", 0))
-        fmt = resp.headers.get("X-Audio-Format", "wav")
+        # 3) 결과 wav 다운로드
+        res = await client.get(f"{base}/synthesize/result/{job_id}")
+        res.raise_for_status()
+        out_path.write_bytes(res.content)
+        duration = float(res.headers.get("X-Audio-Duration", 0))
+        fmt = res.headers.get("X-Audio-Format", "wav")
 
     return TtsResponse(
         audio_url=f"/uploads/tts/{filename}",

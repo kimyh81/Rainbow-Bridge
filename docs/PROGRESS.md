@@ -2,7 +2,7 @@
 
 > 팀원이 자기 작업 상태를 직접 갱신하는 문서입니다.
 > 상태 바꾸면 `docs: 진행도 업데이트` 로 커밋해 주세요.
-> **최종 수정:** 2026-06-10 (정환주)
+> **최종 수정:** 2026-06-13 (모세종)
 
 ## 상태 표기
 - ⬜ 시작 전  |  🟡 진행 중  |  🔵 리뷰 중(PR)  |  ✅ 완료  |  ⛔ 막힘(blocked)
@@ -13,9 +13,9 @@
 
 | 영역 | 진행률 |
 |------|--------|
-| 공통 기반 | ✅ 6/8 |
+| 공통 기반 | ✅ 8/8 |
 | 프로토타입 8개 기능 | ✅ 8/8 |
-| 멀티모달(가산점) | 🟡 2/4 |
+| 멀티모달(가산점) | ✅ 4/4 |
 
 ---
 
@@ -26,11 +26,11 @@
 | 0-1 | Git 레포 생성 & 문서 정비 | 모세종 | ✅ | 문서 6종 + GitHub 푸시 완료 (06-01) |
 | 0-2 | FastAPI 프로젝트 뼈대 | 모세종 | ✅ | main.py/config/db/health (06-01) |
 | 0-3 | MongoDB 연결 + 실서버 | 김윤한·모세종 | ✅ | NCP Docker MongoDB 운영 중 (06-04) |
-| 0-4 | Docker / docker-compose | 김윤한 | ✅ | MongoDB+백엔드+Redis 통합 compose 완료 (06-05) |
+| 0-4 | Docker / docker-compose | 김윤한·모세종 | ✅ | healthcheck + restart:always, v2.27.0 (PR #251, 06-12) |
 | 0-5 | LLM 결정·세팅 | 반소람·정환주 | ✅ | Gemini 실연동 완료 (06-03) |
 | 0-6 | PERSO API 연동 테스트 | 장민수 | ✅ | 동물 립싱크 ❌ 구조적 불가 확인 → 드랍. LivePortrait로 대체 |
 | 0-7 | GPU 서버 셋업 (RTX 5060) | 정환주 | ✅ | LivePortrait·추론용 완료 |
-| 0-8 | 프론트 프레임워크 결정·세팅 | 민경이 | ✅ | React Native + Expo SDK 52 전환 완료 (06-08, `frontend-rn/`) |
+| 0-8 | 프론트 프레임워크 결정·세팅 | 민경이 | ✅ | React Native + Expo SDK 54 (PR #259, 06-13) |
 
 ---
 
@@ -59,9 +59,9 @@
 ### ④ 음성 톤 선택 + TTS 낭독
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| TTS 엔진 | 정환주 | 🟡 | **Qwen3 확정(2026-06-09)** — 추모 톤 진중함 최우수 + VoiceDesign instruct 튜닝. **NCP→GPU remote 실연동 성공**(wav 8.5초, ngrok 왕복 확인). 어린아이·감정 톤 튜닝 진행 중 |
-| API 연동 | 모세종·정환주 | ✅ | POST /tts → Qwen3 remote wav (+ TTS_SERVER_URL 미설정 시 Google 폴백). **E2E 음성재생 확인(06-10)** — 공개 도메인 `/uploads` 가 프론트 SPA로 잘못 라우팅돼 wav 대신 html 반환하던 것, 윤한님 nginx 수정 후 wav 정상 전달 검증 |
-| 화면 | 민경이 | ✅ | TtsPage 완성 |
+| TTS 엔진 | 정환주 | ✅ | Qwen3 확정, Cloudflare Tunnel 연동, 비동기 폴링 방식 (PR #260, 06-13) |
+| API 연동 | 모세종·정환주 | ✅ | POST /tts → Qwen3 remote wav (+ Google 폴백). E2E 음성재생 확인 (06-10) |
+| 화면 | 민경이 | ✅ | TtsPage 완성, audio_url null 크래시 수정 (PR #259) |
 
 ### ⑤ 일상 복귀 미션 추천
 | 파트 | 담당 | 상태 | 비고 |
@@ -87,7 +87,7 @@
 ### ⑧ 평가 리포트
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| 지표/집계 | 정환주 | ✅ | report.py 완성 + llm_logs 라이트 로깅 연결(message·mission 호출부, 06-08) → usage 실데이터화 |
+| 지표/집계 | 정환주 | ✅ | report.py 완성 + llm_logs 라이트 로깅 연결 (06-08) |
 | API | 모세종 | ✅ | build_report 실연결 완료 (llm_logs·emotions·missions DB 연동) |
 | 화면 | 민경이 | ✅ | ReportPage 완성 |
 
@@ -113,9 +113,9 @@
 | 사진 업로드 API | 모세종 | ✅ | POST /media/upload, GET /media/{asset_id} |
 | LivePortrait 파이프라인 | 장민수 | ✅ | animals 모드, driving_multiplier 0.4, TomCarper calm 드라이빙 영상, 동기화 상관계수 0.84 |
 | 영상+TTS 합치기(FFmpeg) | 장민수 | ✅ | merge_audio() — 영상 loop+음성 길이 맞춤, libx264/aac |
-| remote 추론(GPU 서버) | 장민수 | 🟡 | server.py + remote 모드(PR #95), 정환주 터널 연결 대기 |
+| remote 추론(GPU 서버) | 장민수 | ✅ | MP4 완료 후 GIF 백그라운드 생성, Cloudflare Tunnel 연결 (PR #250, 06-12) |
 | PERSO 립싱크(선택형) | 장민수 | ❌ | **드랍** — 동물 얼굴 감지 구조적 불가 (방법 2 실험 결과) |
-| 다운로드 제공 | 김윤한 | ✅ | GET /media/{asset_id}/download (기존 구현 확인) |
+| 다운로드 제공 | 김윤한 | ✅ | GET /media/{asset_id}/download |
 
 ---
 
@@ -125,10 +125,10 @@
 |------|------|------|------|
 | NCP 실서버 배포 | 모세종 | ✅ | Docker Compose 운영 중 (06-05) |
 | nginx 프론트 서빙 | 모세종 | ✅ | https://rainbow-bridge.duckdns.org |
-| systemd 자동 시작 | 모세종 | ✅ | Docker restart:unless-stopped 로 대체 |
+| systemd 자동 시작 | 모세종 | ✅ | Docker restart:always (PR #251, 06-12) |
 | GitHub Actions 자동 배포 | 모세종 | ✅ | dev 머지 시 NCP 자동 빌드·배포 |
 | HTTPS / 도메인 | 김윤한 | ✅ | DuckDNS + Let's Encrypt (rainbow-bridge.duckdns.org) |
-| Docker compose 통합 | 김윤한 | ✅ | MongoDB+백엔드+Redis 통합 완료 (06-05) |
+| Docker compose 통합 | 김윤한·모세종 | ✅ | healthcheck + depends_on condition:service_healthy (PR #251) |
 | Redis 캐시 | 모세종 | ✅ | 감정 체크인 최근 7회 캐시, 회복 분석 API (06-05) |
 
 ---

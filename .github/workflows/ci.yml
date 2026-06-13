@@ -28,6 +28,8 @@ jobs:
               - 'ai/**'
             frontend:
               - 'frontend/**'
+            frontend_rn:
+              - 'frontend-rn/**'
 
   # ── 백엔드 ───────────────────────────────────────────────────────
   # backend/** 변경 시에만 실행. 그 외 PR은 자동 skip → required 통과.

@@ -29,6 +29,9 @@ async def test_gate_unlocked_when_conditions_met():
     ), patch(
         "app.services.emotion.get_completed_mission_count",
         new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
+        new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_1")
 
@@ -44,6 +47,9 @@ async def test_gate_locked_when_checkins_too_few():
     ), patch(
         "app.services.emotion.get_completed_mission_count",
         new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
+        new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_2")
 
@@ -58,6 +64,9 @@ async def test_gate_locked_when_avg_score_low():
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch(
         "app.services.emotion.get_completed_mission_count",
+        new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
         new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_3")
@@ -77,6 +86,9 @@ async def test_gate_locked_when_crisis():
     ), patch(
         "app.services.emotion.get_completed_mission_count",
         new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
+        new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_4")
 
@@ -94,6 +106,9 @@ async def test_allow_first_person_only_when_no_risk():
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch(
         "app.services.emotion.get_completed_mission_count",
+        new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
         new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_first_person_1")
@@ -113,6 +128,9 @@ async def test_allow_first_person_when_all_safe():
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch(
         "app.services.emotion.get_completed_mission_count",
+        new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
         new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_first_person_2")
@@ -134,6 +152,9 @@ async def test_gate_locked_when_worsening_trend():
     ), patch(
         "app.services.emotion.get_completed_mission_count",
         new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
+        new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_5")
 
@@ -147,6 +168,9 @@ async def test_gate_no_data():
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=[])
     ), patch(
         "app.services.emotion.get_completed_mission_count",
+        new=AsyncMock(return_value=0),
+    ), patch(
+        "app.services.emotion.get_mission_completed_days",
         new=AsyncMock(return_value=0),
     ):
         result = await get_recovery("pet_test_empty")

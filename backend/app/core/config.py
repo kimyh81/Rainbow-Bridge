@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     TTS_API_KEY: str = ""
 
     # LivePortrait
-    LIVEPORTRAIT_MODE: str = "local"
+    LIVEPORTRAIT_MODE: str = "local"  # "local" | "remote"
+    LIVEPORTRAIT_API_URL: str = ""  # remote 모드 시 GPU 서버 URL
     REPLICATE_API_TOKEN: str = ""
 
     # Redis

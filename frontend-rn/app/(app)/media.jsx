@@ -49,7 +49,7 @@ export default function MediaScreen() {
     pollRef.current = setTimeout(async () => {
       try {
         const res = await getMediaStatus(assetId);
-        const url = res.voiced_url || res.video_url;
+        const url = res.video_url;
         if (res.status === 'done' && url) {
           const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
           setVideoUrl(fullUrl);

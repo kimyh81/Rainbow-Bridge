@@ -10,6 +10,7 @@ import requests
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from app.core.config import settings
 from app.db.mongodb import mongodb
 
 logger = logging.getLogger(__name__)
@@ -87,8 +88,57 @@ async def trigger_liveportrait_for_pet(pet_id: str) -> None:
         logger.warning("1인칭 LP 트리거 실패 pet_id=%s", pet_id, exc_info=True)
 
 
-async def run_liveportrait_gif(asset_id: str, source_path: str):
-    """백그라운드에서 GIF 생성 (d9 잔잔한 드라이빙). 실패 시 status=error."""
+def _remote_generate_gif(source_path: str, output_dir: Path) -> Path:
+    """GPU 서버 /generate/gif/async → 폴링 → 결과 저장."""
+    api = settings.LIVEPORTRAIT_API_URL.rstrip("/")
+    if not api:
+        raise ValueError(
+            "LIVEPORTRAIT_API_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
+        )
+
+    with open(source_path, "rb") as f:
+        resp = requests.post(
+            f"{api}/generate/gif/async", files={"source": f}, timeout=30
+        )
+    resp.raise_for_status()
+    job_id = resp.json()["job_id"]
+
+    for _ in range(72):  # 최대 6분 폴링
+        time.sleep(5)
+        st = requests.get(f"{api}/generate/gif/status/{job_id}", timeout=10)
+        if st.json().get("status") == "done":
+            break
+
+    result = requests.get(f"{api}/generate/gif/result/{job_id}", timeout=30)
+    result.raise_for_status()
+    out_path = output_dir / f"{Path(source_path).stem}_remote.gif"
+    out_path.write_bytes(result.content)
+    return out_path
+
+
+def _remote_generate_video(source_path: str, output_dir: Path) -> Path:
+    """GPU 서버 /generate → MP4 다운로드."""
+    api = settings.LIVEPORTRAIT_API_URL.rstrip("/")
+    if not api:
+        raise ValueError(
+            "LIVEPORTRAIT_API_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
+        )
+    with open(source_path, "rb") as f:
+        resp = requests.post(f"{api}/generate", files={"source": f}, timeout=120)
+    resp.raise_for_status()
+    out_path = output_dir / f"{Path(source_path).stem}_remote.mp4"
+    out_path.write_bytes(resp.content)
+    return out_path
+
+
+async def run_liveportrait_gif(
+    asset_id: str, source_path: str, set_status: bool = False
+):
+    """백그라운드에서 GIF 생성 (d9 잔잔한 드라이빙).
+
+    set_status=True: driving_type=gif 직접 호출 시 status를 done/error로 갱신.
+    set_status=False: voiced 완료 후 보조 생성 시 status 건드리지 않음.
+    """
     try:
         _VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -98,16 +148,31 @@ async def run_liveportrait_gif(asset_id: str, source_path: str):
         if repo_root not in sys.path:
             sys.path.insert(0, repo_root)
 
-        from ai.liveportrait.pipeline import generate_gif
+        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_API_URL:
+            gif_path = await asyncio.to_thread(
+                _remote_generate_gif, source_path, _VIDEO_DIR
+            )
+        else:
+            from ai.liveportrait.pipeline import generate_gif
 
-        gif_path = await asyncio.to_thread(generate_gif, source_path, str(_VIDEO_DIR))
+            gif_path = await asyncio.to_thread(
+                generate_gif, source_path, str(_VIDEO_DIR)
+            )
 
+        update: dict = {"gif_url": f"/uploads/videos/{gif_path.name}"}
+        if set_status:
+            update["status"] = "done"
         await _collection().update_one(
             {"_id": ObjectId(asset_id)},
-            {"$set": {"gif_url": f"/uploads/videos/{gif_path.name}"}},
+            {"$set": update},
         )
     except Exception:
         logger.exception("GIF 생성 실패 asset_id=%s", asset_id)
+        if set_status:
+            await _collection().update_one(
+                {"_id": ObjectId(asset_id)},
+                {"$set": {"status": "error"}},
+            )
 
 
 async def run_liveportrait(asset_id: str, source_path: str, pet_id: str = ""):
@@ -121,12 +186,18 @@ async def run_liveportrait(asset_id: str, source_path: str, pet_id: str = ""):
         if repo_root not in sys.path:
             sys.path.insert(0, repo_root)
 
-        from ai.liveportrait.pipeline import generate_video, merge_audio
+        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_API_URL:
+            video_path = await asyncio.to_thread(
+                _remote_generate_video, source_path, _VIDEO_DIR
+            )
+        else:
+            from ai.liveportrait.pipeline import generate_video
 
-        # 1. LivePortrait 무음 영상 생성
-        video_path = await asyncio.to_thread(
-            generate_video, source_path, output_dir=str(_VIDEO_DIR)
-        )
+            video_path = await asyncio.to_thread(
+                generate_video, source_path, output_dir=str(_VIDEO_DIR)
+            )
+
+        from ai.liveportrait.pipeline import merge_audio
 
         # 2. TTS 음성 있으면 합치기 (pet_id를 인수로 받아 DB 재조회 불필요)
         if not pet_id:
@@ -315,6 +386,22 @@ async def select_best_pet_photo(pet_id: str) -> Path | None:
     from ai.liveportrait.photo_selector import pick_best
 
     return pick_best(paths)
+
+
+async def delete_asset(asset_id: str, user_id: int) -> bool:
+    """사진 asset 삭제 — MongoDB 문서 + 서버 물리 파일 함께 제거."""
+    oid = _to_object_id(asset_id)
+    if oid is None:
+        return False
+    doc = await _collection().find_one({"_id": oid, "user_id": user_id})
+    if not doc:
+        return False
+    source_url = doc.get("source_url")
+    if source_url:
+        source_path = Path(source_url.lstrip("/"))
+        source_path.unlink(missing_ok=True)
+    await _collection().delete_one({"_id": oid})
+    return True
 
 
 async def increment_play_count(asset_id: str) -> None:

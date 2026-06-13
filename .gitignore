@@ -5,6 +5,8 @@
 *.key
 *.pem
 secrets/
+*-service-account*.json
+*-498400-*.json
 
 # ===== Python (backend, ai) =====
 __pycache__/

@@ -26,3 +26,8 @@ export async function recordPlay(assetId) {
   const res = await api.post(`/api/v1/media/${assetId}/play`);
   return res.data;
 }
+
+// 사진 삭제 — 서버 파일 + DB 문서 함께 제거
+export async function deleteMedia(assetId) {
+  await api.delete(`/api/v1/media/${assetId}`);
+}

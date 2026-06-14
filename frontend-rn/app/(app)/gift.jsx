@@ -4,8 +4,6 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { fetchRecoveryGate } from '@/utils/recovery';
 import { iga } from '@/utils/josa';
 
@@ -70,6 +68,16 @@ export default function GiftScreen() {
   const canPackage = hasLetter || hasVideo;
 
   // ── 추억 패키지 내보내기 ──
+  // expo-file-system·expo-sharing은 네이티브 모듈이라 새 빌드에만 존재.
+  // OTA 빌드에서 최상단 import하면 로드 시점에 크래시 → 함수 안에서 지연 로딩.
+  function loadFileModules() {
+    // 네이티브 모듈 미존재 시 require 단계에서 throw → 호출부 try/catch가 처리
+    return {
+      FileSystem: require('expo-file-system/legacy'),
+      Sharing: require('expo-sharing'),
+    };
+  }
+
   async function exportLetter() {
     const content = await AsyncStorage.getItem('message_content');
     if (!content) {
@@ -77,6 +85,7 @@ export default function GiftScreen() {
       return;
     }
     try {
+      const { FileSystem, Sharing } = loadFileModules();
       const safeName = (petName || '추모').replace(/[\\/:*?"<>|]/g, '');
       const fileUri = `${FileSystem.documentDirectory}${safeName}_추모편지.txt`;
       await FileSystem.writeAsStringAsync(fileUri, content, {
@@ -86,7 +95,7 @@ export default function GiftScreen() {
         await Sharing.shareAsync(fileUri, { mimeType: 'text/plain', dialogTitle: '추모 편지 저장' });
       }
     } catch {
-      Alert.alert('저장 실패', '편지를 저장하는 중 문제가 생겼어요.');
+      Alert.alert('저장 기능 준비 중', '추억 패키지 저장은 다음 앱 업데이트(새 빌드)부터 쓸 수 있어요.');
     }
   }
 
@@ -97,6 +106,7 @@ export default function GiftScreen() {
       return;
     }
     try {
+      const { FileSystem, Sharing } = loadFileModules();
       const safeName = (petName || '추모').replace(/[\\/:*?"<>|]/g, '');
       const fileUri = `${FileSystem.documentDirectory}${safeName}_추모영상.mp4`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
@@ -104,7 +114,7 @@ export default function GiftScreen() {
         await Sharing.shareAsync(uri, { mimeType: 'video/mp4', dialogTitle: '추모 영상 저장' });
       }
     } catch {
-      Alert.alert('저장 실패', '영상을 저장하는 중 문제가 생겼어요.');
+      Alert.alert('저장 기능 준비 중', '추억 패키지 저장은 다음 앱 업데이트(새 빌드)부터 쓸 수 있어요.');
     }
   }
 

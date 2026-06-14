@@ -1,7 +1,7 @@
 import api from './axiosInstance';
 
-export async function generateMessage({ pet_id }) {
-  const res = await api.post('/api/v1/messages', { pet_id });
+export async function generateMessage({ pet_id, request_first_person = false }) {
+  const res = await api.post('/api/v1/messages', { pet_id, request_first_person });
   return res.data;
 }
 

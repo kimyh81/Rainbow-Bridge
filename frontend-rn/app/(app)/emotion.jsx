@@ -7,10 +7,10 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import SafetyModal from '../../components/SafetyModal';
-import Button from '../../components/Button';
-import { postEmotion } from '../../api/emotions';
-import { COLORS } from '../../constants/colors';
+import SafetyModal from '@/components/SafetyModal';
+import Button from '@/components/Button';
+import { postEmotion } from '@/api/emotions';
+import { COLORS } from '@/constants/colors';
 
 const MOODS = [
   { emoji: '😊', label: '괜찮아요',      score: 9 },

@@ -6,11 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Polyline, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Card from '../../components/Card';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { getReport } from '../../api/report';
-import { mockReport } from '../../api/mock';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { getReport } from '@/api/report';
+import { mockReport } from '@/api/mock';
+import { COLORS } from '@/constants/colors';
 import { doLogout } from './_layout';
 
 const CHART_W = Dimensions.get('window').width - 80;
@@ -130,9 +130,6 @@ export default function ReportScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>회복 리포트</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => router.replace('/(app)/home')} style={styles.headerBtn} activeOpacity={0.7}>
-            <Text style={styles.headerHome}>홈</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={doLogout} style={styles.headerBtn} activeOpacity={0.7}>
             <Text style={styles.headerLogout}>로그아웃</Text>
           </TouchableOpacity>

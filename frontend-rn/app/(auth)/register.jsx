@@ -7,7 +7,7 @@ import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { register } from '../../api/auth';
+import { register } from '@/api/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();

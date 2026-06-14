@@ -1,7 +1,7 @@
 import { Stack, router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS } from '../../constants/colors';
+import { COLORS } from '@/constants/colors';
 
 export async function doLogout() {
   try {
@@ -58,7 +58,7 @@ export default function AppLayout() {
         headerShadowVisible: false,
         headerBackTitle: '',
         contentStyle: { backgroundColor: COLORS.background },
-        headerRight: () => <NavButtons />,
+        headerRight: () => <NavButtons showHome={false} />,
       }}
     >
       <Stack.Screen name="home"          options={{ title: '홈', headerRight: () => <NavButtons showHome={false} /> }} />

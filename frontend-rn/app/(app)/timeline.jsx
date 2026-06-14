@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Card from '../../components/Card';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { getTimeline } from '../../api/timeline';
-import { mockTimeline } from '../../api/mock';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { getTimeline } from '@/api/timeline';
+import { mockTimeline } from '@/api/mock';
+import { COLORS } from '@/constants/colors';
 
 const TYPE_META = {
   emotion: { emoji: '💭', label: '감정 기록' },

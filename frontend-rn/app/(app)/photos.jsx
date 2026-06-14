@@ -7,8 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { uploadMedia, deleteMedia } from '../../api/media';
-import { COLORS } from '../../constants/colors';
+import { uploadMedia, deleteMedia } from '@/api/media';
+import { COLORS } from '@/constants/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 // 좌우 패딩 40 + 셀 사이 간격 8(4*2) = 48
@@ -92,6 +92,14 @@ export default function PhotosScreen() {
     );
     await persist(final);
     setUploading(false);
+
+    const failCount = uploadResults.filter((r) => r.status === 'rejected').length;
+    if (failCount > 0) {
+      Alert.alert(
+        '업로드 실패',
+        `${failCount}장 업로드에 실패했어요.\n서버 연결 상태를 확인하고 다시 시도해주세요.`
+      );
+    }
   }
 
   function confirmDelete(photo) {
@@ -247,14 +255,15 @@ const styles = StyleSheet.create({
 
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#C4A8D8',
+    backgroundColor: '#E8DFF5',
     borderRadius: 14, paddingVertical: 14,
     marginBottom: 16,
-    shadowColor: '#C4A8D8', shadowOffset: { width: 0, height: 4 },
+    borderWidth: 3, borderColor: '#FFFFFF',
+    shadowColor: '#E8DFF5', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
-  addBtnPlus: { fontSize: 22, color: '#fff', fontWeight: '700' },
-  addBtnText: { fontSize: 15, color: '#fff', fontWeight: '700' },
+  addBtnPlus: { fontSize: 22, color: '#333333', fontWeight: '700' },
+  addBtnText: { fontSize: 15, color: '#333333', fontWeight: '700' },
 
   grid: { marginBottom: 4 },
   gridRow: { gap: 4, marginBottom: 4 },

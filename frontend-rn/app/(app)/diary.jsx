@@ -249,7 +249,7 @@ export default function DiaryScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity onPress={saveEntry} activeOpacity={0.8} style={styles.saveBtnWrap}>
                   <LinearGradient
-                    colors={['#DDEDEA', '#DAEAF6']}
+                    colors={['#E8DFF5', '#FCE1E4']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={styles.saveBtn}
                   >
@@ -261,7 +261,7 @@ export default function DiaryScreen() {
           ) : (
             <TouchableOpacity style={styles.newEntryBtn} onPress={openNew} activeOpacity={0.8}>
               <LinearGradient
-                colors={['#DDEDEA', '#DAEAF6']}
+                colors={['#E8DFF5', '#FCE1E4']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={styles.newEntryGrad}
               >
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     shadowColor: '#DAEAF6', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4, shadowRadius: 10, elevation: 3, marginBottom: 24,
   },
-  newEntryGrad: { height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  newEntryGrad: { height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#D4C5F0' },
   newEntryText: { color: '#5B4E75', fontSize: 15, fontWeight: '700' },
 
   // 일기 목록

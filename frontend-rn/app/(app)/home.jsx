@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { fetchRecoveryGate } from '../../utils/recovery';
+import { fetchRecoveryGate } from '@/utils/recovery';
 
 // ── 큰 카드 (메인 기능) ──────────────────────────
 function BigCard({ emoji, title, desc, route, gradient, badge, disabled }) {
@@ -76,21 +76,29 @@ function SurvivalHome({ onFarewellPress }) {
         title="버킷리스트"
         desc="함께 하고 싶은 것들을 체크해요"
         route="/(app)/bucketlist"
-        gradient={['#FDEEF4', '#F5E6FA']}
+        gradient={['#F0EAFA', '#E8DFF5']}
       />
       <BigCard
         emoji="📔"
         title="일기 & 추억 메모"
         desc="함께한 소중한 하루하루를 기록해요"
         route="/(app)/diary"
-        gradient={['#EDF5FF', '#E8F0FA']}
+        gradient={['#FDEEF4', '#F5E6FA']}
       />
-
-      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
-      <View style={styles.subRow}>
-        <SmallCard emoji="📸" title="사진 기록" route="/(app)/photos" />
-        <SmallCard emoji="🩺" title="증상 안내" route="/(app)/symptoms" />
-      </View>
+      <BigCard
+        emoji="📸"
+        title="사진 기록"
+        desc="소중한 순간들을 사진으로 남겨요"
+        route="/(app)/photos"
+        gradient={['#FEF3F7', '#FDEAF0']}
+      />
+      <BigCard
+        emoji="🩺"
+        title="증상 안내"
+        desc="반려동물 증상을 확인해요"
+        route="/(app)/symptoms"
+        gradient={['#FFF8FA', '#FFF3F6']}
+      />
 
       <TouchableOpacity
         style={styles.farewellBtn}

@@ -1,5 +1,5 @@
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { COLORS } from '@/constants/colors';
 
 export default function LoadingSpinner({ message }) {
   return (

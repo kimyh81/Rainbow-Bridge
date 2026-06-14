@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Card from '../../components/Card';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { getFunerals } from '../../api/funerals';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { getFunerals } from '@/api/funerals';
+import { COLORS } from '@/constants/colors';
 
 const FAQ = [
   {

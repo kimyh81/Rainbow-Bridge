@@ -8,8 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Card from '../../components/Card';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import { COLORS } from '@/constants/colors';
 
 const SPECIES = ['강아지', '고양이', '기타'];
 const GENDER = ['남아', '여아'];
@@ -236,7 +236,7 @@ export default function ProfileScreen() {
               disabled={loading}
             >
               <LinearGradient
-                colors={['#DDEDEA', '#DAEAF6']}
+                colors={['#E8DFF5', '#FCE1E4']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btn}

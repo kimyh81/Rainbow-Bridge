@@ -5,13 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { generateTts } from '../../api/tts';
-import { logPlay } from '../../api/playLogs';
-import { COLORS } from '../../constants/colors';
-import { fetchRecoveryGate } from '../../utils/recovery';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { generateTts } from '@/api/tts';
+import { logPlay } from '@/api/playLogs';
+import { COLORS } from '@/constants/colors';
+import { fetchRecoveryGate } from '@/utils/recovery';
 
 const TONES = [
   { value: 'female', label: '여자 목소리', emoji: '🌸' },

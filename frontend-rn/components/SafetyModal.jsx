@@ -1,5 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { COLORS } from '@/constants/colors';
 
 // 1393 위기상담 모달 — 번호 절대 변경 금지
 export default function SafetyModal({ isOpen, onClose }) {

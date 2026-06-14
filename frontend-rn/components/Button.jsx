@@ -1,5 +1,5 @@
 import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { COLORS } from '@/constants/colors';
 
 // variant: 'primary' | 'secondary' | 'ghost' | 'danger'
 export default function Button({ children, onPress, variant = 'primary', disabled = false, loading = false, style }) {

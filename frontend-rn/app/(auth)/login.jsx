@@ -7,8 +7,8 @@ import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { login } from '../../api/auth';
-import { getMyPets } from '../../api/pets';
+import { login } from '@/api/auth';
+import { getMyPets } from '@/api/pets';
 
 export default function LoginScreen() {
   const router = useRouter();

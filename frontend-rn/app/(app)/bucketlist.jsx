@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView, Keyboard, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
+import { COLORS } from '@/constants/colors';
 
 const STORAGE_KEY = 'bucketlist_items';
 const PLACEHOLDERS = ['예) 함께 산책하기', '예) 좋아하는 간식 먹기', '예) 사진 찍기'];
@@ -17,9 +17,21 @@ export default function BucketlistScreen() {
   const [items, setItems] = useState([]);
   const [newText, setNewText] = useState('');
   const [petName, setPetName] = useState('소중한 친구');
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => setKbHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   async function load() {
@@ -64,11 +76,7 @@ export default function BucketlistScreen() {
       locations={[0, 0.35, 0.6, 1]}
       style={styles.gradient}
     >
-      <SafeAreaView style={styles.safe}>
-        <KeyboardAvoidingView
-          behavior="padding"
-          style={{ flex: 1 }}
-        >
+        <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.scroll}
@@ -96,40 +104,42 @@ export default function BucketlistScreen() {
               />
             </View>
 
-            {/* 항목 목록 */}
-            <View style={styles.listWrap}>
-              {items.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.75}
-                  onPress={() => toggle(item.id)}
-                  style={[styles.item, item.checked && styles.itemDone]}
-                >
-                  <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-                    {item.checked && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={[styles.itemText, item.checked && styles.itemTextDone]}>
-                    {item.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {items.length === 0 && (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyIcon}>📋</Text>
-                <Text style={styles.emptyText}>아래 입력창에 함께 하고 싶은 것들을 적어보세요.</Text>
-                <Text style={styles.emptyHint}>예) 함께 산책하기 · 좋아하는 간식 먹기 · 사진 찍기</Text>
+            {/* 항목 목록 + 빈 상태 — 베이지 박스 */}
+            <View style={styles.contentBox}>
+              <View style={styles.listWrap}>
+                {items.map(item => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.75}
+                    onPress={() => toggle(item.id)}
+                    style={[styles.item, item.checked && styles.itemDone]}
+                  >
+                    <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
+                      {item.checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={[styles.itemText, item.checked && styles.itemTextDone]}>
+                      {item.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
 
-            {doneCount === items.length && items.length > 0 && (
-              <Text style={styles.allDone}>🎉 모든 항목을 완료했어요!</Text>
-            )}
+              {items.length === 0 && (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyIcon}>📋</Text>
+                  <Text style={styles.emptyText}>아래 입력창에 함께 하고 싶은 것들을 적어보세요.</Text>
+                  <Text style={styles.emptyHint}>예) 함께 산책하기 · 좋아하는 간식 먹기 · 사진 찍기</Text>
+                </View>
+              )}
+
+              {doneCount === items.length && items.length > 0 && (
+                <Text style={styles.allDone}>🎉 모든 항목을 완료했어요!</Text>
+              )}
+            </View>
           </ScrollView>
 
-          {/* 입력창: ScrollView 밖, 키보드 위에 고정 */}
-          <View style={styles.addRow}>
+          {/* 입력창: ScrollView 밖, 키보드 높이만큼 위로 밀어올림 */}
+          <View style={[styles.addRow, { marginBottom: kbHeight }]}>
             <TextInput
               style={styles.addInput}
               value={newText}
@@ -142,7 +152,7 @@ export default function BucketlistScreen() {
             />
             <TouchableOpacity style={styles.addBtn} onPress={addItem} activeOpacity={0.8}>
               <LinearGradient
-                colors={['#DDEDEA', '#DAEAF6']}
+                colors={['#EDE5FA', '#E2D5F5']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.addBtnGrad}
@@ -151,8 +161,7 @@ export default function BucketlistScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -194,7 +203,16 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', backgroundColor: '#C4A8D8', borderRadius: 3 },
 
-  listWrap: { gap: 10, marginBottom: 20 },
+  contentBox: {
+    backgroundColor: '#FAF5EF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    minHeight: 200,
+    borderWidth: 1,
+    borderColor: '#EDE8DF',
+  },
+  listWrap: { gap: 10, marginBottom: 8 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',

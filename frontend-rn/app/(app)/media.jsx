@@ -4,12 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { generateMedia, getMediaStatus } from '../../api/media';
-import { API_URL } from '../../api/axiosInstance';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { generateMedia, getMediaStatus } from '@/api/media';
+import { API_URL } from '@/api/axiosInstance';
+import { COLORS } from '@/constants/colors';
 
 const POLL_INTERVAL = 5000;
 const POLL_MAX = 60;

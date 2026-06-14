@@ -4,12 +4,12 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { getMissions, completeMission } from '../../api/missions';
-import { mockMissions } from '../../api/mock';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { getMissions, completeMission } from '@/api/missions';
+import { mockMissions } from '@/api/mock';
+import { COLORS } from '@/constants/colors';
 import { doLogout } from './_layout';
 
 const COMPLETED_KEY = 'mission_completed_ids';
@@ -97,9 +97,6 @@ export default function MissionScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>오늘의 미션</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => router.replace('/(app)/home')} style={styles.headerBtn} activeOpacity={0.7}>
-            <Text style={styles.headerHome}>홈</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={doLogout} style={styles.headerBtn} activeOpacity={0.7}>
             <Text style={styles.headerLogout}>로그아웃</Text>
           </TouchableOpacity>

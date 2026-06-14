@@ -4,9 +4,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import { COLORS } from '@/constants/colors';
 
 const RECORD_TYPES = ['투약', '검진', '수술', '예방접종', '기타'];
 

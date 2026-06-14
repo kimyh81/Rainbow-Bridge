@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Card from '../../components/Card';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { getHospitals } from '../../api/hospitals';
-import { COLORS } from '../../constants/colors';
+import Card from '@/components/Card';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { getHospitals } from '@/api/hospitals';
+import { COLORS } from '@/constants/colors';
 
 const BASIC_INFO = [
   { icon: '🐾', title: '구토·설사', desc: '물을 충분히 공급하고, 12시간 이상 지속되면 내원해 주세요.' },

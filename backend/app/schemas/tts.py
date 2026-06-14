@@ -8,6 +8,7 @@ class TtsCreate(BaseModel):
         description="음성 톤 (female·male·narration / 구버전: warm·calm·hopeful)",
     )
     pet_id: str = Field(..., description="반려동물 ID (로그용)")
+    species: str = Field("강아지", description="반려동물 종 (강아지·고양이·기타)")
 
 
 class TtsResponse(BaseModel):

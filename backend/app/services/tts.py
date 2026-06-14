@@ -274,7 +274,7 @@ async def _wavespeed_tts(data: TtsCreate, api_key: str) -> TtsResponse:
         poll_url = resp_data["urls"]["get"]
 
         # 2) 폴링 (3초 간격, 최대 5분)
-        for _ in range(100):
+        for _ in range(120):
             await asyncio.sleep(3)
             status_res = await client.get(poll_url, headers=headers)
             status_res.raise_for_status()

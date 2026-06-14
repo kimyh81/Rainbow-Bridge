@@ -10,6 +10,65 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { fetchRecoveryGate } from '@/utils/recovery';
 import { iga } from '@/utils/josa';
 
+// ── 회복 여정 선물 로드맵 노드 ──────────────────────
+function JourneyNode({ emoji, label, done }) {
+  return (
+    <View style={styles.journeyNode}>
+      <View style={[styles.journeyCircle, done && styles.journeyCircleDone]}>
+        <Text style={[styles.journeyEmoji, !done && styles.journeyEmojiDim]}>{emoji}</Text>
+      </View>
+      <Text numberOfLines={1} style={[styles.journeyLabel, done && styles.journeyLabelDone]}>{label}</Text>
+    </View>
+  );
+}
+
+// ── 회복 여정 선물 카드 (추모 편지 자리) ─────────────
+function GiftJourneyCard({ gateStatus, hasVideo, hasLetter }) {
+  const letterReady = gateStatus === 'open';
+  const steps = [
+    { emoji: '🎞️', label: 'GIF', done: hasVideo },
+    { emoji: '✉️', label: '위로 편지', done: letterReady },
+    { emoji: '🌠', label: '별에서 온 편지', done: letterReady },
+    { emoji: '📦', label: '패키지', done: hasVideo || hasLetter },
+  ];
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.journeyCard, pressed && { opacity: 0.9 }]}
+      onPress={() => router.push('/(app)/gift')}
+    >
+      <LinearGradient
+        colors={['#EDFAF3', '#F0EAFA']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.journeyGrad}
+      >
+        <View style={styles.journeyHead}>
+          <Text style={styles.journeyTitle}>🎁 회복 여정 선물</Text>
+          <Text style={styles.journeySub}>천천히 걸으면 하나씩 도착해요</Text>
+        </View>
+
+        {/* 로드맵 레일 */}
+        <View style={styles.journeyRail}>
+          {steps.reduce((acc, s, i) => {
+            if (i > 0) {
+              acc.push(
+                <View key={`c${i}`} style={[styles.journeyConn, s.done && styles.journeyConnDone]} />
+              );
+            }
+            acc.push(<JourneyNode key={`n${i}`} {...s} />);
+            return acc;
+          }, [])}
+        </View>
+
+        <View style={styles.journeyBtn}>
+          <Text style={styles.journeyBtnText}>자세히 보기 ›</Text>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
 // ── 큰 카드 (메인 기능) ──────────────────────────
 function BigCard({ emoji, title, desc, route, gradient, badge, disabled }) {
   return (
@@ -113,18 +172,7 @@ function SurvivalHome({ onFarewellPress }) {
 }
 
 // ── 이별 후 모드 홈 ───────────────────────────────
-function MemorialHome({ gateStatus }) {
-  const letterEmoji =
-    gateStatus === 'open' ? '💌' : gateStatus === 'teaser' ? '🔓' : '🔒';
-  const letterDesc =
-    gateStatus === 'open'
-      ? '소중한 추억으로 만드는 AI 추모 편지'
-      : gateStatus === 'teaser'
-      ? '조금 더 회복하면 편지가 열려요'
-      : '아직 편지를 열기엔 이른 시간이에요';
-  const letterBadge =
-    gateStatus === 'teaser' ? '회복 중' : gateStatus === 'locked' ? '잠김' : null;
-
+function MemorialHome({ gateStatus, hasVideo, hasLetter }) {
   return (
     <>
       <Text style={styles.sectionTitle}>오늘을 함께해요</Text>
@@ -142,18 +190,10 @@ function MemorialHome({ gateStatus }) {
         title="오늘의 미션"
         desc="작은 일상 활동으로 회복의 첫 걸음을 내딛어요"
         route="/(app)/mission"
-        gradient={['#EDFAF3', '#E8F5EC']}
+        gradient={['#EDF5FF', '#F0EAFA']}
       />
 
-      <BigCard
-        emoji={letterEmoji}
-        title="추모 편지"
-        desc={letterDesc}
-        route={gateStatus !== 'locked' ? '/(app)/message' : null}
-        gradient={['#EDF5FF', '#F0EAFA']}
-        badge={letterBadge}
-        disabled={gateStatus === 'locked'}
-      />
+      <GiftJourneyCard gateStatus={gateStatus} hasVideo={hasVideo} hasLetter={hasLetter} />
 
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
       <View style={styles.subRow}>
@@ -178,6 +218,8 @@ export default function HomeScreen() {
   const [callerName, setCallerName] = useState('보호자');
   const [memorialMode, setMemorialMode] = useState(false);
   const [gateStatus, setGateStatus] = useState('locked');
+  const [hasVideo, setHasVideo] = useState(false);
+  const [hasLetter, setHasLetter] = useState(false);
   const [farewellDate, setFarewellDate] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -187,7 +229,7 @@ export default function HomeScreen() {
   }, []);
 
   async function loadData() {
-    const [name, species, gender, startDate, guardTitle, caller, mode, fd, petId] = await Promise.all([
+    const [name, species, gender, startDate, guardTitle, caller, mode, fd, petId, video, letter] = await Promise.all([
       AsyncStorage.getItem('pet_name'),
       AsyncStorage.getItem('pet_species'),
       AsyncStorage.getItem('pet_gender'),
@@ -197,6 +239,8 @@ export default function HomeScreen() {
       AsyncStorage.getItem('memorial_mode'),
       AsyncStorage.getItem('pet_farewell_date'),
       AsyncStorage.getItem('pet_id'),
+      AsyncStorage.getItem('pet_video_url'),
+      AsyncStorage.getItem('message_content'),
     ]);
     if (name) setPetName(name);
     if (species) setPetSpecies(species);
@@ -206,6 +250,8 @@ export default function HomeScreen() {
     if (caller) setCallerName(caller);
     if (mode === 'true') setMemorialMode(true);
     if (fd) setFarewellDate(fd);
+    setHasVideo(!!video);
+    setHasLetter(!!letter);
     const { gateStatus: gs } = await fetchRecoveryGate(petId);
     setGateStatus(gs);
   }
@@ -241,7 +287,6 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logo}>🌈 레인보우 브릿지</Text>
           <Text style={styles.logoSub}>소중한 가족을 기억해요</Text>
 
           {/* 반려동물 카드 */}
@@ -266,7 +311,7 @@ export default function HomeScreen() {
           </View>
 
           {memorialMode
-            ? <MemorialHome gateStatus={gateStatus} />
+            ? <MemorialHome gateStatus={gateStatus} hasVideo={hasVideo} hasLetter={hasLetter} />
             : <SurvivalHome onFarewellPress={() => setShowModal(true)} />
           }
         </ScrollView>
@@ -374,6 +419,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 2,
   },
   badgeText: { fontSize: 10, color: '#8A5CB0', fontWeight: '700' },
+
+  // ── 회복 여정 선물 카드 ──
+  journeyCard: {
+    marginBottom: 12, borderRadius: 18, overflow: 'hidden',
+    borderWidth: 1.5, borderColor: '#E5DCF0',
+    shadowColor: '#8A7D9E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
+  },
+  journeyGrad: { paddingVertical: 18, paddingHorizontal: 18 },
+  journeyHead: { marginBottom: 16 },
+  journeyTitle: { fontSize: 15, fontWeight: '800', color: '#5B4E75' },
+  journeySub: { fontSize: 12, color: '#8A7D9E', marginTop: 3 },
+
+  journeyRail: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 2 },
+  journeyConn: {
+    flex: 1, height: 3, marginTop: 20, borderRadius: 2,
+    backgroundColor: '#DDD0EF',
+  },
+  journeyConnDone: { backgroundColor: '#A98BD1' },
+  journeyNode: { alignItems: 'center', minWidth: 42, paddingHorizontal: 3 },
+  journeyCircle: {
+    width: 42, height: 42, borderRadius: 21,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#E0D3F0',
+  },
+  journeyCircleDone: { backgroundColor: '#EFE3FB', borderColor: '#B99BDE' },
+  journeyEmoji: { fontSize: 18 },
+  journeyEmojiDim: { opacity: 0.4 },
+  journeyLabel: { fontSize: 10, color: '#A89FBC', marginTop: 5 },
+  journeyLabelDone: { color: '#7A5CA8', fontWeight: '700' },
+
+  journeyBtn: {
+    alignSelf: 'flex-end', marginTop: 16,
+    paddingVertical: 9, paddingHorizontal: 16, borderRadius: 12,
+    backgroundColor: 'rgba(169,139,209,0.18)',
+  },
+  journeyBtnText: { fontSize: 13, fontWeight: '800', color: '#7A5CA8' },
 
   // SmallCard
   subRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },

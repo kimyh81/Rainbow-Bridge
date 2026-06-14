@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '@/constants/colors';
+import { gwa } from '@/utils/josa';
 
 const STORAGE_KEY = 'bucketlist_items';
 const PLACEHOLDERS = ['예) 함께 산책하기', '예) 좋아하는 간식 먹기', '예) 사진 찍기'];
@@ -88,7 +89,7 @@ export default function BucketlistScreen() {
             <Text style={styles.subtitle}>소중한 가족을 기억해요</Text>
 
             <View style={styles.headerRow}>
-              <Text style={styles.title}>📋 {petName}와의 버킷리스트</Text>
+              <Text style={styles.title}>📋 {petName}{gwa(petName)}의 버킷리스트</Text>
               <View style={styles.countBadge}>
                 <Text style={styles.countText}>{doneCount}/{items.length}</Text>
               </View>

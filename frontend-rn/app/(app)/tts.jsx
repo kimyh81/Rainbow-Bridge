@@ -11,6 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateTts } from '@/api/tts';
 import { logPlay } from '@/api/playLogs';
 import { COLORS } from '@/constants/colors';
+import { eulreul } from '@/utils/josa';
 import { fetchRecoveryGate } from '@/utils/recovery';
 
 const TONES = [
@@ -160,7 +161,7 @@ export default function TtsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>음성으로 듣기</Text>
-        <Text style={styles.subtitle}>{petName}를 위한 추모 메시지를 들어보세요.</Text>
+        <Text style={styles.subtitle}>{petName}{eulreul(petName)} 위한 추모 메시지를 들어보세요.</Text>
 
         {/* 톤 선택 */}
         <Card style={styles.toneCard}>

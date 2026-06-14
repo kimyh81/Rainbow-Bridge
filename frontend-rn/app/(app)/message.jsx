@@ -13,6 +13,7 @@ import { generateMessage, getLatestMessage } from '@/api/messages';
 import { recordPlay } from '@/api/media';
 import { generateTts } from '@/api/tts';
 import { COLORS } from '@/constants/colors';
+import { gwa, iga, eunneun } from '@/utils/josa';
 import { fetchRecoveryGate } from '@/utils/recovery';
 import { doLogout } from './_layout';
 
@@ -32,7 +33,7 @@ function makeFallbackMessage(petName) {
   const name = petName || '소중한 친구';
   return {
     id: 'local',
-    content: `${name}와 함께했던 모든 순간들이 얼마나 소중했는지 기억해요.\n그 따뜻한 기억들은 언제나 마음속에 살아있을 거예요.\n지금 많이 힘드시겠지만, 조금씩 천천히 나아가도 괜찮아요.\n${name}는 보호자와 함께한 시간을 언제나 행복하게 기억할 거예요.`,
+    content: `${name}${gwa(name)} 함께했던 모든 순간들이 얼마나 소중했는지 기억해요.\n그 따뜻한 기억들은 언제나 마음속에 살아있을 거예요.\n지금 많이 힘드시겠지만, 조금씩 천천히 나아가도 괜찮아요.\n${name}${eunneun(name)} 보호자와 함께한 시간을 언제나 행복하게 기억할 거예요.`,
     tone: 'warm',
     first_person: false,
     source: 'local',
@@ -155,9 +156,9 @@ function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
         <ScrollView contentContainerStyle={gate.scroll}>
           <View style={gate.teaserCard}>
             <Text style={gate.teaserLock}>🔒</Text>
-            <Text style={gate.teaserTitle}>{petName || '아이'}가 남긴 편지</Text>
+            <Text style={gate.teaserTitle}>{petName || '아이'}{iga(petName || '아이')} 남긴 편지</Text>
             <Text style={gate.teaserDesc}>
-              {petName || '아이'}와의 추억을 바탕으로 쓴{'\n'}특별한 편지가 기다리고 있어요.
+              {petName || '아이'}{gwa(petName || '아이')}의 추억을 바탕으로 쓴{'\n'}특별한 편지가 기다리고 있어요.
             </Text>
 
             <View style={gate.progressWrap}>
@@ -645,8 +646,8 @@ export default function MessageScreen() {
                     { translateY: paperFloat.interpolate({ inputRange: [0, 1], outputRange: [-3, 3] }) },
                     { rotate: paperFloat.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) },
                   ]}]}>✉️</Animated.Text>
-                  <Text style={styles.letterTitle}>{petName}가 편지를 남겼어요</Text>
-                  <Text style={styles.letterSub}>{petName}가 하고 싶었던 말을 전해드릴게요.</Text>
+                  <Text style={styles.letterTitle}>{petName}{iga(petName)} 편지를 남겼어요</Text>
+                  <Text style={styles.letterSub}>{petName}{iga(petName)} 하고 싶었던 말을 전해드릴게요.</Text>
                 </View>
               )}
 

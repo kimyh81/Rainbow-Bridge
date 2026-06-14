@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Card from '@/components/Card';
 import { createPet } from '@/api/pets';
 import { COLORS } from '@/constants/colors';
+import { gwa } from '@/utils/josa';
 
 const INITIAL_ENTRIES = [
   { keyword: '', detail: '' },
@@ -105,7 +106,7 @@ export default function MemoriesScreen() {
 
             <Text style={styles.cardTitle}>추억 키워드 입력</Text>
             <Text style={styles.cardDesc}>
-              {profile.name}와(과) 나눈 소중한 기억을 알려주세요. (최대 3개)
+              {profile.name}{gwa(profile.name)} 나눈 소중한 기억을 알려주세요. (최대 3개)
             </Text>
 
             {entries.map((entry, i) => (

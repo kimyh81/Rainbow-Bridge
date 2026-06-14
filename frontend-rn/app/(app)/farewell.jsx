@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SafetyModal from '@/components/SafetyModal';
+import { gwa } from '@/utils/josa';
 
 function SectionCard({ emoji, title, accentColor, items }) {
   return (
@@ -56,7 +57,7 @@ export default function FarewellScreen() {
           {/* 상단 인트로 */}
           <View style={styles.introCard}>
             <Text style={styles.introEmoji}>🕊️</Text>
-            <Text style={styles.introTitle}>{petName}와(과)의 이별 안내</Text>
+            <Text style={styles.introTitle}>{petName}{gwa(petName)}의 이별 안내</Text>
             <Text style={styles.introText}>
               지금 이 순간, 많이 힘드실 거예요.{'\n'}
               차분하게 한 단계씩 함께 해드릴게요.
@@ -168,7 +169,7 @@ export default function FarewellScreen() {
             <Text style={styles.guardianText}>
               충분히 슬퍼해도 됩니다.{'\n'}
               혼자 있지 마세요.{'\n\n'}
-              {petName}와(과) 함께했던 시간은{'\n'}
+              {petName}{gwa(petName)} 함께했던 시간은{'\n'}
               무엇과도 바꿀 수 없는 소중한 기억이에요.
             </Text>
             <TouchableOpacity

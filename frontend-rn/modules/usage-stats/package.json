@@ -1,0 +1,6 @@
+{
+  "name": "usage-stats",
+  "version": "1.0.0",
+  "description": "Android UsageStats native module for Rainbow Bridge",
+  "main": "src/index.ts"
+}

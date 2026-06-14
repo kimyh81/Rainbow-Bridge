@@ -48,7 +48,8 @@
       "expo-router",
       "expo-av",
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "./modules/usage-stats/app.plugin.js"
     ],
     "extra": {
       "router": {},

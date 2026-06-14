@@ -11,7 +11,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { getReport } from '@/api/report';
 import { mockReport } from '@/api/mock';
 import { COLORS } from '@/constants/colors';
+import { eulreul } from '@/utils/josa';
 import { doLogout } from './_layout';
+import { hasPermission, openPermissionSettings, collectTodayReport } from '../../modules/usage-stats/src';
 
 const CHART_W = Dimensions.get('window').width - 80;
 const CHART_H = 90;
@@ -37,7 +39,6 @@ function ComboChart({ data, valueKey, color, maxOverride }) {
 
   return (
     <View style={{ height: CHART_H + 28 }}>
-      {/* 막대 그래프 */}
       <View style={[StyleSheet.absoluteFill, { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: CHART_H }]}>
         {data.map((d, i) => (
           <View key={i} style={{ width: barW, alignItems: 'center', justifyContent: 'flex-end', height: CHART_H }}>
@@ -52,8 +53,6 @@ function ComboChart({ data, valueKey, color, maxOverride }) {
           </View>
         ))}
       </View>
-
-      {/* 꺾은선 그래프 (SVG) */}
       <Svg width={CHART_W} height={CHART_H} style={StyleSheet.absoluteFill}>
         <Polyline
           points={polyPoints}
@@ -67,8 +66,6 @@ function ComboChart({ data, valueKey, color, maxOverride }) {
           <Circle key={i} cx={p.x} cy={p.y} r={3} fill={color} />
         ))}
       </Svg>
-
-      {/* X축 레이블 */}
       <View style={{ flexDirection: 'row', gap: 4, marginTop: CHART_H + 4 }}>
         {data.map((d, i) => (
           <View key={i} style={{ width: barW, alignItems: 'center' }}>
@@ -85,11 +82,14 @@ export default function ReportScreen() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [petName, setPetName] = useState('소중한 친구');
+  const [usageReport, setUsageReport] = useState(null);
+  const [permissionGranted, setPermissionGranted] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
       fetchReport();
+      fetchUsageReport();
     }, [])
   );
 
@@ -103,6 +103,19 @@ export default function ReportScreen() {
       setReport(mockReport);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchUsageReport() {
+    try {
+      const granted = await hasPermission();
+      setPermissionGranted(granted);
+      if (granted) {
+        const data = await collectTodayReport();
+        setUsageReport(data);
+      }
+    } catch {
+      // 네이티브 모듈 미지원 환경(iOS/Expo Go) — 조용히 무시
     }
   }
 
@@ -138,9 +151,64 @@ export default function ReportScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>회복 리포트</Text>
-        <Text style={styles.subtitle}>{petName}를 기억하며 함께한 시간이에요.</Text>
+        <Text style={styles.subtitle}>{petName}{eulreul(petName)} 기억하며 함께한 시간이에요.</Text>
 
-        {/* 사용 현황 */}
+        {/* 앱 사용 기록 — 권한 없으면 안내 카드 */}
+        {permissionGranted === false ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>📱 스마트폰 사용 패턴</Text>
+            <Text style={styles.noData}>일상 복귀 분석을 위해 앱 사용 기록 권한이 필요해요.</Text>
+            <TouchableOpacity style={styles.permBtn} onPress={openPermissionSettings} activeOpacity={0.7}>
+              <Text style={styles.permBtnText}>권한 허용하기</Text>
+            </TouchableOpacity>
+          </Card>
+        ) : usageReport ? (
+          <>
+            {/* 오늘 행동 신호 */}
+            {usageReport.signals.length > 0 ? (
+              <Card style={styles.card}>
+                <Text style={styles.sectionTitle}>📱 오늘 행동 신호</Text>
+                {usageReport.signals.map((s, i) => (
+                  <View key={i} style={styles.signalRow}>
+                    <Text style={styles.signalIcon}>{s.icon}</Text>
+                    <View style={styles.signalInfo}>
+                      <Text style={styles.signalTitle}>{s.title}</Text>
+                      <Text style={styles.signalDetail}>오늘 {s.todayMinutes}분</Text>
+                    </View>
+                  </View>
+                ))}
+                {usageReport.estimatedSleepTime ? (
+                  <Text style={styles.sleepHint}>🌙 {usageReport.estimatedSleepTime}</Text>
+                ) : null}
+              </Card>
+            ) : (
+              <Card style={styles.card}>
+                <Text style={styles.sectionTitle}>📱 오늘 행동 신호</Text>
+                <Text style={styles.noData}>오늘은 특이 패턴이 없어요. 건강한 하루예요! 🌿</Text>
+                {usageReport.estimatedSleepTime ? (
+                  <Text style={styles.sleepHint}>🌙 {usageReport.estimatedSleepTime}</Text>
+                ) : null}
+              </Card>
+            )}
+
+            {/* 앱 사용 현황 상위 5개 */}
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>⏱ 오늘 앱 사용 현황</Text>
+              <Text style={styles.chartHint}>총 {usageReport.totalMinutes}분 · 새벽 {usageReport.lateNightMinutes}분</Text>
+              {usageReport.daily.slice(0, 5).map((app, i) => (
+                <View key={i} style={styles.appRow}>
+                  <Text style={styles.appLabel} numberOfLines={1}>{app.appLabel}</Text>
+                  <View style={styles.appBarWrap}>
+                    <View style={[styles.appBar, { width: `${Math.min((app.usageMinutes / Math.max(usageReport.totalMinutes, 1)) * 100, 100)}%` }]} />
+                  </View>
+                  <Text style={styles.appMin}>{app.usageMinutes}분</Text>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        {/* 서비스 이용 현황 */}
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>📊 이용 현황</Text>
           <View style={styles.statsRow}>
@@ -161,7 +229,7 @@ export default function ReportScreen() {
           </View>
         </Card>
 
-        {/* 감정 변화 — 막대 + 꺾은선 */}
+        {/* 감정 변화 */}
         {trend.length > 0 ? (
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>💭 감정 변화</Text>
@@ -181,7 +249,7 @@ export default function ReportScreen() {
           </View>
         </Card>
 
-        {/* 수면 변화 — 막대 + 꺾은선 */}
+        {/* 수면 변화 */}
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>🌙 수면 변화</Text>
           <Text style={styles.chartHint}>막대: 수면 시간  ·  선: 추세 (단위: 시간)</Text>
@@ -232,4 +300,17 @@ const styles = StyleSheet.create({
   completionFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 5 },
   completionPct: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, minWidth: 40, textAlign: 'right' },
   noData: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 20 },
+  permBtn: { marginTop: 12, backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  permBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  signalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F0EAF5' },
+  signalIcon: { fontSize: 20 },
+  signalInfo: { flex: 1 },
+  signalTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
+  signalDetail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  sleepHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10 },
+  appRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
+  appLabel: { fontSize: 12, color: COLORS.textPrimary, width: 80 },
+  appBarWrap: { flex: 1, height: 6, backgroundColor: '#EDE5DF', borderRadius: 3, overflow: 'hidden' },
+  appBar: { height: '100%', backgroundColor: '#C4A8D8', borderRadius: 3 },
+  appMin: { fontSize: 12, color: COLORS.textSecondary, minWidth: 32, textAlign: 'right' },
 });

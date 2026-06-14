@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Card from '@/components/Card';
 import { createPet } from '@/api/pets';
 import { COLORS } from '@/constants/colors';
+import { gwa } from '@/utils/josa';
 
 export default function MemoriesDiaryScreen() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function MemoriesDiaryScreen() {
 
             <Text style={styles.cardTitle}>추억 기록</Text>
             <Text style={styles.cardDesc}>
-              {profile.name}와(과) 나눈 소중한 기억을 알려주세요.
+              {profile.name}{gwa(profile.name)} 나눈 소중한 기억을 알려주세요.
             </Text>
 
             <View style={styles.field}>

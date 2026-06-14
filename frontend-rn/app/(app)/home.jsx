@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchRecoveryGate } from '@/utils/recovery';
+import { iga } from '@/utils/josa';
 
 // ── 큰 카드 (메인 기능) ──────────────────────────
 function BigCard({ emoji, title, desc, route, gradient, badge, disabled }) {
@@ -277,7 +278,7 @@ export default function HomeScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalEmoji}>🌈</Text>
             <Text style={styles.modalTitle}>
-              {petDisplay}이가{'\n'}무지개다리를 건넜군요.
+              {petDisplay}{iga(petDisplay)}{'\n'}무지개다리를 건넜군요.
             </Text>
             <Text style={styles.modalDesc}>
               고이 보내드릴게요.{'\n'}함께한 소중한 기억들이 남아있어요.

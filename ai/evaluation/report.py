@@ -90,6 +90,9 @@ def build_report(
         "pet_id": pet_id,
         "period": period,
         "usage": {
+            "emotions": len(checkins),
+            "messages": kind_counts.get("message", 0),
+            "missions": sum(1 for m in mission_list if m.get("done")),
             "total_calls": len(logs),
             "by_kind": dict(kind_counts),
         },

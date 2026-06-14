@@ -1,8 +1,10 @@
 node_modules/
 .expo/
 dist/
-android/
-ios/
+/android/
+/ios/
+!modules/**/android/
+!modules/**/android/**
 .env
 .env.local
 *.log

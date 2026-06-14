@@ -78,6 +78,7 @@ export default function AppLayout() {
       <Stack.Screen name="memories_diary" options={{ title: '추억 메모' }} />
       <Stack.Screen name="photos"        options={{ title: '사진 기록' }} />
       <Stack.Screen name="media"         options={{ title: '추모 영상 만들기' }} />
+      <Stack.Screen name="health"        options={{ title: '삼성헬스 연동' }} />
     </Stack>
   );
 }

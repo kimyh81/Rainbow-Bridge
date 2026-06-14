@@ -63,14 +63,16 @@ export default function TtsScreen() {
     setError(null);
     try {
       const petId = await AsyncStorage.getItem('pet_id');
-      const res = await generateTts({ pet_id: petId, text: messageText, tone: selectedTone });
+      const petSpecies = await AsyncStorage.getItem('pet_species');
+      const res = await generateTts({ pet_id: petId, text: messageText, tone: selectedTone, species: petSpecies || '강아지' });
       if (!res.audio_url) throw new Error('audio_url 없음');
       const url = res.audio_url.startsWith('http')
         ? res.audio_url
         : `${API_BASE}${res.audio_url}`;
       setAudioUrl(url);
       await AsyncStorage.setItem('tts_done', '1');
-    } catch {
+    } catch (e) {
+      console.error('[TTS] 생성 실패:', e);
       setError('음성 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
@@ -88,17 +90,22 @@ export default function TtsScreen() {
         setPlaying(true);
       }
     } else {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
-      setPlaying(true);
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) setPlaying(false);
-      });
-      const petId = await AsyncStorage.getItem('pet_id');
-      if (petId) logPlay({ pet_id: petId }).catch(() => {});
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioUrl },
+          { shouldPlay: true }
+        );
+        soundRef.current = sound;
+        setPlaying(true);
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.didJustFinish) setPlaying(false);
+        });
+        const petId = await AsyncStorage.getItem('pet_id');
+        if (petId) logPlay({ pet_id: petId }).catch(() => {});
+      } catch (e) {
+        console.error('[TTS] 재생 실패:', e, 'url:', audioUrl);
+        setError('음성 재생에 실패했어요. 다시 생성해보세요.');
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import app.core.ai_path  # noqa: F401
 from datetime import datetime, timezone
 
@@ -21,6 +22,8 @@ from app.db.redis_client import get_recent_emotions
 from app.schemas.message import MessageCreate, MessageResponse
 from app.services.emotion import get_recovery
 
+logger = logging.getLogger(__name__)
+
 CRISIS_HOTLINE = "1393"
 
 _FALLBACK = {
@@ -34,6 +37,21 @@ _VALID_TONES = {"warm", "calm", "hopeful"}
 
 def _collection():
     return mongodb.db["messages"]
+
+
+async def _prefetch_tts(pet_id: str, content: str, pet: dict) -> None:
+    """메시지 생성 직후 narration TTS를 백그라운드 미리 생성 (fire-and-forget)."""
+    try:
+        from app.schemas.tts import TtsCreate
+        from app.services.tts import generate_tts
+
+        species = pet.get("species", "강아지") or "강아지"
+        await generate_tts(
+            TtsCreate(text=content, tone="narration", pet_id=pet_id, species=species)
+        )
+        logger.info("TTS 미리 생성 완료 pet_id=%s", pet_id)
+    except Exception:
+        logger.warning("TTS 미리 생성 실패 pet_id=%s", pet_id, exc_info=True)
 
 
 def _calc_recovery_trend(records: list[dict]) -> str | None:
@@ -164,6 +182,8 @@ async def create_message(data: MessageCreate) -> MessageResponse:
                     from app.services.media import trigger_liveportrait_for_pet
 
                     asyncio.create_task(trigger_liveportrait_for_pet(data.pet_id))
+                # narration TTS 미리 백그라운드 생성 — 사용자가 재생 버튼 누를 때 이미 준비
+                asyncio.create_task(_prefetch_tts(data.pet_id, result["content"], pet))
                 response.content_unlocked = content_unlocked
                 response.allow_first_person = allow_first_person
                 if result.get("crisis_message"):

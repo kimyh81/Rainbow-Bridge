@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchRecoveryGate } from '@/utils/recovery';
+import { getAnniversaryCare } from '@/api/care';
 import { iga, gwa } from '@/utils/josa';
 
 // ── 회복 여정 선물 로드맵 노드 ──────────────────────
@@ -67,6 +68,22 @@ function GiftJourneyCard({ gateStatus, hasGif, hasVideo, hasLetter }) {
         </View>
       </LinearGradient>
     </Pressable>
+  );
+}
+
+// ── 기념일 케어 카드 (D+30·D+100) ──────────────────
+function AnniversaryCareCard({ care }) {
+  if (!care) return null;
+  return (
+    <View style={styles.careCard}>
+      <Text style={styles.careLabel}>💌 {care.milestone_label}</Text>
+      <Text style={styles.careMessage}>{care.message}</Text>
+      {care.crisis_message ? (
+        <Text style={styles.careCrisis}>{care.crisis_message}</Text>
+      ) : care.support_message ? (
+        <Text style={styles.careSupport}>{care.support_message}</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -173,10 +190,12 @@ function SurvivalHome({ onFarewellPress }) {
 }
 
 // ── 이별 후 모드 홈 ───────────────────────────────
-function MemorialHome({ gateStatus, hasGif, hasVideo, hasLetter }) {
+function MemorialHome({ gateStatus, hasGif, hasVideo, hasLetter, anniversaryCare }) {
   return (
     <>
       <Text style={styles.sectionTitle}>오늘을 함께해요</Text>
+
+      <AnniversaryCareCard care={anniversaryCare} />
 
       <BigCard
         emoji="💭"
@@ -218,6 +237,7 @@ export default function HomeScreen() {
   const [hasGif, setHasGif] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
   const [hasLetter, setHasLetter] = useState(false);
+  const [anniversaryCare, setAnniversaryCare] = useState(null);
   const [farewellDate, setFarewellDate] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -259,6 +279,16 @@ export default function HomeScreen() {
     if (petId) {
       const { gateStatus: gs } = await fetchRecoveryGate(petId);
       setGateStatus(gs);
+    }
+
+    // 이별 후 모드에서만 기념일(D+30·D+100) 케어 조회.
+    // 기념일이 아니면 백엔드가 404 → null 로 두고 카드 숨김 (BUG-02/09)
+    if (petId && mode === 'true') {
+      getAnniversaryCare({ pet_id: petId })
+        .then((data) => setAnniversaryCare(data))
+        .catch(() => setAnniversaryCare(null));
+    } else {
+      setAnniversaryCare(null);
     }
   }
 
@@ -330,7 +360,7 @@ export default function HomeScreen() {
           </View>
 
           {memorialMode
-            ? <MemorialHome gateStatus={gateStatus} hasVideo={hasVideo} hasLetter={hasLetter} />
+            ? <MemorialHome gateStatus={gateStatus} hasGif={hasGif} hasVideo={hasVideo} hasLetter={hasLetter} anniversaryCare={anniversaryCare} />
             : <SurvivalHome onFarewellPress={() => setShowModal(true)} />
           }
 
@@ -388,6 +418,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   backToSurvivalText: { fontSize: 15, color: '#7A5CA8', fontWeight: '700' },
+  careCard: {
+    backgroundColor: '#FBF3E8',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#EBD9B8',
+  },
+  careLabel: { fontSize: 13, fontWeight: '700', color: '#B5862F', marginBottom: 8 },
+  careMessage: { fontSize: 14, color: '#6B5B45', lineHeight: 21 },
+  careCrisis: { fontSize: 13, color: '#C0622F', fontWeight: '600', marginTop: 10, lineHeight: 20 },
+  careSupport: { fontSize: 13, color: '#8A7D9E', marginTop: 10, lineHeight: 20 },
 
 
   petCard: {

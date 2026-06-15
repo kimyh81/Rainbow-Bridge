@@ -251,3 +251,70 @@ def test_sleep_quality_feeds_recommend_difficulty(monkeypatch):
     recommend(emotion_score=5, sleep_quality=5, count=2)  # small → 좋음 → active
     diffs = [c["difficulty"] for c in captured["where"]["$and"] if "difficulty" in c]
     assert diffs == ["active"]
+
+
+# --- 6. 레벨 기반 난이도 조합 (06-15, project_recovery_score_axes_redesign_260614) - #
+
+
+def test_composition_l2_3_is_all_gentle():
+    assert mission_mod.mission_composition("L2~3") == ("gentle", "gentle", "gentle")
+
+
+def test_composition_l1_varies_with_emotion_score():
+    """L1: 감정점수 낮음(<=3)→G×2+Sm×1, 그 외→G×1+Sm×2."""
+    assert mission_mod.mission_composition("L1", emotion_score=2) == (
+        "gentle",
+        "gentle",
+        "small",
+    )
+    assert mission_mod.mission_composition("L1", emotion_score=7) == (
+        "gentle",
+        "small",
+        "small",
+    )
+
+
+def test_composition_l0_45_plus_is_single_active():
+    assert mission_mod.mission_composition("L0", score=45) == ("active",)
+    assert mission_mod.mission_composition("L0", score=100) == ("active",)
+
+
+def test_composition_l0_below_45_matches_l1():
+    """L0의 0~45 구간은 L1과 동일 구성(레벨/점수는 독립 축)."""
+    assert mission_mod.mission_composition(
+        "L0", score=30, emotion_score=2
+    ) == mission_mod.mission_composition("L1", emotion_score=2)
+
+
+def test_composition_unknown_level_is_none():
+    """level=None(또는 미인식) → None, recommend()는 기존 단일난이도 동작."""
+    assert mission_mod.mission_composition(None) is None
+
+
+def test_recommend_with_level_l2_3_returns_three_gentle():
+    result = recommend(emotion_score=2, level="L2~3")
+    assert len(result) == 3
+    assert [m["difficulty"] for m in result] == ["gentle", "gentle", "gentle"]
+    titles = [m["title"] for m in result]
+    assert len(set(titles)) == 3  # 중복 없음
+
+
+def test_recommend_with_level_l1_mixed_difficulties():
+    result = recommend(emotion_score=7, level="L1")
+    assert [m["difficulty"] for m in result] == ["gentle", "small", "small"]
+    for m in result:
+        assert set(m) == {"title", "description", "category", "rationale", "difficulty"}
+
+
+def test_recommend_with_level_l0_45_plus_returns_single_active():
+    result = recommend(emotion_score=5, level="L0", recovery_score=50)
+    assert len(result) == 1
+    assert result[0]["difficulty"] == "active"
+
+
+def test_recommend_level_none_keeps_old_behavior():
+    """level 미지정 시 기존 동작(난이도 키 없음, count개) 그대로."""
+    result = recommend(emotion_score=2, count=3)
+    assert len(result) == 3
+    for m in result:
+        assert "difficulty" not in m

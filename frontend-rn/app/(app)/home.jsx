@@ -7,6 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 import { fetchRecoveryGate } from '@/utils/recovery';
 import { iga, gwa } from '@/utils/josa';
 
@@ -267,6 +268,12 @@ export default function HomeScreen() {
     }
   }
 
+  // 이별 후 홈 → 이별 전 홈으로 되돌리기 (상단 '이전 홈' 버튼)
+  async function backToSurvival() {
+    await AsyncStorage.setItem('memorial_mode', 'false');
+    setMemorialMode(false);
+  }
+
   const daysAfter = farewellDate
     ? Math.max(0, Math.floor((Date.now() - new Date(farewellDate).getTime()) / 86400000))
     : null;
@@ -287,6 +294,18 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
+          {/* 이별 후 홈에서만 — 이별 전 홈으로 돌아가는 버튼 */}
+          {memorialMode && (
+            <TouchableOpacity
+              style={styles.backToSurvivalBtn}
+              onPress={backToSurvival}
+              activeOpacity={0.7}
+              hitSlop={8}
+            >
+              <Text style={styles.backToSurvivalText}>← 이전 홈</Text>
+            </TouchableOpacity>
+          )}
+
           {/* 반려동물 인사 (배경 위 텍스트) */}
           <View style={styles.petCard}>
             <Text style={styles.petGreeting}>안녕하세요, {callerName || '보호자'}님 🐾</Text>
@@ -309,6 +328,13 @@ export default function HomeScreen() {
             ? <MemorialHome gateStatus={gateStatus} hasVideo={hasVideo} hasLetter={hasLetter} />
             : <SurvivalHome onFarewellPress={() => setShowModal(true)} />
           }
+
+          {/* 앱 버전 — OTA 업데이트 반영 확인용 */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              🌈 레인보우 브릿지 · v{Constants.expoConfig?.version ?? '1.0.0'}
+            </Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -355,6 +381,17 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingVertical: 28, paddingBottom: 60 },
+
+  backToSurvivalBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  backToSurvivalText: { fontSize: 15, color: '#7A5CA8', fontWeight: '700' },
+
+  footer: { alignItems: 'center', marginTop: 28, paddingVertical: 8 },
+  footerText: { fontSize: 11, color: '#B0A0C0', fontWeight: '500' },
 
   petCard: {
     paddingVertical: 6, paddingHorizontal: 4,

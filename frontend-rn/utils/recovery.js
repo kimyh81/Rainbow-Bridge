@@ -47,7 +47,8 @@ export async function fetchRecoveryGate(petId) {
       if (cached.ts && Date.now() - cached.ts < CACHE_TTL) {
         const riskGated = (cached.latest_risk_level ?? 0) >= 2;
         return {
-          gateStatus: scoreToGate(cached.recovery_pct ?? 0, riskGated),
+          // gate_status 우선 사용 — 없으면 recovery_pct로 계산 (dev 필드명 유지)
+          gateStatus: cached.gate_status ?? scoreToGate(cached.recovery_pct ?? 0, riskGated),
           score: cached.recovery_pct ?? 0,
           riskGated,
         };

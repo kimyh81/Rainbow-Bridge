@@ -14,7 +14,7 @@ export async function doLogout() {
       'pet_guardian_title', 'pet_gender', 'pet_start_date',
       // 미디어·메시지 관련 키 — 재로그인 시 이전 데이터 잔존 방지
       'pet_video_url', 'pet_gif_url', 'pet_video_asset_id',
-      'message_content', 'message_id', 'message_tone',
+      'message_content', 'message_id', 'message_tone', 'tts_done',
     ]);
   } catch {}
   router.replace('/(auth)/login');
@@ -84,11 +84,11 @@ export default function AppLayout() {
             headerTintColor: COLORS.textPrimary,
             headerTitleStyle: { fontWeight: '600', fontSize: 17 },
             headerShadowVisible: false,
-            headerBackTitle: '',
+            headerBackTitle: '뒤로',
             contentStyle: { backgroundColor: COLORS.background },
           }}
         >
-          <Stack.Screen name="home"           options={{ title: '홈' }} />
+          <Stack.Screen name="home"           options={{ title: '홈', headerShown: false }} />
           <Stack.Screen name="profile"        options={{ title: '프로필 등록' }} />
           <Stack.Screen name="farewell"       options={{ title: '이별 안내' }} />
           <Stack.Screen name="funeral"        options={{ title: '장례 안내' }} />

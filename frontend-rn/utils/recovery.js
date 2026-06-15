@@ -31,10 +31,12 @@ export async function fetchRecoveryGate(petId) {
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
       // 백엔드가 gate_status 3단계 필드를 내려주면 그대로 사용, 없으면 score로 계산
       const riskGated = (data.latest_risk_level ?? 0) >= 2;
+      const score = data.recovery_pct ?? 0;
       return {
-        gateStatus: data.gate_status ?? scoreToGate(data.recovery_pct ?? 0, riskGated),
-        score: data.recovery_pct ?? 0,
+        gateStatus: data.gate_status ?? scoreToGate(score, riskGated),
+        score,
         riskGated,
+        gifUnlocked: data.gif_unlocked ?? (score >= 20 && !riskGated),
       };
     } catch {}
   }
@@ -46,11 +48,13 @@ export async function fetchRecoveryGate(petId) {
       const cached = JSON.parse(raw);
       if (cached.ts && Date.now() - cached.ts < CACHE_TTL) {
         const riskGated = (cached.latest_risk_level ?? 0) >= 2;
+        const score = cached.recovery_pct ?? 0;
         return {
           // gate_status 우선 사용 — 없으면 recovery_pct로 계산 (dev 필드명 유지)
-          gateStatus: cached.gate_status ?? scoreToGate(cached.recovery_pct ?? 0, riskGated),
-          score: cached.recovery_pct ?? 0,
+          gateStatus: cached.gate_status ?? scoreToGate(score, riskGated),
+          score,
           riskGated,
+          gifUnlocked: cached.gif_unlocked ?? (score >= 20 && !riskGated),
         };
       }
     }
@@ -62,17 +66,17 @@ export async function fetchRecoveryGate(petId) {
     if (fd) {
       const days = Math.floor((Date.now() - new Date(fd).getTime()) / 86400000);
       if (days <= 2) {
-        return { gateStatus: 'locked', score: 20, riskGated: false };
+        return { gateStatus: 'locked', score: 20, riskGated: false, gifUnlocked: true };
       }
       if (days <= 13) {
         // 3~13일: 점수를 선형으로 증가 (30~69점 범위)
         const score = Math.min(79, 30 + (days - 3) * 4);
-        return { gateStatus: 'teaser', score, riskGated: false };
+        return { gateStatus: 'teaser', score, riskGated: false, gifUnlocked: true };
       }
-      return { gateStatus: 'open', score: 82, riskGated: false };
+      return { gateStatus: 'open', score: 82, riskGated: false, gifUnlocked: true };
     }
   } catch {}
 
   // 4순위: 정보 없음 → 찌라시(teaser) 노출로 체크인 유도
-  return { gateStatus: 'teaser', score: 0, riskGated: false };
+  return { gateStatus: 'teaser', score: 0, riskGated: false, gifUnlocked: false };
 }

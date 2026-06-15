@@ -42,7 +42,11 @@ export default function TtsScreen() {
     AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
     AsyncStorage.getItem('message_content').then((v) => v && setMessageText(v));
     initGate();
-    return () => { soundRef.current?.unloadAsync(); };
+    return () => {
+      const s = soundRef.current;
+      soundRef.current = null;
+      if (s) s.stopAsync().catch(() => {}).finally(() => s.unloadAsync().catch(() => {}));
+    };
   }, []);
 
   async function initGate() {

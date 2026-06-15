@@ -43,6 +43,7 @@ jobs:
             systemctl stop rainbow-bridge || true
             systemctl disable rainbow-bridge || true
             cd backend
+            docker rm -f rainbow_redis rainbow_mongo rainbow_backend || true
             docker-compose down --remove-orphans || true
             docker-compose up -d --build
 

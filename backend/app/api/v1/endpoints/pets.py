@@ -47,7 +47,6 @@ async def update_pet_info(
 async def upload_photo(
     pet_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)
 ):
-    # 소유자 검증
     if not await get_pet(pet_id, user_id=user["user_id"]):
         raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
     result = await upload_pet_photo(pet_id, file)
@@ -58,7 +57,6 @@ async def upload_photo(
 
 @router.patch("/{pet_id}/memorial", response_model=PetResponse)
 async def switch_memorial(pet_id: str, user: dict = Depends(get_current_user)):
-    # 소유자 검증
     if not await get_pet(pet_id, user_id=user["user_id"]):
         raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
     pet = await set_memorial_mode(pet_id)

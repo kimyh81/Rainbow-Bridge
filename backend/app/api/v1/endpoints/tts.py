@@ -13,7 +13,7 @@ from app.services.tts import generate_tts
 router = APIRouter()
 
 _TTS_URL_KEY = "tts:server_url"
-_TTS_URL_TTL = 300
+_TTS_URL_TTL = 604800  # 7일 — Qwen3 GPU 서버 URL 장기 유지
 
 
 class TtsUrlIn(BaseModel):

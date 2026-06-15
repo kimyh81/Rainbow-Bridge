@@ -64,20 +64,22 @@ export default function PhotosScreen() {
     await persist(updated);
 
     // 각 사진 백엔드 업로드 (LivePortrait 파이프라인용)
-    const uploadResults = await Promise.allSettled(
-      newPhotos.map(async (photo) => {
-        const formData = new FormData();
-        formData.append('file', {
-          uri: photo.uri,
-          name: `pet_${Date.now()}.jpg`,
-          type: 'image/jpeg',
-        });
-        if (petId) formData.append('pet_id', petId);
-        formData.append('usage', 'liveportrait');
-        const res = await uploadMedia(formData);
-        return { id: photo.id, asset_id: res.asset_id };
-      })
-    );
+    // pet_id 없으면 서버에서 422 — 로컬 저장만 하고 업로드 스킵
+    const uploadResults = petId
+      ? await Promise.allSettled(
+          newPhotos.map(async (photo) => {
+            const formData = new FormData();
+            formData.append('file', {
+              uri: photo.uri,
+              name: `pet_${Date.now()}.jpg`,
+              type: 'image/jpeg',
+            });
+            formData.append('pet_id', petId);
+            const res = await uploadMedia(formData);
+            return { id: photo.id, asset_id: res.asset_id };
+          })
+        )
+      : newPhotos.map(() => ({ status: 'rejected' }));
 
     const succeededIds = new Map(
       uploadResults

@@ -269,16 +269,19 @@ export default function MessageScreen() {
   );
 
   async function initGate() {
-    const petId = await AsyncStorage.getItem('pet_id');
-    const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
-    setRecoveryScore(score);
-    setGateStatus(gs);
-    if (gs === 'open' || gs === 'teaser') {
-      if (riskGated) setSafetyOpen(true);
-      // 1인칭(별에서 온 편지)은 게이트가 완전히 open일 때만 생성.
-      // teaser 구간에서는 위로 편지(3인칭)만 노출. 실제 1인칭 허용 여부(최근 체크인 risk=0)는 백엔드가 최종 판단함.
-      if (mode === 'first' && gs === 'open') loadFirstPerson();
-      else if (mode !== 'first') loadMessage();
+    try {
+      const petId = await AsyncStorage.getItem('pet_id');
+      const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
+      setRecoveryScore(score);
+      setGateStatus(gs);
+      if (gs === 'open' || gs === 'teaser') {
+        if (riskGated) setSafetyOpen(true);
+        if (mode === 'first' && gs === 'open') loadFirstPerson();
+        else if (mode !== 'first') loadMessage();
+      }
+    } catch {
+      // pet_id 없거나 네트워크 실패 시 로딩 무한 방지
+      setGateStatus('teaser');
     }
   }
 
@@ -296,8 +299,11 @@ export default function MessageScreen() {
 
   function cleanup() {
     timersRef.current.forEach(clearTimeout);
-    if (bgmRef.current) bgmRef.current.unloadAsync();
-    if (ttsRef.current) ttsRef.current.unloadAsync();
+    // ref를 먼저 null로 교체해서 useFocusEffect 클린업과의 이중 언로드 방지
+    const bgm = bgmRef.current; bgmRef.current = null;
+    const tts = ttsRef.current; ttsRef.current = null;
+    bgm?.unloadAsync().catch(() => {});
+    tts?.unloadAsync().catch(() => {});
   }
 
   async function saveMessage(data) {

@@ -54,9 +54,13 @@ export default function TtsScreen() {
 
   async function handleGenerate() {
     if (!messageText) return;
-    await soundRef.current?.stopAsync();
-    await soundRef.current?.unloadAsync();
+    // null 먼저 교체 → 연속 탭 시 이전 인스턴스에 playAsync 호출되는 race condition 방지
+    const prevSound = soundRef.current;
     soundRef.current = null;
+    if (prevSound) {
+      await prevSound.stopAsync().catch(() => {});
+      await prevSound.unloadAsync().catch(() => {});
+    }
     setAudioUrl(null);
     setPlaying(false);
     setLoading(true);

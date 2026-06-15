@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Keyboard, Platform,
+  StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,21 +18,9 @@ export default function BucketlistScreen() {
   const [items, setItems] = useState([]);
   const [newText, setNewText] = useState('');
   const [petName, setPetName] = useState('소중한 친구');
-  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     load();
-  }, []);
-
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, (e) => setKbHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener(hideEvt, () => setKbHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
   }, []);
 
   async function load() {
@@ -78,6 +66,10 @@ export default function BucketlistScreen() {
       style={styles.gradient}
     >
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.scroll}
@@ -139,8 +131,8 @@ export default function BucketlistScreen() {
             </View>
           </ScrollView>
 
-          {/* 입력창: ScrollView 밖, 키보드 높이만큼 위로 밀어올림 */}
-          <View style={[styles.addRow, { marginBottom: kbHeight }]}>
+          {/* 입력창: KeyboardAvoidingView가 키보드 위로 자동 배치 */}
+          <View style={styles.addRow}>
             <TextInput
               style={styles.addInput}
               value={newText}
@@ -162,6 +154,7 @@ export default function BucketlistScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
     </LinearGradient>
   );

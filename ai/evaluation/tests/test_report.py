@@ -45,6 +45,26 @@ def test_recovery_signal_integrated():
     assert any("회복 신호" in e for e in sig["evidence"])
 
 
+def test_recovery_signal_risk_level_caps_at_41():
+    """L2~3(risk_level>=2)이면 recovery_signal.recovery_index 도 41로 cap(get_recovery와 동일)."""
+    checkins = [
+        {"created_at": f"2026-06-{i + 1:02d}", "score": s}
+        for i, s in enumerate([3, 3, 4, 7, 8, 8])
+    ]
+    missions = [
+        {"date": f"2026-06-{i + 1:02d}", "done": True, "difficulty": "active"}
+        for i in range(6)
+    ]
+    r = build_report(
+        "pet1",
+        emotion_checkins=checkins,
+        missions=missions,
+        lifestyle_pct=100,
+        risk_level=2,
+    )
+    assert r["recovery_signal"]["recovery_index"] == 41
+
+
 def test_recovery_signal_play_counts_forwarded():
     """build_report 가 play_counts 를 recovery_signal 의 재생 빈도 추세로 연결한다."""
     checkins = [

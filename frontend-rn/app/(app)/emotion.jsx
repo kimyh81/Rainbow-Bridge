@@ -44,6 +44,7 @@ export default function EmotionScreen() {
     setLoading(true);
     try {
       const petId = await AsyncStorage.getItem('pet_id');
+      if (!petId) throw new Error('pet_id 없음');
       const moodScore = MOODS.find((m) => m.label === selectedMood)?.score ?? 5;
       const response = await postEmotion({ pet_id: petId, score: moodScore, note });
 

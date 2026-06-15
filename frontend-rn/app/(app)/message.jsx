@@ -132,16 +132,11 @@ function GateLockedScreen({ petName, onGoCheckin, onGoMission, onGoHome, onLogou
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// 회복 게이트 — 찌라시 카드 (score 50~79)
-// 근거: RECOVERY_GATE.md — "회복하면 OO이의 편지를 받을 수 있다"는
-//       찌라시가 회복 동기를 만든다
-// ─────────────────────────────────────────────────────────────
+
 function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
   const pct = Math.max(0, Math.min(99, ((score - 45) / 35) * 100));
   const filledBlocks = Math.floor(pct / 10);
   const bar = '█'.repeat(filledBlocks) + '░'.repeat(10 - filledBlocks);
-
   return (
     <LinearGradient colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']} locations={[0, 0.35, 0.6, 1]} style={gate.gradient}>
       <SafeAreaView style={gate.safe}>
@@ -156,11 +151,10 @@ function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
         <ScrollView contentContainerStyle={gate.scroll}>
           <View style={gate.teaserCard}>
             <Text style={gate.teaserLock}>🔒</Text>
-            <Text style={gate.teaserTitle}>{petName || '아이'}{iga(petName || '아이')} 남긴 편지</Text>
+            <Text style={gate.teaserTitle}>{petName || '아이'}이(가) 남긴 별에서 온 편지</Text>
             <Text style={gate.teaserDesc}>
-              {petName || '아이'}{gwa(petName || '아이')}의 추억을 바탕으로 쓴{'\n'}특별한 편지가 기다리고 있어요.
+              {petName || '아이'}의 추억을 바탕으로 쓴{'\n'}1인칭 특별 편지가 기다리고 있어요.
             </Text>
-
             <View style={gate.progressWrap}>
               <Text style={gate.progressBar}>{bar}</Text>
               <Text style={gate.progressLabel}>
@@ -168,9 +162,7 @@ function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
               </Text>
               <Text style={gate.progressHint}>80점이 되면 열립니다</Text>
             </View>
-
             <Text style={gate.teaserEncourage}>천천히 괜찮아요 🐾</Text>
-
             <View style={gate.divider} />
             <TouchableOpacity style={gate.primaryBtn} onPress={onGoCheckin} activeOpacity={0.85}>
               <Text style={gate.primaryBtnText}>💭 감정 체크인으로 회복도 높이기</Text>
@@ -277,16 +269,19 @@ export default function MessageScreen() {
   );
 
   async function initGate() {
-    const petId = await AsyncStorage.getItem('pet_id');
-    const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
-    setRecoveryScore(score);
-    setGateStatus(gs);
-    if (gs === 'open' || gs === 'teaser') {
-      if (riskGated) setSafetyOpen(true);
-      // 1인칭(별에서 온 편지)은 게이트가 완전히 open일 때만 생성.
-      // teaser 구간에서는 위로 편지(3인칭)만 노출. 실제 1인칭 허용 여부(최근 체크인 risk=0)는 백엔드가 최종 판단함.
-      if (mode === 'first' && gs === 'open') loadFirstPerson();
-      else if (gs === 'teaser' || (gs === 'open' && mode !== 'first')) loadMessage();
+    try {
+      const petId = await AsyncStorage.getItem('pet_id');
+      const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
+      setRecoveryScore(score);
+      setGateStatus(gs);
+      if (gs === 'open' || gs === 'teaser') {
+        if (riskGated) setSafetyOpen(true);
+        if (mode === 'first' && gs === 'open') loadFirstPerson();
+        else if (mode !== 'first') loadMessage();
+      }
+    } catch {
+      // pet_id 없거나 네트워크 실패 시 로딩 무한 방지
+      setGateStatus('teaser');
     }
   }
 
@@ -304,8 +299,11 @@ export default function MessageScreen() {
 
   function cleanup() {
     timersRef.current.forEach(clearTimeout);
-    if (bgmRef.current) bgmRef.current.unloadAsync();
-    if (ttsRef.current) ttsRef.current.unloadAsync();
+    // ref를 먼저 null로 교체해서 useFocusEffect 클린업과의 이중 언로드 방지
+    const bgm = bgmRef.current; bgmRef.current = null;
+    const tts = ttsRef.current; ttsRef.current = null;
+    bgm?.unloadAsync().catch(() => {});
+    tts?.unloadAsync().catch(() => {});
   }
 
   async function saveMessage(data) {
@@ -324,7 +322,8 @@ export default function MessageScreen() {
     const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
     try {
       const existing = await getLatestMessage(petId);
-      if (!existing || existing.source === 'unavailable') throw new Error('unavailable');
+      // 최신 메시지가 1인칭이면 3인칭 생성 트리거 (1인칭 메시지가 위로 편지에 재사용되는 버그 방지)
+      if (!existing || existing.source === 'unavailable' || existing.first_person) throw new Error('unavailable');
       await saveMessage(existing);
     } catch {
       try {
@@ -518,7 +517,7 @@ export default function MessageScreen() {
       />
     );
   }
-  if (gateStatus === 'teaser') {
+  if (gateStatus === 'teaser' && mode === 'first') {
     return (
       <GateTeaserScreen
         petName={petName}
@@ -529,6 +528,7 @@ export default function MessageScreen() {
       />
     );
   }
+
 
   return (
     <LinearGradient key="dark" colors={['#2a3445', '#2c2742', '#241e32']} style={styles.safeGradient}>

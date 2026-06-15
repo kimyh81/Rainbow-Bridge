@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from .. import mission as mission_mod
-from ..mission import recommend
+from ..mission import recommend, recommend_replacement
 from ..prompts import mission as mission_prompt
 
 
@@ -318,3 +318,36 @@ def test_recommend_level_none_keeps_old_behavior():
     assert len(result) == 3
     for m in result:
         assert m["difficulty"] == "gentle"
+
+
+# --- 5. 미션 건너뛰기(skip) 대체 추천 ---------------------------------------- #
+
+
+def test_recommend_replacement_same_difficulty():
+    for difficulty in ("gentle", "small", "active"):
+        m = recommend_replacement(difficulty)
+        assert m is not None
+        assert m["difficulty"] == difficulty
+        assert set(m) == {"title", "description", "category", "rationale", "difficulty"}
+
+
+def test_recommend_replacement_excludes_conditional_missions():
+    """대체 미션은 날씨·자원·상대방 가용성에 의존하는 '조건부' 미션이면 안 됨."""
+    for difficulty in ("gentle", "small", "active"):
+        m = recommend_replacement(difficulty)
+        assert m is not None
+        assert m["title"] not in mission_mod._CONDITIONAL_TITLES
+
+
+def test_recommend_replacement_avoids_history():
+    m1 = recommend_replacement("small", history=[])
+    m2 = recommend_replacement("small", history=[m1["title"]])
+    assert m2["title"] != m1["title"]
+
+
+def test_recommend_replacement_history_keeps_pool_unconditional():
+    """history 로 일부 제외돼도 남은 후보 역시 조건부 풀에서 나오지 않음."""
+    history = ["집 앞 5분 산책", "간단한 집안일 하나"]
+    m = recommend_replacement("small", history=history)
+    assert m["title"] not in history
+    assert m["title"] not in mission_mod._CONDITIONAL_TITLES

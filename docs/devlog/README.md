@@ -101,7 +101,7 @@
 |------|------------|------|
 | 모세종 | PR #284·285 승인·머지, PR #286 회복 게이트 4축 산식 교체+GIF/슬라이드쇼 UI 머지, evaluate.py 평가 스크립트 작성 | [→](members/모세종.md) |
 | 김윤한 | — | [→](members/김윤한.md) |
-| 반소람 | 회복점수 4축 일원화(recovery_score_from_axes)·감정추론·폰사용 분석·PII·삼성헬스 파서, 게이트 4축 교체 검증(14일 하드코딩·difficulty 미저장 발견) + 미션 추천 difficulty 태깅 누락 수정 | [→](members/반소람.md) |
+| 반소람 | 회복점수 4축 일원화(recovery_score_from_axes)·감정추론·폰사용 분석·PII·삼성헬스 파서, 게이트 4축 교체 검증(14일 하드코딩·difficulty 미저장 발견) + 미션 추천 difficulty 태깅 누락 수정, 리포트·게이트 산식 완전 일원화 + 생활패턴(걸음/수면/야간폰사용) DB 배선 + L2~3 회복점수 cap=41 적용 + 미션 건너뛰기 대체 추천 구현 + 회복점수 설계문서·TODO·진행도 정리 | [→](members/반소람.md) |
 | 정환주 | TTS URL 자동 핸드오프·Qwen3 API 안정화·PII·삼성헬스 연동 일괄 (PR #285) | [→](members/정환주.md) |
 | 민경이 | — | [→](members/민경이.md) |
 | 장민수 | — | [→](members/장민수.md) |

@@ -56,6 +56,7 @@ def build_report(
     steps: Optional[int] = None,
     lifestyle_pct: Optional[float] = None,
     as_of: Optional[date] = None,
+    risk_level: Optional[int] = None,
 ) -> dict[str, Any]:
     """반려동물별 사용 데이터를 리포트로 집계합니다.
 
@@ -80,6 +81,9 @@ def build_report(
             `activity_to_score(steps)` 로 대체(하위호환).
         as_of: 꾸준함 기준일(보통 `date.today()`). 백엔드 `get_report` 가 넘기면 장기 미접속
             (이탈)이 꾸준함 0% 로 잡힘. None 이면 최근 체크인 기준(하위호환).
+        risk_level: 현재 위기 등급(0~3). L2~3(2 이상)이면 `recovery_signal.recovery_index`
+            를 41로 cap(`recovery_score_from_axes` 참고, `emotion.py::get_recovery`와
+            동일 기준). None 이면(미연계) cap 없음(하위호환).
 
     Returns:
         프론트 차트/요약 UI 용 리포트 dict.
@@ -114,6 +118,7 @@ def build_report(
             steps=steps,
             lifestyle_pct=lifestyle_pct,
             as_of=as_of,
+            risk_level=risk_level,
         ),
         # 🚧 재방문(revisit): 세션/접속 로그 스키마 확정 후 추가 (백엔드 합의)
         "revisit": None,

@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView,
   Modal, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -277,6 +277,14 @@ export default function HomeScreen() {
   const todayKorean = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
   return (
+    <>
+    <Stack.Screen
+      options={
+        memorialMode
+          ? { headerShown: true, title: '홈', headerBackTitle: '뒤로' }
+          : { headerShown: false, headerBackTitle: '뒤로' }
+      }
+    />
     <LinearGradient
       colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']}
       locations={[0, 0.35, 0.6, 1]}
@@ -347,6 +355,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
     </LinearGradient>
+    </>
   );
 }
 

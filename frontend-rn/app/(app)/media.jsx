@@ -47,7 +47,7 @@ export default function MediaScreen() {
         // assetId 있으면 voiced_url 갱신 + gif 최신 상태 확인
         try {
           const res = await getMediaStatus(savedAssetId);
-          const latestUrl = toFullUrl(res.voiced_url || res.video_url);
+          const latestUrl = toFullUrl(res.video_url);
           if (latestUrl && latestUrl !== savedVideo) {
             setVideoUrl(latestUrl);
             await AsyncStorage.setItem('pet_video_url', latestUrl);
@@ -104,7 +104,7 @@ export default function MediaScreen() {
     pollRef.current = setTimeout(async () => {
       try {
         const res = await getMediaStatus(assetId);
-        const url = res.voiced_url || res.video_url;
+        const url = res.video_url;
         if (res.status === 'done' && url) {
           const fullUrl = toFullUrl(url);
           setVideoUrl(fullUrl);

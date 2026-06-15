@@ -359,3 +359,63 @@ def test_recovery_score_from_axes_lifestyle_included_when_present():
     score = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
     # mission0(40)+consistency0(30)+lifestyle100(15), emotion 제외 → 15/85*100
     assert score == round(15 / 85 * 100)
+
+
+# --- L2~3 cap=41 (06-15, RECOVERY_SCORE_DESIGN.md §6) ----------------------- #
+
+
+def test_recovery_score_from_axes_l2_caps_at_41():
+    """risk_level>=2(L2~3)면 만점이어도 41로 상한."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor, risk_level=2
+    )
+    assert score == 41
+
+
+def test_recovery_score_from_axes_l3_also_caps_at_41():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor, risk_level=3
+    )
+    assert score == 41
+
+
+def test_recovery_score_from_axes_l1_l0_no_cap():
+    """risk_level<=1(L0/L1) 또는 None 이면 cap 없이 100까지 오른다."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    for risk_level in (0, 1, None):
+        score = recovery_score_from_axes(
+            _full_days(base, 28),
+            checkins,
+            lifestyle_pct=100,
+            as_of=anchor,
+            risk_level=risk_level,
+        )
+        assert score == 100
+
+
+def test_recovery_score_from_axes_l2_cap_does_not_raise_low_score():
+    """cap은 상한일 뿐, 원점수가 41보다 낮으면 그대로(점수를 올려주지 않음)."""
+    score_no_risk = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
+    score_l2 = recovery_score_from_axes(
+        [], _checkins([5, 5]), lifestyle_pct=100, risk_level=2
+    )
+    assert score_no_risk < 41
+    assert score_l2 == score_no_risk
+
+
+def test_compute_recovery_signal_risk_level_caps_recovery_index():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    rows = _checkins([1, 1, 3.5, 3.5])
+    out = compute_recovery_signal(
+        rows, _full_days(base, 28), lifestyle_pct=100, as_of=anchor, risk_level=2
+    )
+    assert out["recovery_index"] == 41

@@ -52,6 +52,9 @@ export default function MediaScreen() {
             setVideoUrl(latestUrl);
             await AsyncStorage.setItem('pet_video_url', latestUrl);
           }
+          if (res.voiced_url) {
+            await AsyncStorage.setItem('pet_voiced_url', toFullUrl(res.voiced_url));
+          }
           if (res.gif_url) {
             const fullGif = toFullUrl(res.gif_url);
             setGifUrl(fullGif);
@@ -110,8 +113,11 @@ export default function MediaScreen() {
           setVideoUrl(fullUrl);
           await AsyncStorage.setItem('pet_video_url', fullUrl);
           await AsyncStorage.setItem('pet_video_asset_id', assetId);
+          // voiced_url(영상+TTS 합성)은 1인칭 편지용으로 별도 저장
+          if (res.voiced_url) {
+            await AsyncStorage.setItem('pet_voiced_url', toFullUrl(res.voiced_url));
+          }
           setLoading(false);
-          // voiced 완료 후 gif도 바로 있으면 세팅, 없으면 폴링
           if (res.gif_url) {
             const fullGif = toFullUrl(res.gif_url);
             setGifUrl(fullGif);

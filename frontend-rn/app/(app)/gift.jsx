@@ -190,8 +190,8 @@ export default function GiftScreen() {
               emoji="🎞️"
               title="숨쉬는 사진"
               desc={hasVideo ? '아이의 살며시 움직이는 순간이에요' : '슬라이드쇼 미션을 완료하면 도착해요'}
-              state={hasVideo ? 'ready' : 'locked'}
-              actionLabel={hasVideo ? '열어보기' : '준비 중'}
+              state={hasVideo || hasGif ? 'ready' : 'locked'}
+              actionLabel={hasVideo || hasGif ? '열어보기' : '준비 중'}
               onPress={() => router.push('/(app)/media')}
             />
 

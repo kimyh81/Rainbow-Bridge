@@ -35,60 +35,80 @@ export default function HealthScreen() {
     setError('');
     setResult(null);
     setNeedsSetup(false);
+
+    // 1) SDK 상태 확인
+    let sdk;
     try {
-      // 1) Health Connect 사용 가능 여부 확인
-      setStatusMsg('Health Connect 확인 중...');
-      const sdk = await getSdkStatus();
-      if (sdk !== SdkAvailabilityStatus.SDK_AVAILABLE) {
-        setNeedsSetup(true);
-        setError('Health Connect를 사용할 수 없어요. 삼성헬스 설정에서 Health Connect 동기화를 켜주세요.');
-        setLoading(false);
-        return;
-      }
+      setStatusMsg('1/5 Health Connect 확인 중...');
+      sdk = await getSdkStatus();
+    } catch (e) {
+      setError(`[1단계 실패] getSdkStatus 오류: ${e?.message ?? e}`);
+      setLoading(false);
+      return;
+    }
+    if (sdk !== SdkAvailabilityStatus.SDK_AVAILABLE) {
+      setNeedsSetup(true);
+      setError(`[1단계] SDK 사용 불가 (status=${sdk}). 삼성헬스 설정에서 Health Connect 동기화를 켜주세요.`);
+      setLoading(false);
+      return;
+    }
 
-      // 2) 초기화
+    // 2) 초기화
+    try {
+      setStatusMsg('2/5 초기화 중...');
       const ok = await initialize();
-      if (!ok) throw new Error('Health Connect 초기화 실패');
+      if (!ok) throw new Error('initialize() returned false');
+    } catch (e) {
+      setError(`[2단계 실패] initialize 오류: ${e?.message ?? e}`);
+      setLoading(false);
+      return;
+    }
 
-      // 3) 권한 요청 (걸음·수면 읽기)
-      setStatusMsg('권한을 확인하고 있어요...');
-      const granted = await requestPermission(PERMISSIONS);
-      const can = (type) =>
-        granted.some((p) => p.recordType === type && p.accessType === 'read');
+    // 3) 권한 요청
+    let granted = [];
+    try {
+      setStatusMsg('3/5 권한 요청 중... (팝업이 뜨면 허용해주세요)');
+      granted = await requestPermission(PERMISSIONS);
+    } catch (e) {
+      setError(`[3단계 실패] requestPermission 오류: ${e?.message ?? e}`);
+      setLoading(false);
+      return;
+    }
 
-      // 4) 최근 24시간 데이터 읽기 (가공하지 않고 응답 그대로 전송)
-      setStatusMsg('걸음·수면 기록을 읽고 있어요...');
-      const now = new Date();
-      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const timeRangeFilter = {
-        operator: 'between',
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-      };
+    const can = (type) =>
+      granted.some((p) => p.recordType === type && p.accessType === 'read');
 
-      let steps_result = null;
-      let sleep_result = null;
-      if (can('Steps')) {
-        try { steps_result = await readRecords('Steps', { timeRangeFilter }); } catch {}
-      }
-      if (can('SleepSession')) {
-        try { sleep_result = await readRecords('SleepSession', { timeRangeFilter }); } catch {}
-      }
+    // 4) 데이터 읽기
+    setStatusMsg('4/5 걸음·수면 기록 읽는 중...');
+    const now = new Date();
+    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const timeRangeFilter = {
+      operator: 'between',
+      startTime: start.toISOString(),
+      endTime: now.toISOString(),
+    };
+    let steps_result = null;
+    let sleep_result = null;
+    if (can('Steps')) {
+      try { steps_result = await readRecords('Steps', { timeRangeFilter }); } catch {}
+    }
+    if (can('SleepSession')) {
+      try { sleep_result = await readRecords('SleepSession', { timeRangeFilter }); } catch {}
+    }
+    if (!steps_result && !sleep_result) {
+      setError('읽을 수 있는 데이터가 없어요. 권한을 허용했는지, 삼성헬스에 기록이 있는지 확인해주세요.');
+      setLoading(false);
+      return;
+    }
 
-      if (!steps_result && !sleep_result) {
-        setError('읽을 수 있는 데이터가 없어요. 권한을 허용했는지, 삼성헬스에 기록이 있는지 확인해주세요.');
-        setLoading(false);
-        return;
-      }
-
-      // 5) 백엔드로 전송 → 회복 점수에 반영
-      setStatusMsg('서버로 전송하고 있어요...');
+    // 5) 전송
+    try {
+      setStatusMsg('5/5 서버로 전송 중...');
       const petId = await AsyncStorage.getItem('pet_id');
       const res = await syncHealth({ pet_id: petId, steps_result, sleep_result });
       setResult(res);
     } catch (e) {
-      console.warn('[Health] 동기화 실패:', e?.message ?? e);
-      setError('동기화 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.');
+      setError(`[5단계 실패] 서버 전송 오류: ${e?.message ?? e}`);
     } finally {
       setLoading(false);
     }

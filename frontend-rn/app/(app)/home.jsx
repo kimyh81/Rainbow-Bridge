@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView,
   Modal, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -221,9 +221,12 @@ export default function HomeScreen() {
   const [showModal, setShowModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // 화면에 들어올 때마다 데이터 갱신 (다른 화면 갔다 돌아와도 최신 반영)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   async function loadData() {
     const [name, species, gender, startDate, guardTitle, caller, mode, fd, petId, video, letter] = await Promise.all([

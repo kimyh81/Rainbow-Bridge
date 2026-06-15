@@ -12,6 +12,9 @@ export async function doLogout() {
       'bucketlist_items', 'diary_entries', 'caller_name',
       'pet_photos', 'recovery_cache', 'pet_farewell_date', 'memorial_mode',
       'pet_guardian_title', 'pet_gender', 'pet_start_date',
+      // 미디어·메시지 관련 키 — 재로그인 시 이전 데이터 잔존 방지
+      'pet_video_url', 'pet_gif_url', 'pet_video_asset_id',
+      'message_content', 'message_id', 'message_tone',
     ]);
   } catch {}
   router.replace('/(auth)/login');
@@ -25,6 +28,9 @@ const TABS = [
   { key: 'report', emoji: '📊', label: '리포트', path: '/report', route: '/(app)/report' },
 ];
 
+// 하단 바를 숨길 화면 — 추모 편지(별에서 온 편지)는 다크 몰입형이라 바가 어색함
+const BAR_HIDDEN_PATHS = ['/message'];
+
 function BottomBar() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
@@ -34,6 +40,9 @@ function BottomBar() {
   useEffect(() => {
     AsyncStorage.getItem('memorial_mode').then((v) => setMemorialMode(v === 'true'));
   }, [pathname]);
+
+  // 추모 편지 등 몰입형 화면에선 하단 바 숨김
+  if (BAR_HIDDEN_PATHS.includes(pathname)) return null;
 
   // 추모 타임라인·회복 리포트는 이별 후에만 노출
   const tabs = memorialMode

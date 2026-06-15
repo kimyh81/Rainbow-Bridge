@@ -7,7 +7,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
 import { fetchRecoveryGate } from '@/utils/recovery';
 import { iga, gwa } from '@/utils/josa';
 
@@ -329,12 +328,6 @@ export default function HomeScreen() {
             : <SurvivalHome onFarewellPress={() => setShowModal(true)} />
           }
 
-          {/* 앱 버전 — OTA 업데이트 반영 확인용 */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              🌈 레인보우 브릿지 · v{Constants.expoConfig?.version ?? '1.0.0'}
-            </Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -390,8 +383,6 @@ const styles = StyleSheet.create({
   },
   backToSurvivalText: { fontSize: 15, color: '#7A5CA8', fontWeight: '700' },
 
-  footer: { alignItems: 'center', marginTop: 28, paddingVertical: 8 },
-  footerText: { fontSize: 11, color: '#B0A0C0', fontWeight: '500' },
 
   petCard: {
     paddingVertical: 6, paddingHorizontal: 4,

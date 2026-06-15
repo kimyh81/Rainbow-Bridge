@@ -88,7 +88,7 @@ export default function AppLayout() {
             contentStyle: { backgroundColor: COLORS.background },
           }}
         >
-          <Stack.Screen name="home"           options={{ title: '홈' }} />
+          <Stack.Screen name="home"           options={{ title: '홈', headerShown: false }} />
           <Stack.Screen name="profile"        options={{ title: '프로필 등록' }} />
           <Stack.Screen name="farewell"       options={{ title: '이별 안내' }} />
           <Stack.Screen name="funeral"        options={{ title: '장례 안내' }} />

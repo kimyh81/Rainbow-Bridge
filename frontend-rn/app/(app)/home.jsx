@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView,
   Modal, ActivityIndicator, TouchableOpacity,
 } from 'react-native';
-import { Stack, router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -267,6 +267,12 @@ export default function HomeScreen() {
     }
   }
 
+  // 이별 후 홈 → 이별 전 홈으로 되돌리기 (상단 '이전 홈' 버튼)
+  async function backToSurvival() {
+    await AsyncStorage.setItem('memorial_mode', 'false');
+    setMemorialMode(false);
+  }
+
   const daysAfter = farewellDate
     ? Math.max(0, Math.floor((Date.now() - new Date(farewellDate).getTime()) / 86400000))
     : null;
@@ -277,14 +283,6 @@ export default function HomeScreen() {
   const todayKorean = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
   return (
-    <>
-    <Stack.Screen
-      options={
-        memorialMode
-          ? { headerShown: true, title: '홈', headerBackTitle: '뒤로' }
-          : { headerShown: false, headerBackTitle: '뒤로' }
-      }
-    />
     <LinearGradient
       colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']}
       locations={[0, 0.35, 0.6, 1]}
@@ -295,6 +293,18 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
+          {/* 이별 후 홈에서만 — 이별 전 홈으로 돌아가는 버튼 */}
+          {memorialMode && (
+            <TouchableOpacity
+              style={styles.backToSurvivalBtn}
+              onPress={backToSurvival}
+              activeOpacity={0.7}
+              hitSlop={8}
+            >
+              <Text style={styles.backToSurvivalText}>← 이전 홈</Text>
+            </TouchableOpacity>
+          )}
+
           {/* 반려동물 인사 (배경 위 텍스트) */}
           <View style={styles.petCard}>
             <Text style={styles.petGreeting}>안녕하세요, {callerName || '보호자'}님 🐾</Text>
@@ -355,7 +365,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
     </LinearGradient>
-    </>
   );
 }
 
@@ -364,6 +373,14 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingVertical: 28, paddingBottom: 60 },
+
+  backToSurvivalBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  backToSurvivalText: { fontSize: 15, color: '#7A5CA8', fontWeight: '700' },
 
   petCard: {
     paddingVertical: 6, paddingHorizontal: 4,

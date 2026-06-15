@@ -55,18 +55,6 @@ async def upload_photo(
     return result
 
 
-@router.patch("/{pet_id}", response_model=PetResponse)
-async def update_pet_info(
-    pet_id: str, body: PetUpdate, user: dict = Depends(get_current_user)
-):
-    if not await get_pet(pet_id, user_id=user["user_id"]):
-        raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
-    pet = await update_pet(pet_id, body)
-    if not pet:
-        raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
-    return pet
-
-
 @router.patch("/{pet_id}/memorial", response_model=PetResponse)
 async def switch_memorial(pet_id: str, user: dict = Depends(get_current_user)):
     if not await get_pet(pet_id, user_id=user["user_id"]):

@@ -55,7 +55,8 @@
       "react-native-health-connect",
       ["expo-build-properties", {
         "android": {
-          "minSdkVersion": 26
+          "minSdkVersion": 26,
+          "newArchEnabled": false
         }
       }]
     ],

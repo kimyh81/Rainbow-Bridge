@@ -19,10 +19,13 @@
 
 | 항목 | 비중 | 설명 |
 |------|-----:|------|
-| 미션 수행 | 40% | 오늘 회복 활동 성공 여부 |
-| 지속성 | 30% | 꾸준히 이어온 정도 |
-| 생활패턴 | 15% | 수면·걸음수·앱사용 변화 |
-| 감정추세 | 15% | 체크인 점수 흐름 |
+| 미션 수행 | 40% | 오늘 배정된 미션 전부 완료한 날 / 28일 (all-or-nothing, 난이도·개수 무관) |
+| 지속성 | 30% | (배정수-1)개 이상 완료 또는 active 완료한 날 / 28일 (L0 80~100구간은 미션과 동일 기준) |
+| 생활패턴 | 15% | `lifestyle_pct` = 걸음40% + 수면30% + 야간폰사용30% (`health_logs`+`usage_stats` DB 기반, 수면·폰사용은 최근 7일 개인화) |
+| 감정추세 | 15% | 설문 체크인 점수 추이(delta), 50점 중립·30점 하한·100점 cap |
+
+- 4축 모두 **무페널티 재정규화** — 판단할 데이터가 없는 축(감정추세 체크인 3회 미만, 생활패턴 미배선)은 분모에서 제외하고 나머지로 재정규화한다(만점 100 유지). 미션·지속성은 핵심 축이라 항상 분모 포함(데이터 없으면 0점 기여).
+- 구현: `ai/evaluation/recovery_signal.py`(`mission_score`/`consistency_score`/`emotion_trend_score`/`recovery_score_from_axes`) + `ai/evaluation/health_signal.py`(`lifestyle_pct`) + `backend/app/services/health_lifestyle.py`(DB 조회·배선). 게이트(`emotion.py`)·리포트(`report.py`) 모두 `recovery_score_from_axes` 로 일원화(06-15).
 
 ---
 
@@ -87,10 +90,16 @@ L1 기준 최대 28일 안에 100점 도달 목표.
 
 ---
 
-## 8. 남은 과제 (산식 미확정)
+## 8. 4축 산식 (확정·구현 완료, 2026-06-15)
 
-- [ ] `mission_score` 0~100 정규화 방식
-- [ ] `consistency_score` 계산식
-- [ ] 생활패턴 점수 내 수면/걸음수/앱사용 비율
-- [ ] 감정추세 수치화 방법
-- [ ] L0/L1/L2~L3 시뮬레이션 검증
+> [[project_recovery_score_axes_redesign_260614]] 합의안 → 구현 완료. 아래는 각 축의 확정 산식.
+
+- **`mission_score`(40%)** — 그날 배정된 미션을 *전부* 완료한 날 수 / 28일 × 100. 난이도(gentle/small/active)·배정 개수 무관, "다 했나/안 했나"만 본다.
+- **`consistency_score`(30%)** — 그날 (배정수-1)개 이상 완료 **또는** active 미션을 완료했으면 인정한 날 수 / 28일 × 100. 배정이 1개뿐인 날(L0 80~100구간)은 임계값을 1로 floor — `mission_score`와 동일하게 "그 1개를 완료해야" 인정(L0 80~100 구간은 두 점수 모두 "active 미션 완료했는지" 하나로 단순화).
+- **`emotion_trend_score`(15%)** — 기존 설문 체크인(`score`, 1~10)을 오래된/최근 절반으로 나눠 delta 산출. `50 + delta × 20`, floor 30("슬픔은 감점 대상이 아니다"), cap 100. 체크인 3회 미만이면 None(무페널티 제외).
+- **`life_pattern_score`(15%, = `lifestyle_pct`)** — 걸음40% + 수면30% + 야간폰사용30%. 걸음 기준 6000보=100점(`activity_to_score`), 수면·야간폰사용은 최근 7일 개인화(`sleep_pattern_score`/`night_usage_pattern_score`). 값이 없으면(워치 미사용 등) 무페널티 제외.
+- **합성** — `recovery_score_from_axes`(`ai/evaluation/recovery_signal.py`)가 위 4축을 무페널티 재정규화해 0~100 정수로 합성. 회복 게이트(`backend/app/services/emotion.py`)·리포트(`report.py`) 모두 이 함수로 일원화(06-15, PR #286).
+
+### 남은 과제
+
+- [ ] L0/L1/L2~L3 전체 시뮬레이션(실데이터) 검증 — 단위 테스트는 통과, E2E 시나리오 검증은 미실시.

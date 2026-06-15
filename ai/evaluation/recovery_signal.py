@@ -175,6 +175,11 @@ _W_CONSISTENCY = 30.0
 _W_EMOTION_TREND = 15.0
 _W_LIFESTYLE = 15.0
 
+# L2~3(위기 경고/긴급) 상태의 점수 cap — `docs/RECOVERY_SCORE_DESIGN.md` §6
+# (06-15 44→41로 정정: "승격알림→다음날45도달→3인칭편지" 1일 지연 연출).
+# L1/L0 은 cap 없음(0~100).
+_L2_L3_SCORE_CAP = 41
+
 
 def _group_assigned_by_day(
     missions: Iterable[dict[str, Any]],
@@ -319,6 +324,7 @@ def recovery_score_from_axes(
     *,
     lifestyle_pct: Optional[float] = None,
     as_of: Optional[date] = None,
+    risk_level: Optional[int] = None,
 ) -> int:
     """4축(미션40·지속성30·감정추세15·생활패턴15)을 묶은 회복 점수(0~100).
 
@@ -348,9 +354,12 @@ def recovery_score_from_axes(
         emotion_checkins: ``[{"score": 1~10, "created_at": ...}, ...]``(순서 무관).
         lifestyle_pct: 생활패턴 정규화 점수(0~100). 없으면(None) 무페널티 제외.
         as_of: 미션 축 윈도우 기준일. None 이면 데이터 최신 배정일.
+        risk_level: 현재 위기 등급(0~3). **L2~3(2 이상)이면 점수를
+            `_L2_L3_SCORE_CAP`(41)로 상한**(`docs/RECOVERY_SCORE_DESIGN.md` §6).
+            L0/L1(1 이하) 또는 None(미연계)이면 cap 없음(0~100).
 
     Returns:
-        0~100 정수.
+        0~100 정수. risk_level>=2 면 0~41.
     """
     missions = list(missions)
     earned = 0.0
@@ -374,8 +383,14 @@ def recovery_score_from_axes(
         max_w += _W_LIFESTYLE
 
     if max_w == 0:  # 방어적(미션·지속성이 항상 70을 더해 실제로는 도달 불가).
-        return 0
-    return max(0, min(100, round(earned / max_w * 100)))
+        score = 0
+    else:
+        score = max(0, min(100, round(earned / max_w * 100)))
+
+    # L2~3 — 위기 상태에서는 3인칭/1인칭 편지 보상 해금을 막기 위해 점수 cap.
+    if risk_level is not None and risk_level >= 2:
+        score = min(score, _L2_L3_SCORE_CAP)
+    return score
 
 
 def compute_recovery_signal(
@@ -389,6 +404,7 @@ def compute_recovery_signal(
     steps: Optional[int] = None,
     lifestyle_pct: Optional[float] = None,
     as_of: Optional[date] = None,
+    risk_level: Optional[int] = None,
 ) -> dict[str, Any]:
     """일상복귀 신호를 산출합니다.
 
@@ -406,6 +422,8 @@ def compute_recovery_signal(
             쓴다. None 이면(호출부 미배선) `activity_to_score(steps)` 로 대체(하위호환).
         as_of: 꾸준함 기준일. 백엔드가 `date.today()` 를 주면 **장기 미접속(이탈)** 이 꾸준함
             0% 로 잡힘. None 이면 최근 미션 완료일 기준(하위호환).
+        risk_level: 현재 위기 등급(0~3). L2~3(2 이상)이면 `recovery_index` 를 41로
+            상한(`recovery_score_from_axes` 참고). None 이면(미연계) cap 없음.
 
     Returns:
         ``{signal, recovery_index, emotion, mission_completion_rate, checkin_consistency,
@@ -478,7 +496,7 @@ def compute_recovery_signal(
     # 기존 activity_to_score(steps)로 대체(하위호환).
     axes_lifestyle_pct = lifestyle_pct if lifestyle_pct is not None else activity_norm
     index = recovery_score_from_axes(
-        missions, rows, lifestyle_pct=axes_lifestyle_pct, as_of=as_of
+        missions, rows, lifestyle_pct=axes_lifestyle_pct, as_of=as_of, risk_level=risk_level
     )
 
     # 근거 문장 — 발표/화면에 그대로 노출.

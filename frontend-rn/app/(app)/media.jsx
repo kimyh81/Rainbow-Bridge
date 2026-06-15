@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Text, StyleSheet, ScrollView, View } from 'react-native';
+import { Text, StyleSheet, ScrollView, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
@@ -10,24 +10,54 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateMedia, getMediaStatus } from '@/api/media';
 import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
+import { fetchRecoveryGate } from '@/utils/recovery';
 
 const POLL_INTERVAL = 5000;
 const POLL_MAX = 60;
+const GIF_POLL_INTERVAL = 10000;
+const GIF_POLL_MAX = 18;
 
 export default function MediaScreen() {
   const [videoUrl, setVideoUrl] = useState(null);
+  const [gifUrl, setGifUrl] = useState(null);
+  const [recoveryScore, setRecoveryScore] = useState(null);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
   const pollRef = useRef(null);
+  const gifPollRef = useRef(null);
 
-  useEffect(() => () => clearTimeout(pollRef.current), []);
+  useEffect(() => {
+    (async () => {
+      const [petId, savedVideo, savedGif] = await Promise.all([
+        AsyncStorage.getItem('pet_id'),
+        AsyncStorage.getItem('pet_video_url'),
+        AsyncStorage.getItem('pet_gif_url'),
+      ]);
+      if (savedVideo) setVideoUrl(savedVideo);
+      if (savedGif) setGifUrl(savedGif);
+      if (petId) {
+        try {
+          const { score } = await fetchRecoveryGate(petId);
+          setRecoveryScore(score ?? 0);
+        } catch {
+          setRecoveryScore(0);
+        }
+      }
+    })();
+    return () => {
+      clearTimeout(pollRef.current);
+      clearTimeout(gifPollRef.current);
+    };
+  }, []);
 
   async function handleGenerate() {
     clearTimeout(pollRef.current);
+    clearTimeout(gifPollRef.current);
     setLoading(true);
     setError('');
     setVideoUrl(null);
+    setGifUrl(null);
     setStatusMsg('최적의 사진을 고르고 있어요...');
     try {
       const petId = await AsyncStorage.getItem('pet_id');
@@ -56,6 +86,13 @@ export default function MediaScreen() {
           await AsyncStorage.setItem('pet_video_url', fullUrl);
           await AsyncStorage.setItem('pet_video_asset_id', assetId);
           setLoading(false);
+          if (res.gif_url) {
+            const fullGif = res.gif_url.startsWith('http') ? res.gif_url : `${API_URL}${res.gif_url}`;
+            setGifUrl(fullGif);
+            await AsyncStorage.setItem('pet_gif_url', fullGif);
+          } else {
+            pollGif(assetId, 0);
+          }
         } else if (res.status === 'error') {
           setError('영상 생성 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.');
           setLoading(false);
@@ -70,6 +107,21 @@ export default function MediaScreen() {
         setLoading(false);
       }
     }, POLL_INTERVAL);
+  }
+
+  function pollGif(assetId, attempt) {
+    gifPollRef.current = setTimeout(async () => {
+      try {
+        const res = await getMediaStatus(assetId);
+        if (res.gif_url) {
+          const fullGif = res.gif_url.startsWith('http') ? res.gif_url : `${API_URL}${res.gif_url}`;
+          setGifUrl(fullGif);
+          await AsyncStorage.setItem('pet_gif_url', fullGif);
+        } else if (attempt < GIF_POLL_MAX) {
+          pollGif(assetId, attempt + 1);
+        }
+      } catch {}
+    }, GIF_POLL_INTERVAL);
   }
 
   return (
@@ -113,6 +165,22 @@ export default function MediaScreen() {
               </Text>
             </Card>
           ) : null}
+
+          {videoUrl && recoveryScore !== null && recoveryScore < 20 ? (
+            <Card style={styles.teaserCard}>
+              <Text style={styles.teaserTitle}>✨ 숨쉬는 사진</Text>
+              <Text style={styles.teaserDesc}>
+                천천히 오고 있어요{'\n'}조금 더 함께하면 살며시 도착할 거예요.
+              </Text>
+            </Card>
+          ) : null}
+
+          {recoveryScore >= 20 && gifUrl ? (
+            <Card style={styles.gifCard}>
+              <Text style={styles.resultTitle}>✨ 숨쉬는 사진</Text>
+              <Image source={{ uri: gifUrl }} style={styles.gif} resizeMode="contain" />
+            </Card>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -136,4 +204,9 @@ const styles = StyleSheet.create({
   resultTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
   video: { width: '100%', aspectRatio: 1, borderRadius: 12, backgroundColor: '#000' },
   disclaimer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10, lineHeight: 18 },
+  teaserCard: { backgroundColor: '#F9F5FF', borderColor: '#E5DCF0', borderWidth: 1, marginTop: 16, alignItems: 'center', paddingVertical: 24 },
+  teaserTitle: { fontSize: 15, fontWeight: '700', color: '#8A6BAA', marginBottom: 10 },
+  teaserDesc: { fontSize: 13, color: '#A89FBC', textAlign: 'center', lineHeight: 22 },
+  gifCard: { backgroundColor: '#F9F5FF', borderColor: '#E5DCF0', borderWidth: 1, marginTop: 16 },
+  gif: { width: '100%', aspectRatio: 1, borderRadius: 12 },
 });

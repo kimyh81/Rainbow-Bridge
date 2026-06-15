@@ -24,11 +24,12 @@ function JourneyNode({ emoji, label, done }) {
 
 // ── 회복 여정 선물 카드 (추모 편지 자리) ─────────────
 function GiftJourneyCard({ gateStatus, hasVideo, hasLetter }) {
-  const letterReady = gateStatus === 'open';
+  const letterReady = gateStatus === 'teaser' || gateStatus === 'open';
+  const firstPersonReady = gateStatus === 'open';
   const steps = [
     { emoji: '🎞️', label: 'GIF', done: hasVideo },
     { emoji: '✉️', label: '위로 편지', done: letterReady },
-    { emoji: '🌠', label: '별에서 온 편지', done: letterReady },
+    { emoji: '🌠', label: '별에서 온 편지', done: firstPersonReady },
     { emoji: '📦', label: '패키지', done: hasVideo || hasLetter },
   ];
 

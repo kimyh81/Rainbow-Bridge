@@ -221,10 +221,10 @@ def test_recovery_index_uses_composite_not_avg10():
 
 
 def test_checkin_consistency_in_output_and_evidence():
-    """꾸준함이 출력·근거 문장에 실린다(최근 14일 중 미션 완료한 날 수)."""
+    """꾸준함이 출력·근거 문장에 실린다(최근 28일 중 미션 완료한 날 수)."""
     missions = _done_missions([f"2026-06-{i:02d}" for i in range(1, 7)])  # 연속 6일 완료
     out = compute_recovery_signal(_checkins([3, 3, 4, 7, 8, 8]), missions)
-    assert out["checkin_consistency"] == round(6 / 14 * 100, 1)
+    assert out["checkin_consistency"] == round(6 / 28 * 100, 1)
     assert any("미션 완료 꾸준함" in e for e in out["evidence"])
 
 

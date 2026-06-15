@@ -84,21 +84,30 @@ _CONSISTENCY_WINDOW = 14  # 꾸준함 산정 창(일) — RECOVERY_GATE 설계�
 
 
 def _consistency(
-    checkins: Iterable[dict[str, Any]], as_of: Optional[date] = None
+    missions: Iterable[dict[str, Any]], as_of: Optional[date] = None
 ) -> Optional[float]:
-    """체크인 꾸준함(%) — 최근 14일 중 체크인한 '날 수' / 14 × 100.
+    """미션 완료 꾸준함(%) — 최근 14일 중 미션을 완료한 '날 수' / 14 × 100.
+
+    2026-06-12 재정의: 감정 체크인은 이제 설문이 아니라 AI가 매일 추론하므로
+    "체크인한 날"은 항상 거의 100%가 되어 의미를 잃는다. 대신 **유저가 실제로
+    행동(미션 완료)한 날**을 꾸준함의 근거로 본다(앱 접속 빈도는 의존 신호일 수
+    있어 제외 — 모세종 PM 확정).
 
     Args:
-        checkins: 체크인 목록(`created_at` 보유).
+        missions: 미션 목록. ``done=True`` 이고 완료 날짜(``completed_at`` 또는
+            ``date``)가 있는 항목만 셉니다. 날짜 없거나 파싱 불가한 항목은
+            건너뜁니다(graceful).
         as_of: 기준일. **주면 그날 기준 14일**(장기 잠수=이탈을 0%로 잡음 — 리뷰 Major 반영).
-            None 이면 가장 최근 체크인 날짜(결정적·하위호환). 백엔드는 `date.today()` 주입 권장.
+            None 이면 가장 최근 완료 날짜(결정적·하위호환). 백엔드는 `date.today()` 주입 권장.
 
     Returns:
-        0~100 꾸준함(%), 날짜 파싱 불가하면 None.
+        0~100 꾸준함(%). 완료 날짜가 있는 미션이 하나도 없으면 None.
     """
     days: set[date] = set()
-    for c in checkins:
-        token = str(c.get("created_at") or "")[:10]
+    for m in missions:
+        if not m.get("done"):
+            continue
+        token = str(m.get("completed_at") or m.get("date") or "")[:10]
         try:
             days.add(date.fromisoformat(token))
         except ValueError:
@@ -114,21 +123,257 @@ def recovery_score(
     emotion_avg: float,
     completed_missions: int = 0,
     consistency_pct: Optional[float] = None,
+    lifestyle_pct: Optional[float] = None,
 ) -> int:
-    """회복 점수(0~100) — 감정40 / 미션누적35(sticky, 천장35) / 꾸준함25.
+    """회복 점수 — 감정추세15 / 지속성30 / 미션누적40(sticky, 천장40) / 생활패턴15.
+
+    생활패턴(health 데이터) **무페널티 처리** — 2026-06-15 확정(반소람·정환주):
+    `lifestyle_pct` 가 없으면(스마트워치/삼성헬스 미사용 사용자) 그 축을 **분모에서
+    빼고 재정규화**한다. 데이터가 없다고 점수가 깎이지 않는다(만점 여전히 100).
+    정환주 `health_signal.blend_recovery_score` 옵션 A(재정규화)·결정문서 §2와 같은 원칙.
+    → 과거 "없으면 0점·천장 85"(데이터 없는 사용자 페널티)를 폐기.
 
     Args:
-        emotion_avg: 감정 점수 평균(1~10). `(avg-1)/9*100` 로 0~100 정규화.
-        completed_missions: 완료한 미션 수(누적, sticky — 안 떨어짐). 천장 35점.
-        consistency_pct: 체크인한 날 / 14 × 25. 없으면 0 취급.
+        emotion_avg: 감정 점수 평균(1~10, 체크인 스냅샷). `(avg-1)/9*15` 로 0~15 정규화.
+        completed_missions: 완료한 미션 수(누적, sticky — 안 떨어짐). 천장 40점.
+        consistency_pct: 미션 완료한 날 / 14 × 30. 핵심 축이라 없어도 분모엔 포함(0 기여).
+        lifestyle_pct: 생활패턴 정규화 점수(0~100). 없으면(None) 분모서 제외(무페널티).
     """
-    e = max(0.0, min(100.0, (emotion_avg - 1) / 9 * 100))
-    m = min(35.0, float(completed_missions))  # 1미션=1점, 천장 35
+    # 핵심 3축(감정·미션·지속성)은 사용자가 채울 수 있어 항상 분모 포함.
+    e = max(0.0, min(15.0, (emotion_avg - 1) / 9 * 15))
+    m = min(40.0, float(completed_missions))  # 1미션=1점, 천장 40
     c = max(
         0.0,
-        min(25.0, (consistency_pct / 100 * 25) if consistency_pct is not None else 0.0),
+        min(30.0, (consistency_pct / 100 * 30) if consistency_pct is not None else 0.0),
     )
-    return max(0, min(100, round(0.40 * e + m + c)))
+    earned = e + m + c
+    max_w = 15.0 + 40.0 + 30.0  # 핵심 분모 85
+    if lifestyle_pct is not None:  # 외부 신호(health) — 있을 때만 분모에 포함
+        earned += max(0.0, min(15.0, lifestyle_pct / 100 * 15))
+        max_w += 15.0  # → 분모 100
+    return max(0, min(100, round(earned / max_w * 100)))
+
+
+# --- 4축 정규화(미션40/지속성30/생활패턴15/감정추세15) — 06-15 설계 -------------- #
+# [[project_recovery_score_axes_redesign_260614]] 확정안. 축별 점수 함수
+# (mission_score·consistency_score·emotion_trend_score)와 이를 합성하는
+# `recovery_score_from_axes` 까지 구현. 생활패턴(15%)은 전용 함수 미정이라
+# 당분간 미리 계산한 `lifestyle_pct` 를 받는다.
+# ⚠️ 게이트(backend emotion.py)의 recovery_score → recovery_score_from_axes
+# **교체는 아직 안 함** — 감정축 절대→추세 전환이 게이트 동작을 바꿔 안전 민감,
+# 모세종·김윤한 합의 + consistency 윈도우(정환주) 정렬 후.
+
+_MISSION_WINDOW = 28  # mission_score 집계 윈도우(일)
+_DIFFICULTY_ACTIVE = "active"
+_EMOTION_TREND_SCALE = 20.0  # delta(1~10 스케일) × SCALE = 점수 변화폭
+_EMOTION_TREND_NEUTRAL = 50.0  # delta=0(유지) 기준점
+_EMOTION_TREND_FLOOR = 30.0  # 추세가 나빠져도 이 밑으로는 안 깎임("슬픔=감점 아님")
+
+# 4축 합성 가중치(%) — [[project_recovery_score_axes_redesign_260614]] 확정안.
+_W_MISSION = 40.0
+_W_CONSISTENCY = 30.0
+_W_EMOTION_TREND = 15.0
+_W_LIFESTYLE = 15.0
+
+
+def _group_assigned_by_day(
+    missions: Iterable[dict[str, Any]],
+) -> dict[date, dict[str, Any]]:
+    """미션을 '배정일'(date) 기준으로 묶어 {assigned, completed, active_done} 집계.
+
+    Args:
+        missions: ``[{"date": "YYYY-MM-DD", "done": bool, "difficulty"?: str}, ...]``.
+            ``date`` 는 그 미션이 *배정된* 날(완료일이 아님). 날짜 파싱 불가 항목은
+            건너뜀(graceful). ``difficulty`` 없으면 active 판정에서만 제외(나머지
+            동작에는 영향 없음 — 김윤한님 스키마 추가 전까지 graceful).
+    """
+    grouped: dict[date, dict[str, Any]] = {}
+    for m in missions:
+        token = str(m.get("date") or "")[:10]
+        try:
+            day = date.fromisoformat(token)
+        except ValueError:
+            continue
+        g = grouped.setdefault(
+            day, {"assigned": 0, "completed": 0, "active_done": False}
+        )
+        g["assigned"] += 1
+        if m.get("done"):
+            g["completed"] += 1
+            if m.get("difficulty") == _DIFFICULTY_ACTIVE:
+                g["active_done"] = True
+    return grouped
+
+
+def mission_score(
+    missions: Iterable[dict[str, Any]],
+    as_of: Optional[date] = None,
+    window_days: int = _MISSION_WINDOW,
+) -> float:
+    """미션 점수(0~100) — 그날 배정된 미션을 *전부* 완료한 날 수 / 윈도우 × 100.
+
+    난이도(gentle/small/active)·배정 개수와 무관 — "다 했나/안 했나"만 본다
+    (`docs/RECOVERY_SCORE_DESIGN.md` §4: gentle 3개든 active 1개든 같은 가치).
+    매일 미션이 교체 지급되고 완료하면 재체크 불가라 몰아서/중복 파밍은
+    구조적으로 불가능 — 별도 방지장치 불필요.
+
+    Args:
+        missions: ``[{"date": "YYYY-MM-DD", "done": bool, "difficulty"?: str}, ...]``.
+            ``date`` 는 배정일. 같은 날 여러 건이면 그날의 배정 묶음으로 집계.
+        as_of: 기준일. 없으면 데이터의 최신 배정일(결정적, 하위호환).
+        window_days: 집계 윈도우(기본 28일).
+
+    Returns:
+        0~100. 집계 가능한 날이 없으면 0.0.
+    """
+    grouped = _group_assigned_by_day(missions)
+    if not grouped:
+        return 0.0
+    anchor = as_of if as_of is not None else max(grouped)
+    days_in_window = [d for d in grouped if 0 <= (anchor - d).days < window_days]
+    if not days_in_window:
+        return 0.0
+    full_days = sum(
+        1
+        for d in days_in_window
+        if grouped[d]["assigned"] > 0
+        and grouped[d]["completed"] >= grouped[d]["assigned"]
+    )
+    return round(full_days / window_days * 100, 1)
+
+
+def consistency_score(
+    missions: Iterable[dict[str, Any]],
+    as_of: Optional[date] = None,
+    window_days: int = _CONSISTENCY_WINDOW,
+) -> float:
+    """지속성 점수(0~100) — mission_score보다 낮은 기준선.
+
+    그날 (배정수-1)개 이상 완료 **또는** active 미션을 완료했으면 그 날 인정.
+    배정이 1개뿐인 날(L0 80~100 구간)은 (배정수-1)=0이 되어 "아무것도 안 해도
+    인정"되는 걸 막기 위해 임계값을 최소 1로 floor — 즉 1개 배정일 땐
+    mission_score와 동일하게 "그 1개를 완료해야" 인정된다(06-15 확정,
+    [[project_recovery_score_axes_redesign_260614]]: L0 80~100 구간은 두 점수
+    모두 "active 미션 완료했는지" 하나로 단순화).
+
+    Args:
+        missions: mission_score와 동일한 입력 형식.
+        as_of: 기준일. 없으면 데이터의 최신 배정일.
+        window_days: 집계 윈도우(기본 14일).
+
+    Returns:
+        0~100. 집계 가능한 날이 없으면 0.0.
+    """
+    grouped = _group_assigned_by_day(missions)
+    if not grouped:
+        return 0.0
+    anchor = as_of if as_of is not None else max(grouped)
+    days_in_window = [d for d in grouped if 0 <= (anchor - d).days < window_days]
+    if not days_in_window:
+        return 0.0
+    credited = 0
+    for d in days_in_window:
+        g = grouped[d]
+        if g["assigned"] <= 0:
+            continue
+        threshold = max(g["assigned"] - 1, 1)
+        if g["completed"] >= threshold or g["active_done"]:
+            credited += 1
+    return round(credited / window_days * 100, 1)
+
+
+def emotion_trend_score(
+    emotion_checkins: Iterable[dict[str, Any]],
+) -> Optional[float]:
+    """감정추세 점수(0~100) — 절대 감정이 아닌 *추세(방향)* 만 본다.
+
+    older_avg→recent_avg 변화(delta, 1~10 스케일)를 50점(유지) 중심으로
+    정규화: ``50 + delta × 20``, floor 30(추세가 나빠져도 30 밑으로는 안 깎임 —
+    "슬픔은 감점 대상이 아니다"), cap 100.
+
+    체크인 입력은 **기존 설문 체크인**(``score``, 1~10) 그대로 사용 — AI 추론
+    체크인이 아니어도 동일하게 동작한다(데이터 소스 무관, 06-15 확인).
+
+    Args:
+        emotion_checkins: ``[{"score": 1~10, "created_at": "YYYY-MM-DD"}, ...]``
+            (순서 무관, 내부에서 시간순 정렬). `_split_avg` 와 동일하게 앞/뒤
+            절반으로 나눠 추세를 본다.
+
+    Returns:
+        0~100. 체크인이 `_MIN_CHECKINS` 미만이면 None(추세 판단 불가, graceful).
+    """
+    scores = _scores_oldest_first(emotion_checkins)
+    if len(scores) < _MIN_CHECKINS:
+        return None
+    older, recent = _split_avg(scores)
+    delta = recent - older
+    return max(
+        _EMOTION_TREND_FLOOR,
+        min(100.0, _EMOTION_TREND_NEUTRAL + delta * _EMOTION_TREND_SCALE),
+    )
+
+
+def recovery_score_from_axes(
+    missions: Iterable[dict[str, Any]],
+    emotion_checkins: Iterable[dict[str, Any]],
+    *,
+    lifestyle_pct: Optional[float] = None,
+    as_of: Optional[date] = None,
+) -> int:
+    """4축(미션40·지속성30·감정추세15·생활패턴15)을 묶은 회복 점수(0~100).
+
+    [recovery_score]() 의 후속 **일원화 버전** — 미리 계산한 스칼라 대신 원자료
+    (미션·감정 체크인 리스트)를 받아 축별 점수 함수(`mission_score`/
+    `consistency_score`/`emotion_trend_score`)를 직접 호출해 합성한다.
+
+    **무페널티 재정규화** — *판단할 데이터가 없는* 축은 분모에서 빼고 나머지로
+    재정규화한다(만점 100 유지, 06-15 확정):
+      - 감정추세: 체크인 3회 미만(`emotion_trend_score`→None)이면 추세를 못 내므로 제외.
+      - 생활패턴: `lifestyle_pct=None`(워치/삼성헬스 미사용)이면 제외.
+    미션·지속성은 사용자가 앱에서 직접 채우는 **핵심 축**이라 데이터가 없어도
+    (0점 기여로) 항상 분모에 포함한다 — 무페널티 대상이 아님.
+
+    ⚠️ 아직 어디서도 호출하지 않는다(추가만, 교체 X). 회복 게이트
+    (`backend/app/services/emotion.py`)는 여전히 [recovery_score]()(절대 감정)를
+    쓴다. 감정축이 '절대→추세'로 바뀌면 게이트 동작이 달라지므로 **모세종·김윤한
+    안전 합의 전 교체 금지**. 또한 consistency 윈도우 14→28(L0 캘리브레이션) 변경은
+    **정환주 영역** — 여기선 각 함수 기본 윈도우(미션28·지속성14)를 그대로 쓴다.
+    생활패턴 전용 `life_pattern_score` 는 미정이라 당분간 `lifestyle_pct`(미리 계산)를 받는다.
+
+    Args:
+        missions: ``[{"date": "YYYY-MM-DD", "done": bool, "difficulty"?: str}, ...]``
+            (배정일 기준). `mission_score`/`consistency_score` 입력 형식과 동일.
+        emotion_checkins: ``[{"score": 1~10, "created_at": ...}, ...]``(순서 무관).
+        lifestyle_pct: 생활패턴 정규화 점수(0~100). 없으면(None) 무페널티 제외.
+        as_of: 미션 축 윈도우 기준일. None 이면 데이터 최신 배정일.
+
+    Returns:
+        0~100 정수.
+    """
+    missions = list(missions)
+    earned = 0.0
+    max_w = 0.0
+
+    # 핵심 축(미션·지속성) — 데이터 없으면 0 기여, 그래도 항상 분모 포함.
+    earned += mission_score(missions, as_of) / 100 * _W_MISSION
+    max_w += _W_MISSION
+    earned += consistency_score(missions, as_of) / 100 * _W_CONSISTENCY
+    max_w += _W_CONSISTENCY
+
+    # 감정추세 — 체크인 3회 미만이면 추세 불가 → 무페널티 제외.
+    et = emotion_trend_score(emotion_checkins)
+    if et is not None:
+        earned += et / 100 * _W_EMOTION_TREND
+        max_w += _W_EMOTION_TREND
+
+    # 생활패턴 — 외부(health) 신호, 있을 때만 분모 포함(무페널티).
+    if lifestyle_pct is not None:
+        earned += max(0.0, min(100.0, lifestyle_pct)) / 100 * _W_LIFESTYLE
+        max_w += _W_LIFESTYLE
+
+    if max_w == 0:  # 방어적(미션·지속성이 항상 70을 더해 실제로는 도달 불가).
+        return 0
+    return max(0, min(100, round(earned / max_w * 100)))
 
 
 def compute_recovery_signal(
@@ -146,13 +391,15 @@ def compute_recovery_signal(
 
     Args:
         emotion_checkins: 감정 체크인 목록 ``[{score, created_at}, ...]``(순서 무관, 내부 정렬).
-        missions: 미션 목록 ``[{done: bool}, ...]``. 없으면 완료율 생략.
+        missions: 미션 목록 ``[{done: bool, completed_at?/date?}, ...]``. 완료율은
+            ``done`` 만 보고, 꾸준함(아래 ``as_of``)은 완료된 항목의 날짜를 봅니다.
+            없으면 완료율·꾸준함 모두 생략.
         access_counts: 기간별 앱 접속 횟수(오래된→최근). `access_logs` 를 일/주 단위로
             묶어 넣습니다. 없으면 생략(graceful).
         play_counts: 기간별 영상 재생 횟수(오래된→최근). 재생 이벤트 로그가 있을 때만.
             ⚠️ `play_count` 누적 카운터만 있으면 시계열이 아니라 못 넣음 → None.
         as_of: 꾸준함 기준일. 백엔드가 `date.today()` 를 주면 **장기 미접속(이탈)** 이 꾸준함
-            0% 로 잡힘. None 이면 최근 체크인 기준(하위호환).
+            0% 로 잡힘. None 이면 최근 미션 완료일 기준(하위호환).
 
     Returns:
         ``{signal, recovery_index, emotion, mission_completion_rate, checkin_consistency,
@@ -165,6 +412,7 @@ def compute_recovery_signal(
         ``evidence`` 는 그대로 보여줄 수 있는 근거 문장 목록.
     """
     rows = list(emotion_checkins)  # generator 두 번 순회(점수·꾸준함) 대비 materialize.
+    missions = list(missions)  # generator 두 번 순회(완료율·꾸준함) 대비 materialize.
     scores = _scores_oldest_first(rows)
 
     if len(scores) < _MIN_CHECKINS:
@@ -209,7 +457,7 @@ def compute_recovery_signal(
         emo_dir, signal = "유지", SIGNAL_STABLE
 
     completed_missions = sum(1 for m in missions if m.get("done"))
-    consistency = _consistency(rows, as_of)
+    consistency = _consistency(missions, as_of)
     access = _freq_trend(access_counts)
     play = _freq_trend(play_counts)
 
@@ -223,7 +471,7 @@ def compute_recovery_signal(
         )
     if consistency is not None:
         evidence.append(
-            f"체크인 꾸준함 {round(consistency)}% (최근 {_CONSISTENCY_WINDOW}일)"
+            f"미션 완료 꾸준함 {round(consistency)}% (최근 {_CONSISTENCY_WINDOW}일)"
         )
     for label, trend in (("앱 접속", access), ("영상 재생", play)):
         if not trend:

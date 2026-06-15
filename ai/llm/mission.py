@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import json
-from typing import Optional, Protocol
+from typing import Optional, Protocol, Sequence
 
 from ai.rag.retrieve import retrieve as _rag_retrieve
 from .prompts import mission as mission_prompt
@@ -137,7 +137,7 @@ _RULE_POOL: dict[str, tuple[tuple[str, str, str], ...]] = {
             "activity",
         ),
         (
-            "오늘 한 일 하나",
+            "오늘 해낸 작은 일 하나",
             "오늘 한 일 중 '그래도 이건 했네' 싶은 것 하나를 떠올려보세요.",
             "rest",
         ),
@@ -389,6 +389,74 @@ def _parse_llm(raw: str) -> list[dict]:
     return result
 
 
+# --- 미션 구성(난이도 조합) — 06-15, 회복점수 레벨별 ---------------------------- #
+# [[project_recovery_score_axes_redesign_260614]] 확정: 그날 미션은 "단일 난이도
+# count개 반복"이 아니라, 레벨/점수에 따른 **난이도 조합**이다.
+#   - L2~3: G×3 (고정)
+#   - L1:   G×2+Sm×1 또는 G×1+Sm×2 (어느 쪽인지는 감정점수로 결정)
+#   - L0:   0~45점=L1과 동일(3개) / 45~100점=A×1(1개로 축소)
+_L0_ACTIVE_THRESHOLD = 45
+
+
+def _l1_composition(emotion_score: Optional[int]) -> tuple[str, ...]:
+    """L1(및 L0의 0~45 구간) 미션 구성 — G×2+Sm×1 또는 G×1+Sm×2.
+
+    감정점수가 낮을(힘들)수록 gentle 비중을 높인다(G×2+Sm×1).
+    """
+    if emotion_score is not None and emotion_score <= 3:
+        return ("gentle", "gentle", "small")
+    return ("gentle", "small", "small")
+
+
+def mission_composition(
+    level: Optional[str],
+    score: Optional[int] = None,
+    emotion_score: Optional[int] = None,
+) -> Optional[tuple[str, ...]]:
+    """레벨(L2~3/L1/L0)·점수(L0 한정)로 오늘 미션 난이도 조합을 결정합니다.
+
+    Args:
+        level: ``"L2~3"`` | ``"L1"`` | ``"L0"``. None 이면 None 반환 — `recommend()`
+            는 이때 기존 단일 난이도 동작(하위호환)으로 처리합니다.
+        score: recovery_score(0~100). **L0에서만** `_L0_ACTIVE_THRESHOLD`(45)점
+            기준으로 1개(active)/3개를 가른다(레벨과 점수는 독립 축 — L2~3/L1에는
+            cap·점수 분기 없음).
+        emotion_score: L1(또는 L0의 45점 미만 구간)에서 G×2+Sm×1 vs G×1+Sm×2
+            선택 기준.
+
+    Returns:
+        난이도 튜플(예: ``("gentle", "gentle", "small")``). level이 인식되지 않으면 None.
+    """
+    if level == "L2~3":
+        return ("gentle", "gentle", "gentle")
+    if level == "L1":
+        return _l1_composition(emotion_score)
+    if level == "L0":
+        if score is not None and score >= _L0_ACTIVE_THRESHOLD:
+            return ("active",)
+        return _l1_composition(emotion_score)
+    return None
+
+
+def _recommend_by_composition(
+    composition: Sequence[str], history: Optional[list[str]]
+) -> list[dict]:
+    """난이도 조합대로 규칙 풀에서 1개씩 뽑아 합칩니다.
+
+    레벨 기반 조합은 슬롯마다 난이도가 달라 LLM 프롬프트(단일 난이도 가정)와
+    맞지 않으므로, 규칙 풀에서 결정적으로 뽑는다(`_rule_missions`). 각 결과에
+    그 슬롯의 ``difficulty`` 를 태그한다.
+    """
+    used: set[str] = set(history or [])
+    out: list[dict] = []
+    for difficulty in composition:
+        for m in _rule_missions(difficulty, used, 1):
+            m["difficulty"] = difficulty
+            used.add(m["title"])
+            out.append(m)
+    return out
+
+
 def recommend(
     emotion_score: Optional[int],
     day_since: Optional[int] = None,
@@ -398,6 +466,8 @@ def recommend(
     sleep_quality: Optional[int] = None,
     generate: Optional[GenerateFn] = None,
     count: int = 3,
+    level: Optional[str] = None,
+    recovery_score: Optional[int] = None,
 ) -> list[dict]:
     """회복 미션을 추천합니다.
 
@@ -411,12 +481,22 @@ def recommend(
         sleep_quality: 그날 수면 질(5단계, 1~5). 난이도를 3축약으로 보정(1·2↓ / 3 유지
             / 4·5↑). 회복 점수엔 안 들어감 — 미션 강도 조절용. None 이면 미적용.
         generate: LLM 호출 함수(provider.generate). None 이면 규칙 기반만 사용.
-        count: 추천 개수.
+        count: 추천 개수. ``level`` 이 주어지면 무시되고 `mission_composition()`
+            의 길이(보통 3, L0 45+ 는 1)를 따릅니다.
+        level: ``"L2~3"`` | ``"L1"`` | ``"L0"`` (회복점수 risk_level). 주어지면
+            난이도 **조합**(`mission_composition`)으로 추천하고, 규칙 풀만 사용
+            (결정적, LLM 미사용). None 이면 기존 단일 난이도 동작(하위호환).
+        recovery_score: 0~100 누적 점수. ``level="L0"`` 일 때만 45점 기준 분기에 사용.
 
     Returns:
-        ``[{title, description, category, rationale}, ...]`` (최대 count 개).
-        ``rationale`` 은 카테고리별 회복 근거 한 줄(prompts.mission.CATEGORY_RATIONALE).
+        ``[{title, description, category, rationale, difficulty}, ...]``.
+        ``level`` 미지정 시 최대 count개(기존 동작), 지정 시 조합 길이만큼
+        (보통 3개, L0 45+ 는 1개). ``rationale`` 은 카테고리별 회복 근거 한 줄
+        (prompts.mission.CATEGORY_RATIONALE).
     """
+    composition = mission_composition(level, recovery_score, emotion_score)
+    if composition is not None:
+        return _recommend_by_composition(composition, history)
     difficulty = _apply_sleep(
         _apply_trend(_difficulty(emotion_score), recovery_trend), sleep_quality
     )

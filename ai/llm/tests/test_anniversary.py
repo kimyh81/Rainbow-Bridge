@@ -26,15 +26,15 @@ PET = {"name": "봄이", "species": "고양이"}
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("days", [30, 100])
+@pytest.mark.parametrize("days", [30, 100, 365])
 def test_check_anniversary_triggers_on_milestone(days):
-    """D+30, D+100 당일에 트리거 일수를 반환해야 한다."""
+    """D+30, D+100, D+365(1주기) 당일에 트리거 일수를 반환해야 한다."""
     passed = date(2025, 1, 1)
     today = passed + timedelta(days=days)
     assert check_anniversary(passed, today) == days
 
 
-@pytest.mark.parametrize("days", [0, 1, 29, 31, 99, 101, 365])
+@pytest.mark.parametrize("days", [0, 1, 29, 31, 99, 101, 364, 366])
 def test_check_anniversary_returns_none_on_non_milestone(days):
     """기념일이 아닌 날에는 None 을 반환해야 한다."""
     passed = date(2025, 1, 1)
@@ -79,6 +79,12 @@ def test_prompt_fills_milestone_label_d100():
     assert "100일" in user_content
 
 
+def test_prompt_fills_milestone_label_d365():
+    messages = anniversary_prompt.build_messages(365, name="봄이", species="고양이")
+    user_content = messages[1]["content"]
+    assert "1주기" in user_content
+
+
 def test_prompt_includes_memories_when_given():
     messages = anniversary_prompt.build_messages(
         30, name="봄이", species="고양이", memories=["매일 아침 같이 일어났어요"]
@@ -119,7 +125,7 @@ def test_system_prompt_forbids_pet_first_person():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("days", [30, 100])
+@pytest.mark.parametrize("days", [30, 100, 365])
 def test_no_note_returns_template_without_llm_call(days):
     """note 가 없으면 Gemini 를 호출하지 않고 템플릿을 반환한다."""
     called = False
@@ -136,7 +142,7 @@ def test_no_note_returns_template_without_llm_call(days):
     assert result["days_since"] == days
 
 
-@pytest.mark.parametrize("days", [30, 100])
+@pytest.mark.parametrize("days", [30, 100, 365])
 def test_template_contains_pet_name(days):
     """템플릿에 반려동물 이름이 치환되어 들어가는지."""
     def fake_generate(prompt, *, max_tokens=350, temperature=0.6, json_mode=False):
@@ -146,7 +152,7 @@ def test_template_contains_pet_name(days):
     assert PET["name"] in result["message"]
 
 
-@pytest.mark.parametrize("days", [30, 100])
+@pytest.mark.parametrize("days", [30, 100, 365])
 def test_all_milestones_have_template(days):
     """모든 기념일에 템플릿이 정의돼 있어야 한다."""
     assert days in anniversary_prompt.MILESTONE_TEMPLATES
@@ -167,6 +173,14 @@ def test_template_milestone_label_d100():
 
     result = generate_anniversary_care(PET, 100, generate=fake_generate)
     assert result["milestone_label"] == "100일"
+
+
+def test_template_milestone_label_d365():
+    def fake_generate(prompt, *, max_tokens=350, temperature=0.6, json_mode=False):
+        return ""
+
+    result = generate_anniversary_care(PET, 365, generate=fake_generate)
+    assert result["milestone_label"] == "1주기"
 
 
 # --------------------------------------------------------------------------- #

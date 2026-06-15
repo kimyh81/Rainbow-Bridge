@@ -676,8 +676,8 @@ export default function MessageScreen() {
                   <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
                 </View>
 
-                {/* LivePortrait 영상 */}
-                {petVideoUrl && (
+                {/* LivePortrait 영상 — 1인칭 편지에서만 표시 */}
+                {petVideoUrl && isFirst && (
                   <View style={[styles.videoWrap, isFirst && styles.videoWrapFirst]}>
                     <Video source={{ uri: petVideoUrl }} style={styles.video}
                       resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted />

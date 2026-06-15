@@ -12,6 +12,7 @@ from ai.evaluation.logs import (
     alog_llm_call,
     measure_latency,
 )
+from ai.evaluation.pii import redact
 from ai.llm.config import get_config
 from ai.llm.memorial import GuardrailViolation, generate_message
 from ai.llm.provider import generate
@@ -103,7 +104,11 @@ async def create_message(data: MessageCreate) -> MessageResponse:
     first_person = data.request_first_person and allow_first_person
 
     tone = data.tone if data.tone in _VALID_TONES else "warm"
-    note = data.note or ""
+    # 비식별화 — note 의 PII 만 가린다. 반려동물 이름은 pet 객체로 generate_message
+    # 에 그대로 전해져 추모 메시지 품질을 지킨다(이름이 콘텐츠 핵심).
+    pet_name = pet.get("name") or ""
+    raw_note = data.note or ""
+    note = redact(data.note, pet_names=[pet_name] if pet_name else [])
     emotion = {"emotion_score": data.emotion_score or 5, "note": note}
 
     # ⑧ 리포트용 라이트 로깅 메타 — 분기에서 채우고 finally 에서 1건 적재.
@@ -113,8 +118,8 @@ async def create_message(data: MessageCreate) -> MessageResponse:
     response: MessageResponse
     try:
         with measure_latency() as timer:
-            # L0+L1 위기 선체크 — generate 주입으로 LLM 레이어(L1) 활성화
-            crisis = assess_crisis(note, generate=generate)
+            # L0+L1 위기 선체크 — 규칙(L0)은 원문으로(미탐 0), LLM(L1)엔 가린 note(PII 비전송)
+            crisis = assess_crisis(raw_note, generate=generate, llm_text=note)
             action = decide_action(crisis.risk_level)
             if action == CrisisAction.BLOCK:
                 log_kind, log_risk = KIND_CRISIS, int(crisis.risk_level)

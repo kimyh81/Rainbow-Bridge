@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Text, StyleSheet, ScrollView, View } from 'react-native';
+import { Text, StyleSheet, ScrollView, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
@@ -14,20 +14,53 @@ import { COLORS } from '@/constants/colors';
 const POLL_INTERVAL = 5000;
 const POLL_MAX = 60;
 
+function toFullUrl(url) {
+  if (!url) return null;
+  return url.startsWith('http') ? url : `${API_URL}${url}`;
+}
+
 export default function MediaScreen() {
   const [videoUrl, setVideoUrl] = useState(null);
+  const [gifUrl, setGifUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
   const pollRef = useRef(null);
+  const pollGifRef = useRef(null);
 
-  useEffect(() => () => clearTimeout(pollRef.current), []);
+  useEffect(() => {
+    // 앱 재진입 시 이전 결과 복원
+    (async () => {
+      const savedVideo = await AsyncStorage.getItem('pet_video_url');
+      const savedAssetId = await AsyncStorage.getItem('pet_video_asset_id');
+      if (savedVideo) setVideoUrl(savedVideo);
+      if (savedAssetId && !savedVideo) return;
+      if (savedAssetId) {
+        try {
+          const res = await getMediaStatus(savedAssetId);
+          if (res.gif_url) {
+            setGifUrl(toFullUrl(res.gif_url));
+          } else if (savedVideo) {
+            // 영상은 있는데 gif 아직 없음 → 폴링
+            pollGif(savedAssetId, 0);
+          }
+        } catch {}
+      }
+    })();
+
+    return () => {
+      clearTimeout(pollRef.current);
+      clearTimeout(pollGifRef.current);
+    };
+  }, []);
 
   async function handleGenerate() {
     clearTimeout(pollRef.current);
+    clearTimeout(pollGifRef.current);
     setLoading(true);
     setError('');
     setVideoUrl(null);
+    setGifUrl(null);
     setStatusMsg('최적의 사진을 고르고 있어요...');
     try {
       const petId = await AsyncStorage.getItem('pet_id');
@@ -51,11 +84,17 @@ export default function MediaScreen() {
         const res = await getMediaStatus(assetId);
         const url = res.video_url;
         if (res.status === 'done' && url) {
-          const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+          const fullUrl = toFullUrl(url);
           setVideoUrl(fullUrl);
           await AsyncStorage.setItem('pet_video_url', fullUrl);
           await AsyncStorage.setItem('pet_video_asset_id', assetId);
           setLoading(false);
+          // voiced 완료 후 gif도 바로 있으면 세팅, 없으면 폴링
+          if (res.gif_url) {
+            setGifUrl(toFullUrl(res.gif_url));
+          } else {
+            pollGif(assetId, 0);
+          }
         } else if (res.status === 'error') {
           setError('영상 생성 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.');
           setLoading(false);
@@ -68,6 +107,22 @@ export default function MediaScreen() {
       } catch {
         setError('상태 확인에 실패했어요. 다시 시도해주세요.');
         setLoading(false);
+      }
+    }, POLL_INTERVAL);
+  }
+
+  function pollGif(assetId, attempt) {
+    if (attempt >= POLL_MAX) return;
+    pollGifRef.current = setTimeout(async () => {
+      try {
+        const res = await getMediaStatus(assetId);
+        if (res.gif_url) {
+          setGifUrl(toFullUrl(res.gif_url));
+        } else {
+          pollGif(assetId, attempt + 1);
+        }
+      } catch {
+        pollGif(assetId, attempt + 1);
       }
     }, POLL_INTERVAL);
   }
@@ -99,6 +154,7 @@ export default function MediaScreen() {
 
           {videoUrl ? (
             <Card style={styles.resultCard}>
+              <Text style={styles.badge}>✅ 완성</Text>
               <Text style={styles.resultTitle}>🎞️ 추모 영상이 준비됐어요</Text>
               <Video
                 source={{ uri: videoUrl }}
@@ -111,6 +167,22 @@ export default function MediaScreen() {
               <Text style={styles.disclaimer}>
                 AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.
               </Text>
+            </Card>
+          ) : null}
+
+          {videoUrl && !gifUrl ? (
+            <Text style={styles.gifPending}>✨ 움직이는 추모 사진 준비 중... (자동으로 표시돼요)</Text>
+          ) : null}
+
+          {gifUrl ? (
+            <Card style={styles.gifCard}>
+              <Text style={styles.badge}>✅ 완성</Text>
+              <Text style={styles.gifTitle}>✨ 움직이는 추모 사진</Text>
+              <Image
+                source={{ uri: gifUrl }}
+                style={styles.gif}
+                resizeMode="contain"
+              />
             </Card>
           ) : null}
         </ScrollView>
@@ -132,8 +204,13 @@ const styles = StyleSheet.create({
   infoText: { fontSize: 13, color: '#6B5B8A', lineHeight: 20, textAlign: 'center' },
   error: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 12 },
   btn: { marginBottom: 16 },
-  resultCard: { backgroundColor: '#F0F8F6', borderColor: COLORS.secondary, borderWidth: 1 },
+  badge: { fontSize: 11, fontWeight: '700', color: '#2D7A4F', marginBottom: 8 },
+  resultCard: { backgroundColor: '#F0F8F6', borderColor: COLORS.secondary, borderWidth: 1, marginBottom: 12 },
   resultTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
   video: { width: '100%', aspectRatio: 1, borderRadius: 12, backgroundColor: '#000' },
   disclaimer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10, lineHeight: 18 },
+  gifPending: { textAlign: 'center', fontSize: 12, color: '#B0A0C8', marginBottom: 12 },
+  gifCard: { backgroundColor: '#F9F5FF', borderColor: '#E5DCF0', borderWidth: 1 },
+  gifTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
+  gif: { width: '100%', aspectRatio: 1, borderRadius: 12 },
 });

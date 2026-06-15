@@ -30,10 +30,11 @@ export async function fetchRecoveryGate(petId) {
       const data = res.data;
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
       // 백엔드가 gate_status 3단계 필드를 내려주면 그대로 사용, 없으면 score로 계산
+      const riskGated = (data.latest_risk_level ?? 0) >= 2;
       return {
-        gateStatus: data.gate_status ?? scoreToGate(data.recovery_score ?? 0, data.risk_gated ?? false),
-        score: data.recovery_score ?? 0,
-        riskGated: data.risk_gated ?? false,
+        gateStatus: data.gate_status ?? scoreToGate(data.recovery_pct ?? 0, riskGated),
+        score: data.recovery_pct ?? 0,
+        riskGated,
       };
     } catch {}
   }
@@ -44,10 +45,11 @@ export async function fetchRecoveryGate(petId) {
     if (raw) {
       const cached = JSON.parse(raw);
       if (cached.ts && Date.now() - cached.ts < CACHE_TTL) {
+        const riskGated = (cached.latest_risk_level ?? 0) >= 2;
         return {
-          gateStatus: scoreToGate(cached.recovery_score ?? 0, cached.risk_gated ?? false),
-          score: cached.recovery_score ?? 0,
-          riskGated: cached.risk_gated ?? false,
+          gateStatus: scoreToGate(cached.recovery_pct ?? 0, riskGated),
+          score: cached.recovery_pct ?? 0,
+          riskGated,
         };
       }
     }

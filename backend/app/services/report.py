@@ -10,6 +10,7 @@ from ai.evaluation.report import build_report
 
 from app.db.mongodb import mongodb
 from app.schemas.report import EmotionTrend, PlayTrend, ReportResponse
+from app.services.health_lifestyle import get_lifestyle_pct
 
 
 def _bucket_access_counts(timestamps: Iterable[Any]) -> list[int]:
@@ -54,12 +55,21 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     규약(score·done)에 맞춰 정규화해 넘긴다.
     """
     # 감정: DB score 그대로 (build_report 정본 키 = score)
-    emotion_checkins = [
-        {"created_at": str(doc["created_at"]), "score": doc["score"]}
+    emotion_docs = [
+        doc
         async for doc in mongodb.db["emotions"]
-        .find({"pet_id": pet_id}, {"score": 1, "created_at": 1})
+        .find({"pet_id": pet_id}, {"score": 1, "created_at": 1, "risk_level": 1})
         .sort("created_at", 1)
     ]
+    emotion_checkins = [
+        {"created_at": str(doc["created_at"]), "score": doc["score"]}
+        for doc in emotion_docs
+    ]
+    # L2~3(2 이상)이면 recovery_signal.recovery_index 를 41로 cap — get_recovery 의
+    # max_risk 와 동일 기준(RECOVERY_SCORE_DESIGN.md §6).
+    max_risk = (
+        max(doc.get("risk_level", 0) for doc in emotion_docs) if emotion_docs else 0
+    )
 
     # 미션: DB 필드 → mission_score/consistency_score 입력 규약으로 정규화
     # date(배정일)=created_at, difficulty, completed_at(꾸준함 날짜용) 포함
@@ -109,6 +119,9 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     )
     health = health_doc or {}
 
+    # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
+    lifestyle = await get_lifestyle_pct(pet_id)
+
     # TTS 재생 이벤트 날짜별 집계
     play_docs = await mongodb.db["play_logs"].find({"pet_id": pet_id}).to_list(None)
     play_day_counts: Counter = Counter()
@@ -138,6 +151,8 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
         session_count=session_count,
         sleep_hours=health.get("sleep_hours"),
         steps=health.get("steps"),
+        lifestyle_pct=lifestyle,
+        risk_level=max_risk,
     )
 
     return ReportResponse(

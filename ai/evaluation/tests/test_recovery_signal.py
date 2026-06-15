@@ -79,29 +79,30 @@ def test_health_args_omitted_is_backward_compatible():
     assert base["sleep_score"] is None
     assert base["activity_score"] is None
     assert base["cross_check"] is None
-    assert base["scoring"] == "base"  # 어느 산식 썼는지 명시
+    assert base["scoring"] == "axes"  # 06-15 일원화: 항상 recovery_score_from_axes
 
 
 def test_sleep_flagged_but_not_scored():
-    # 결정문서 §2: 수면은 점수서 제외 → 교차검증·표시만. 수면만으론 산식 안 바뀜(base).
+    # 결정문서 §2: 수면은 점수서 제외 → 교차검증·표시만. 수면만으론 점수 안 바뀜.
     rows = _checkins([8, 8, 8, 8, 8, 8])
     out = compute_recovery_signal(rows, sleep_score=30)
     assert out["sleep_score"] == 30
     assert out["cross_check"]["mismatch"] is True  # 수면 나쁨 vs 기분 좋음
-    assert out["scoring"] == "base"  # 수면만으론 blend 전환 안 됨
     assert any("점수 미반영" in e for e in out["evidence"])
     # 수면이 점수에 안 들어갔는지: 수면 없이 낸 점수와 동일해야 함.
     base = compute_recovery_signal(rows)
     assert out["recovery_index"] == base["recovery_index"]
 
 
-def test_activity_switches_to_blend():
-    # 활동(걸음)은 점수 항 → scoring blend 로 전환.
+def test_activity_feeds_lifestyle_axis():
+    # 활동(걸음)은 생활패턴(15%) 축의 lifestyle_pct 로 들어간다(무페널티 재정규화).
     rows = _checkins([8, 8, 8, 8, 8, 8])
     out = compute_recovery_signal(rows, steps=8000)
     assert out["activity_score"] == 100
-    assert out["scoring"] == "blend"
     assert any("활동" in e for e in out["evidence"])
+    # 활동 없을 때보다 점수가 같거나 높아야 한다(만점 활동이 깎을 이유 없음).
+    base = compute_recovery_signal(rows)
+    assert out["recovery_index"] >= base["recovery_index"]
 
 
 def test_unordered_checkins_sorted_by_date():
@@ -206,16 +207,15 @@ def test_consistency_none_without_completion_dates():
 
 
 def test_recovery_index_uses_composite_not_avg10():
-    """recovery_index 가 단순 avg*10 이 아니라 40/35/25 산식(꾸준함 포함)으로 나온다."""
+    """recovery_index 가 단순 avg*10 이 아니라 recovery_score_from_axes(4축)으로 나온다."""
     missions = [
-        {"done": True, "completed_at": "2026-06-04"},
-        {"done": False},
-    ]  # 완료 1개
-    out = compute_recovery_signal(_checkins([5, 5, 6, 6]), missions)
-    c = out["checkin_consistency"]
-    assert c is not None
-    # index == recovery_score(평균, 완료 미션 수, 꾸준함)
-    assert out["recovery_index"] == recovery_score(5.5, 1, c)
+        {"date": "2026-06-04", "done": True, "completed_at": "2026-06-04"},
+        {"date": "2026-06-04", "done": False},
+    ]
+    rows = _checkins([5, 5, 6, 6])
+    out = compute_recovery_signal(rows, missions)
+    assert out["checkin_consistency"] is not None
+    assert out["recovery_index"] == recovery_score_from_axes(missions, rows)
     # 과거 단순 척도(avg*10=55)와는 다르다(미션·꾸준함 반영).
     assert out["recovery_index"] != round(5.5 * 10)
 
@@ -359,3 +359,63 @@ def test_recovery_score_from_axes_lifestyle_included_when_present():
     score = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
     # mission0(40)+consistency0(30)+lifestyle100(15), emotion 제외 → 15/85*100
     assert score == round(15 / 85 * 100)
+
+
+# --- L2~3 cap=41 (06-15, RECOVERY_SCORE_DESIGN.md §6) ----------------------- #
+
+
+def test_recovery_score_from_axes_l2_caps_at_41():
+    """risk_level>=2(L2~3)면 만점이어도 41로 상한."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor, risk_level=2
+    )
+    assert score == 41
+
+
+def test_recovery_score_from_axes_l3_also_caps_at_41():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor, risk_level=3
+    )
+    assert score == 41
+
+
+def test_recovery_score_from_axes_l1_l0_no_cap():
+    """risk_level<=1(L0/L1) 또는 None 이면 cap 없이 100까지 오른다."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    checkins = _checkins([1, 1, 3.5, 3.5])
+    for risk_level in (0, 1, None):
+        score = recovery_score_from_axes(
+            _full_days(base, 28),
+            checkins,
+            lifestyle_pct=100,
+            as_of=anchor,
+            risk_level=risk_level,
+        )
+        assert score == 100
+
+
+def test_recovery_score_from_axes_l2_cap_does_not_raise_low_score():
+    """cap은 상한일 뿐, 원점수가 41보다 낮으면 그대로(점수를 올려주지 않음)."""
+    score_no_risk = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
+    score_l2 = recovery_score_from_axes(
+        [], _checkins([5, 5]), lifestyle_pct=100, risk_level=2
+    )
+    assert score_no_risk < 41
+    assert score_l2 == score_no_risk
+
+
+def test_compute_recovery_signal_risk_level_caps_recovery_index():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    rows = _checkins([1, 1, 3.5, 3.5])
+    out = compute_recovery_signal(
+        rows, _full_days(base, 28), lifestyle_pct=100, as_of=anchor, risk_level=2
+    )
+    assert out["recovery_index"] == 41

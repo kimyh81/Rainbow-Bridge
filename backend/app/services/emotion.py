@@ -8,6 +8,7 @@ from ai.llm.provider import generate
 from app.db.mongodb import mongodb
 from app.db.redis_client import get_recent_emotions, push_emotion
 from app.schemas.emotion import EmotionCreate, EmotionResponse, RecoveryResponse
+from app.services.health_lifestyle import get_lifestyle_pct
 
 CRISIS_HOTLINE = "1393"
 
@@ -110,15 +111,22 @@ async def get_recovery(pet_id: str) -> RecoveryResponse:
                 "difficulty": m.get("difficulty", ""),
             }
         )
-    recovery_pct = recovery_score_from_axes(
-        missions_list,
-        records,
-        as_of=date.today(),
-    )
+    # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
+    lifestyle_pct = await get_lifestyle_pct(pet_id)
 
     # 창(window) 내 최대 risk — 직전 L3 위기가 있었으면 여전히 잠금 유지
     max_risk = max(r.get("risk_level", 0) for r in records)
     latest_risk = records[0].get("risk_level", 0)
+
+    # L2~3(max_risk>=2)이면 회복점수를 41로 cap — content_unlocked(max_risk 기준)와
+    # 같은 기준으로 점수·게이트가 어긋나지 않게 한다(RECOVERY_SCORE_DESIGN.md §6).
+    recovery_pct = recovery_score_from_axes(
+        missions_list,
+        records,
+        lifestyle_pct=lifestyle_pct,
+        as_of=date.today(),
+        risk_level=max_risk,
+    )
 
     content_unlocked = (
         len(records) >= _GATE_MIN_CHECKINS

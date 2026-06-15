@@ -242,6 +242,32 @@ _RULE_POOL: dict[str, tuple[tuple[str, str, str], ...]] = {
 }
 
 
+# 건너뛰기(skip) 재추천 시 제외할 "조건부" 미션 제목 — 날씨·자원(구매)·상대방
+# 가용성에 의존해, 다시 떠도 같은 이유로 또 못 할 수 있는 미션
+# ([[project_mission_active_pick_and_outing_verify]] 설계 조건: 대체 미션은
+# "무조건 가능"만). `_rule_missions(..., unconditional_only=True)` 에서 제외됩니다.
+_CONDITIONAL_TITLES: frozenset[str] = frozenset(
+    {
+        # gentle — 연락할 사람이 없으면 못 함
+        "가까운 사람에게 짧은 메시지",
+        # small — 상대방 가용성에 의존
+        "안부 한 줄 보내기",
+        "편한 사람과 짧은 통화",
+        "가까운 사람에게 사진",
+        # active — 날씨·외출·구매·상대방 가용성에 의존
+        "산책길 다시 걷기",
+        "가까운 곳 다녀오기",
+        "작은 화분 하나 들이기",
+        "새로운 산책 코스",
+        "맛있는 식사 차리기",
+        "가까운 사람과 만남 잡기",
+        "편한 사람과 식사 약속",
+        "아이 이야기 들려주기",
+        "좋아하는 곳에서 사진",
+    }
+)
+
+
 # 난이도 순서(작음 → 큼). 회복 추이로 한 단계 올리고/내릴 때 인덱스로 씁니다.
 _DIFFICULTY_ORDER: tuple[str, ...] = ("gentle", "small", "active")
 
@@ -316,13 +342,24 @@ def _is_safe(mission: dict) -> bool:
     return not any(bad in text for bad in _FORBIDDEN)
 
 
-def _rule_missions(difficulty: str, exclude: set[str], count: int) -> list[dict]:
+def _rule_missions(
+    difficulty: str,
+    exclude: set[str],
+    count: int,
+    *,
+    unconditional_only: bool = False,
+) -> list[dict]:
     """규칙 풀에서 exclude 를 제외하고 count 개를 뽑습니다.
 
     연구 권장 카테고리(prompts.mission.DIFFICULTY_CATEGORIES)를 **라운드로빈**으로 돌며
     한 카테고리에 쏠리지 않게 고릅니다 — 같은 난이도라도 회복 단계에 맞는 분류가
     '고루' 노출되도록(발표준비_논문근거.md §감정 상태 × 미션 구조).
     예: gentle 3개 → 기록·추모·자기돌봄 각 1개(rest 도배 방지). 부족분은 나머지로 보충.
+
+    Args:
+        unconditional_only: True면 `_CONDITIONAL_TITLES`(날씨·자원·상대방 가용성에
+            의존하는 미션)도 추가로 제외합니다 — 건너뛰기(skip) 재추천용
+            (`recommend_replacement`).
     """
     prescribed = mission_prompt.DIFFICULTY_CATEGORIES.get(difficulty, ())
     pool = _RULE_POOL[difficulty]
@@ -330,6 +367,8 @@ def _rule_missions(difficulty: str, exclude: set[str], count: int) -> list[dict]
     by_cat: dict[str, list[tuple[str, str, str]]] = {}
     for m in pool:
         if m[0] in exclude:
+            continue
+        if unconditional_only and m[0] in _CONDITIONAL_TITLES:
             continue
         by_cat.setdefault(m[2], []).append(m)
     # 권장 카테고리를 한 칸씩 번갈아 가며(라운드로빈) 쌓는다 → 분류 다양성 확보.
@@ -551,3 +590,30 @@ def recommend(
         m.setdefault("difficulty", difficulty)
 
     return missions[:count]
+
+
+def recommend_replacement(
+    difficulty: str, history: Optional[list[str]] = None
+) -> Optional[dict]:
+    """건너뛴 미션의 대체 미션 1개를 추천합니다(건너뛰기 1회 허용, 06-13 확정).
+
+    날씨·자원(구매)·상대방 가용성에 의존하는 "조건부" 미션(`_CONDITIONAL_TITLES`)은
+    제외하고, 같은 난이도의 "무조건 가능한" 풀에서만 뽑습니다 — 대체 미션도
+    조건부면 같은 이유로 또 못 할 수 있어 같은 문제가 반복되기 때문입니다
+    ([[project_mission_active_pick_and_outing_verify]] 설계 조건).
+
+    Args:
+        difficulty: 건너뛴 미션의 난이도(gentle·small·active). 대체 미션도 같은
+            난이도를 유지합니다(레벨별 미션 구성 비중을 깨지 않도록).
+        history: 최근 추천/완료(+건너뛴) 미션 제목(중복 회피).
+
+    Returns:
+        ``{title, description, category, rationale, difficulty}`` 1개.
+        해당 난이도의 무조건 가능 풀이 모두 소진되면(이론상 거의 없음) None.
+    """
+    used = set(history or [])
+    out = _rule_missions(difficulty, used, 1, unconditional_only=True)
+    if not out:
+        return None
+    out[0]["difficulty"] = difficulty
+    return out[0]

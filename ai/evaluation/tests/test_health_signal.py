@@ -10,6 +10,10 @@ from ..health_signal import (
     condition_signal,
     cross_check,
     health_signal,
+    lifestyle_pct,
+    night_usage_pattern_score,
+    night_usage_to_score,
+    sleep_pattern_score,
     sleep_to_score,
 )
 
@@ -74,10 +78,62 @@ def test_sleep_hours_optimal_and_short():
 
 
 def test_activity_score_normalization():
-    assert activity_to_score(8000) == 100
-    assert activity_to_score(4000) == 50
+    # 06-15: 활동 유도 위해 목표 걸음 8000→6000으로 조정.
+    assert activity_to_score(8000) == 100  # 천장 cap
+    assert activity_to_score(6000) == 100
+    assert activity_to_score(3000) == 50
     assert activity_to_score(0) == 0
     assert activity_to_score(None) is None
+
+
+# ── 생활패턴(15%) 축 — 걸음40/수면30/앱사용량30 (06-15 합의) ──
+def test_night_usage_to_score_10min_per_point():
+    assert night_usage_to_score(0) == 100
+    assert night_usage_to_score(50) == 95
+    assert night_usage_to_score(1000) == 0  # 음수 방지 cap
+    assert night_usage_to_score(None) is None
+
+
+def test_sleep_pattern_score_first_week_fixed_6h_target():
+    # 기록 7일 미만 → 고정기준(6시간=100점)
+    assert sleep_pattern_score(6.0, history=None) == 100.0
+    assert sleep_pattern_score(3.0, history=[5.0] * 3) == 50.0
+    assert sleep_pattern_score(None) is None
+
+
+def test_sleep_pattern_score_personalized_after_one_week():
+    # 최근 7일 평균(6h) 대비 오늘(3h) → 50%
+    history = [6.0] * 7
+    assert sleep_pattern_score(3.0, history=history) == 50.0
+    # 평소보다 잘 잤으면 100으로 cap
+    assert sleep_pattern_score(9.0, history=history) == 100.0
+
+
+def test_night_usage_pattern_score_first_week_fixed():
+    # 기록 7일 미만 → night_usage_to_score 그대로(10분당 -1점)
+    assert night_usage_pattern_score(30, history=None) == 97.0
+    assert night_usage_pattern_score(None) is None
+
+
+def test_night_usage_pattern_score_personalized_after_one_week():
+    # 평소(최근7일) 새벽 60분 사용(raw=94) 대비, 오늘 0분(raw=100) → 개선 → cap 100
+    history = [60.0] * 7
+    assert night_usage_pattern_score(0, history=history) == 100.0
+    # 오늘도 평소와 같으면 비율 100(변화 없음)
+    assert night_usage_pattern_score(60, history=history) == 100.0
+
+
+def test_lifestyle_pct_weighted_composite():
+    # 걸음40 + 수면30 + 앱사용량30, 첫주 고정기준(6000보·6시간·10분당-1점)
+    pct = lifestyle_pct(steps=6000, sleep_hours=6.0, night_minutes=0)
+    assert pct == 100.0  # 세 항목 모두 만점
+
+
+def test_lifestyle_pct_no_penalty_renormalization():
+    # 걸음만 있을 때 — 수면·앱사용량 빠지고 걸음 100%로 재정규화
+    assert lifestyle_pct(steps=6000) == 100.0
+    # 아무 데이터도 없으면 None(축 자체 제외)
+    assert lifestyle_pct() is None
 
 
 def test_blend_full_is_100():

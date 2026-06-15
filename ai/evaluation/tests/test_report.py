@@ -45,6 +45,26 @@ def test_recovery_signal_integrated():
     assert any("회복 신호" in e for e in sig["evidence"])
 
 
+def test_recovery_signal_risk_level_caps_at_41():
+    """L2~3(risk_level>=2)이면 recovery_signal.recovery_index 도 41로 cap(get_recovery와 동일)."""
+    checkins = [
+        {"created_at": f"2026-06-{i + 1:02d}", "score": s}
+        for i, s in enumerate([3, 3, 4, 7, 8, 8])
+    ]
+    missions = [
+        {"date": f"2026-06-{i + 1:02d}", "done": True, "difficulty": "active"}
+        for i in range(6)
+    ]
+    r = build_report(
+        "pet1",
+        emotion_checkins=checkins,
+        missions=missions,
+        lifestyle_pct=100,
+        risk_level=2,
+    )
+    assert r["recovery_signal"]["recovery_index"] == 41
+
+
 def test_recovery_signal_play_counts_forwarded():
     """build_report 가 play_counts 를 recovery_signal 의 재생 빈도 추세로 연결한다."""
     checkins = [
@@ -66,19 +86,19 @@ def test_recovery_signal_health_forwarded():
     r = build_report("pet1", emotion_checkins=checkins, sleep_score=30, steps=2000)
     sig = r["recovery_signal"]
     assert sig["sleep_score"] == 30
-    assert sig["scoring"] == "blend"  # 헬스 들어오면 blend 산식
+    assert sig["scoring"] == "axes"  # 06-15 일원화: 항상 recovery_score_from_axes
     assert sig["cross_check"]["mismatch"] is True  # 수면 나쁨 + 기분 좋음
     assert any("수면점수" in e for e in sig["evidence"])
 
 
 def test_health_omitted_keeps_base_scoring():
-    """헬스 미제공 시 build_report → recovery_signal 이 base 산식(하위호환)."""
+    """헬스 미제공 시에도 build_report → recovery_signal 이 정상 동작한다(하위호환)."""
     checkins = [
         {"created_at": f"2026-06-{i + 1:02d}", "score": s}
         for i, s in enumerate([5, 6, 6, 7, 7, 8])
     ]
     r = build_report("pet1", emotion_checkins=checkins)
-    assert r["recovery_signal"]["scoring"] == "base"
+    assert r["recovery_signal"]["scoring"] == "axes"
     assert r["recovery_signal"]["sleep_score"] is None
 
 

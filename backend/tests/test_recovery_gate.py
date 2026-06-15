@@ -18,7 +18,7 @@ def _make_records(scores: list[int], risks: list[int]) -> list[dict]:
 
 
 class _EmptyCursor:
-    """미션 컬렉션이 비어 있는 경우를 시뮬레이션하는 async iterator."""
+    """미션/헬스로그 컬렉션이 비어 있는 경우를 시뮬레이션하는 async iterator + cursor."""
 
     def __aiter__(self):
         return self
@@ -26,11 +26,22 @@ class _EmptyCursor:
     async def __anext__(self):
         raise StopAsyncIteration
 
+    def sort(self, *args, **kwargs):
+        return self
+
+    async def to_list(self, *args, **kwargs):
+        return []
+
 
 def _make_mongo_mock():
-    """mongodb.db["missions"].find() → 빈 cursor를 반환하는 mock."""
+    """mongodb.db["missions"].find() → 빈 cursor, db["health_logs"].find_one() → None 인 mock.
+
+    get_lifestyle_pct 의 health_logs/usage_stats `.find().sort().to_list()` 체인도
+    같은 빈 커서로 동작(생활패턴 데이터 없음 → None, 무페널티 제외).
+    """
     mock_mongo = MagicMock()
     mock_mongo.db.__getitem__.return_value.find.return_value = _EmptyCursor()
+    mock_mongo.db.__getitem__.return_value.find_one = AsyncMock(return_value=None)
     return mock_mongo
 
 
@@ -44,7 +55,9 @@ async def test_gate_unlocked_when_conditions_met():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_1")
 
@@ -58,7 +71,9 @@ async def test_gate_locked_when_checkins_too_few():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_2")
 
@@ -72,7 +87,9 @@ async def test_gate_locked_when_avg_score_low():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_3")
 
@@ -89,7 +106,9 @@ async def test_gate_locked_when_crisis():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_4")
 
@@ -106,7 +125,9 @@ async def test_allow_first_person_only_when_no_risk():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_first_person_1")
 
@@ -124,7 +145,9 @@ async def test_allow_first_person_when_all_safe():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_first_person_2")
 
@@ -142,7 +165,9 @@ async def test_gate_locked_when_worsening_trend():
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
     ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
-        "app.services.emotion.mongodb", _make_mongo_mock()
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
     ):
         result = await get_recovery("pet_test_5")
 
@@ -154,7 +179,11 @@ async def test_gate_no_data():
     """데이터 없으면 잠금 유지."""
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=[])
-    ), patch("app.services.emotion.mongodb", _make_mongo_mock()):
+    ), patch(
+        "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
+    ), patch(
+        "app.services.health_lifestyle.mongodb", _mongo_mock
+    ):
         result = await get_recovery("pet_test_empty")
 
     assert result.content_unlocked is False

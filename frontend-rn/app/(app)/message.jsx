@@ -132,58 +132,6 @@ function GateLockedScreen({ petName, onGoCheckin, onGoMission, onGoHome, onLogou
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// 회복 게이트 — 찌라시 카드 (score 50~79)
-// 근거: RECOVERY_GATE.md — "회복하면 OO이의 편지를 받을 수 있다"는
-//       찌라시가 회복 동기를 만든다
-// ─────────────────────────────────────────────────────────────
-function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
-  const pct = Math.max(0, Math.min(99, ((score - 45) / 35) * 100));
-  const filledBlocks = Math.floor(pct / 10);
-  const bar = '█'.repeat(filledBlocks) + '░'.repeat(10 - filledBlocks);
-
-  return (
-    <LinearGradient colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']} locations={[0, 0.35, 0.6, 1]} style={gate.gradient}>
-      <SafeAreaView style={gate.safe}>
-        <View style={gate.navRow}>
-          <TouchableOpacity onPress={onGoHome} style={gate.navBtn} activeOpacity={0.7}>
-            <Text style={gate.navHome}>홈</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onLogout} style={gate.navBtn} activeOpacity={0.7}>
-            <Text style={gate.navLogout}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView contentContainerStyle={gate.scroll}>
-          <View style={gate.teaserCard}>
-            <Text style={gate.teaserLock}>🔒</Text>
-            <Text style={gate.teaserTitle}>{petName || '아이'}{iga(petName || '아이')} 남긴 편지</Text>
-            <Text style={gate.teaserDesc}>
-              {petName || '아이'}{gwa(petName || '아이')}의 추억을 바탕으로 쓴{'\n'}특별한 편지가 기다리고 있어요.
-            </Text>
-
-            <View style={gate.progressWrap}>
-              <Text style={gate.progressBar}>{bar}</Text>
-              <Text style={gate.progressLabel}>
-                {score > 0 ? `${score}점` : '체크인을 시작해보세요'}
-              </Text>
-              <Text style={gate.progressHint}>80점이 되면 열립니다</Text>
-            </View>
-
-            <Text style={gate.teaserEncourage}>천천히 괜찮아요 🐾</Text>
-
-            <View style={gate.divider} />
-            <TouchableOpacity style={gate.primaryBtn} onPress={onGoCheckin} activeOpacity={0.85}>
-              <Text style={gate.primaryBtnText}>💭 감정 체크인으로 회복도 높이기</Text>
-            </TouchableOpacity>
-            <Text style={gate.footnote}>
-              감정 체크인과 오늘의 미션을 꾸준히 하면 회복도가 올라가요.
-            </Text>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
-  );
-}
 
 export default function MessageScreen() {
   const router = useRouter();
@@ -518,17 +466,7 @@ export default function MessageScreen() {
       />
     );
   }
-  if (gateStatus === 'teaser') {
-    return (
-      <GateTeaserScreen
-        petName={petName}
-        score={recoveryScore}
-        onGoCheckin={() => router.replace('/(app)/emotion')}
-        onGoHome={() => router.replace('/(app)/home')}
-        onLogout={doLogout}
-      />
-    );
-  }
+
 
   return (
     <LinearGradient key="dark" colors={['#2a3445', '#2c2742', '#241e32']} style={styles.safeGradient}>

@@ -204,6 +204,9 @@ function MemorialHome({ gateStatus, hasVideo, hasLetter }) {
         <SmallCard emoji="🎞️" title="추모 영상 만들기" route="/(app)/media" />
         <SmallCard emoji="🔊" title="음성으로 듣기" route="/(app)/tts" />
       </View>
+      <View style={styles.subRow}>
+        <SmallCard emoji="🏃" title="삼성헬스 연동" route="/(app)/health" />
+      </View>
     </>
   );
 }

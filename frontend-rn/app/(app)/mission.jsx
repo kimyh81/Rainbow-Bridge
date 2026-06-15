@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
@@ -24,10 +24,12 @@ export default function MissionScreen() {
   const [completing, setCompleting] = useState(null);
   const [petName, setPetName] = useState('소중한 친구');
 
-  useEffect(() => {
-    AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
-    fetchMissions();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
+      fetchMissions();
+    }, [])
+  );
 
   async function fetchMissions() {
     // 날짜가 바뀌었으면 완료 목록 초기화

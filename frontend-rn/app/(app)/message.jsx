@@ -316,7 +316,8 @@ export default function MessageScreen() {
     const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
     try {
       const existing = await getLatestMessage(petId);
-      if (!existing || existing.source === 'unavailable') throw new Error('unavailable');
+      // 최신 메시지가 1인칭이면 3인칭 생성 트리거 (1인칭 메시지가 위로 편지에 재사용되는 버그 방지)
+      if (!existing || existing.source === 'unavailable' || existing.first_person) throw new Error('unavailable');
       await saveMessage(existing);
     } catch {
       try {

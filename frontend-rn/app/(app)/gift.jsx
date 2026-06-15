@@ -63,6 +63,7 @@ export default function GiftScreen() {
     setHasVideo(!!video);
     setHasLetter(!!letter);
     setHasGif(!!gif);
+    if (!petId) { setGateStatus('locked'); return; }
     const { gateStatus: gs } = await fetchRecoveryGate(petId);
     setGateStatus(gs);
   }

@@ -291,6 +291,10 @@ export default function MessageScreen() {
     try {
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');
+      if (!data.first_person) {
+        setGateStatus('teaser');
+        return;
+      }
       await saveMessage(data);
     } catch {
       await saveMessage(makeFallbackMessage(petNameLocal));

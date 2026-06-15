@@ -1,4 +1,5 @@
 FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # LivePortrait 음성 합치기(merge_audio)가 ffmpeg를 사용 — slim 이미지엔 없어 설치.

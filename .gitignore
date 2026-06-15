@@ -40,7 +40,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnp.*
 
-# ===== AI 모델 / 가중치 / 산출물 (용량 큼 — git 금지) =====
+# ===== AI 모델 / 가중치 / 산출물 (용량 큰 — git 금지) =====
 /models/
 ai/**/models/
 weights/
@@ -49,8 +49,10 @@ weights/
 *.pth
 *.onnx
 *.gguf
+*.pkl
 ai/**/outputs/
 ai/**/checkpoints/
+output/
 
 # ===== 미디어 산출물 (영상/음성 — git 금지) =====
 *.mp4

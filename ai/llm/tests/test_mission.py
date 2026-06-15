@@ -21,7 +21,7 @@ def test_rule_based_returns_count():
     result = recommend(emotion_score=2, count=3)
     assert len(result) == 3
     for m in result:
-        assert set(m) == {"title", "description", "category", "rationale"}
+        assert set(m) == {"title", "description", "category", "rationale", "difficulty"}
         assert m["category"] in mission_prompt.CATEGORIES
         # 근거는 카테고리별 회복 근거와 정확히 일치(코드 부착).
         assert m["rationale"] == mission_prompt.CATEGORY_RATIONALE[m["category"]]
@@ -313,8 +313,8 @@ def test_recommend_with_level_l0_45_plus_returns_single_active():
 
 
 def test_recommend_level_none_keeps_old_behavior():
-    """level 미지정 시 기존 동작(난이도 키 없음, count개) 그대로."""
+    """level 미지정 시 기존 동작(count개, 단일 난이도) 유지 + difficulty 태깅."""
     result = recommend(emotion_score=2, count=3)
     assert len(result) == 3
     for m in result:
-        assert "difficulty" not in m
+        assert m["difficulty"] == "gentle"

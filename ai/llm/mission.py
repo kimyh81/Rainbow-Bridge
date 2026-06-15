@@ -547,4 +547,7 @@ def recommend(
         used = recent | {m["title"] for m in missions}
         missions += _rule_missions(difficulty, used, count - len(missions))
 
+    for m in missions:
+        m.setdefault("difficulty", difficulty)
+
     return missions[:count]

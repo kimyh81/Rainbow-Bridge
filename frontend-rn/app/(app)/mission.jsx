@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { getMissions, completeMission } from '@/api/missions';
+import { getMissions, completeMission, skipMission } from '@/api/missions';
 import { mockMissions } from '@/api/mock';
 import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
@@ -17,11 +17,21 @@ import { doLogout } from './_layout';
 
 const COMPLETED_KEY = 'mission_completed_ids';
 
+// 난이도 배지 — 소람님 LLM이 difficulty 필드(gentle/small/active)로 내려줌.
+// 회복 단계(점수/레벨)는 백엔드가 결정하고, 프론트는 받은 난이도만 부드럽게 표시한다.
+//   gentle(G): 0~44점 기본 / small(Sm): 승격~ / active(A): 80점+ (L0)에서 등장
+const DIFFICULTY_META = {
+  gentle: { label: '가볍게', emoji: '🌱', bg: '#EAF7EF', fg: '#3E9B6B' },
+  small: { label: '한 걸음 더', emoji: '🌿', bg: '#E9F0FB', fg: '#4A77C0' },
+  active: { label: '활동', emoji: '☀️', bg: '#FCF2E2', fg: '#C8862F' },
+};
+
 export default function MissionScreen() {
   const router = useRouter();
   const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(null);
+  const [skipping, setSkipping] = useState(null);
   const [petName, setPetName] = useState('소중한 친구');
 
   useFocusEffect(
@@ -88,7 +98,35 @@ export default function MissionScreen() {
     }
   }
 
-  const doneCount = missions.filter((m) => m.completed).length;
+  // 미션 건너뛰기 — 세종님 백엔드가 같은 난이도 대체 미션을 만들어 그 자리에 끼워준다.
+  // replacement가 없으면(더 줄 미션이 없으면) 해당 미션을 목록에서 숨긴다(skipped).
+  async function handleSkip(missionId) {
+    setSkipping(missionId);
+    try {
+      const { replacement } = await skipMission({ mission_id: missionId });
+      setMissions((prev) =>
+        prev.map((m) =>
+          m.id === missionId
+            ? replacement
+              ? { ...replacement, completed: false }
+              : { ...m, skipped: true }
+            : m
+        )
+      );
+    } catch {
+      // 백엔드 실패 시 — 일단 목록에서 숨겨 다른 미션에 집중하게 한다
+      setMissions((prev) =>
+        prev.map((m) => (m.id === missionId ? { ...m, skipped: true } : m))
+      );
+    } finally {
+      setSkipping(null);
+    }
+  }
+
+  // skip된 미션은 화면에서 제외 (대체 미션이 그 자리를 채움)
+  const visibleMissions = missions.filter((m) => !m.skipped);
+  const doneCount = visibleMissions.filter((m) => m.completed).length;
+  const totalCount = visibleMissions.length;
 
   if (loading) {
     return (
@@ -125,70 +163,95 @@ export default function MissionScreen() {
             <View
               style={[
                 styles.progressFill,
-                { width: missions.length ? `${(doneCount / missions.length) * 100}%` : '0%' },
+                { width: totalCount ? `${(doneCount / totalCount) * 100}%` : '0%' },
               ]}
             />
           </View>
-          <Text style={styles.progressLabel}>{doneCount}/{missions.length} 완료</Text>
+          <Text style={styles.progressLabel}>{doneCount}/{totalCount} 완료</Text>
         </View>
 
         {/* 미션 카드 목록 */}
         <View style={styles.missionList}>
-          {missions.map((mission) => (
-            <Card key={mission.id} style={[styles.missionCard, mission.completed && styles.missionCardDone]}>
-              <View style={styles.missionRow}>
-                <Text style={styles.missionEmoji}>{mission.completed ? '✅' : '🌱'}</Text>
-                <View style={styles.missionInfo}>
-                  <Text style={[styles.missionTitle, mission.completed && styles.missionTitleDone]}>
-                    {'📋 '}{mission.title}
-                  </Text>
-                  {mission.description ? (
-                    <Text style={styles.missionDesc}>{mission.description}</Text>
-                  ) : null}
-                  {mission.rationale ? (
-                    <Text style={styles.missionRationale}>
-                      {'💡 '}{mission.rationale}{mission.category ? ` — (${mission.category})` : ''}
+          {visibleMissions.map((mission) => {
+            const diff = DIFFICULTY_META[mission.difficulty];
+            // 슬라이드쇼 같은 자동 생성 특별 미션은 건너뛸 수 없음
+            const isSpecial = !!mission.video_url || String(mission.id).startsWith('slideshow');
+            return (
+              <Card key={mission.id} style={[styles.missionCard, mission.completed && styles.missionCardDone]}>
+                <View style={styles.missionRow}>
+                  <Text style={styles.missionEmoji}>{mission.completed ? '✅' : '🌱'}</Text>
+                  <View style={styles.missionInfo}>
+                    {diff ? (
+                      <View style={[styles.diffBadge, { backgroundColor: diff.bg }]}>
+                        <Text style={[styles.diffBadgeText, { color: diff.fg }]}>
+                          {diff.emoji} {diff.label}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text style={[styles.missionTitle, mission.completed && styles.missionTitleDone]}>
+                      {'📋 '}{mission.title}
                     </Text>
-                  ) : null}
+                    {mission.description ? (
+                      <Text style={styles.missionDesc}>{mission.description}</Text>
+                    ) : null}
+                    {mission.rationale ? (
+                      <Text style={styles.missionRationale}>
+                        {'💡 '}{mission.rationale}{mission.category ? ` — (${mission.category})` : ''}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
 
-              {mission.video_url ? (
-                <View style={styles.slideshowCard}>
-                  <Text style={styles.slideshowBadge}>✅ 완성</Text>
-                  <Text style={styles.slideshowLabel}>🎞️ 추모 슬라이드쇼가 준비됐어요</Text>
-                  <Video
-                    source={{
-                      uri: mission.video_url.startsWith('http')
-                        ? mission.video_url
-                        : `${API_URL}${mission.video_url}`,
-                    }}
-                    style={styles.video}
-                    useNativeControls
-                    resizeMode={ResizeMode.CONTAIN}
-                    isLooping={false}
-                  />
-                  <Text style={styles.videoDisclaimer}>
-                    {petName}{gwa(petName)} 함께한 추억 사진으로 만든 슬라이드쇼예요.
-                  </Text>
-                </View>
-              ) : null}
+                {mission.video_url ? (
+                  <View style={styles.slideshowCard}>
+                    <Text style={styles.slideshowBadge}>✅ 완성</Text>
+                    <Text style={styles.slideshowLabel}>🎞️ 추모 슬라이드쇼가 준비됐어요</Text>
+                    <Video
+                      source={{
+                        uri: mission.video_url.startsWith('http')
+                          ? mission.video_url
+                          : `${API_URL}${mission.video_url}`,
+                      }}
+                      style={styles.video}
+                      useNativeControls
+                      resizeMode={ResizeMode.CONTAIN}
+                      isLooping={false}
+                    />
+                    <Text style={styles.videoDisclaimer}>
+                      {petName}{gwa(petName)} 함께한 추억 사진으로 만든 슬라이드쇼예요.
+                    </Text>
+                  </View>
+                ) : null}
 
-              {!mission.completed ? (
-                <Button
-                  variant="primary"
-                  onPress={() => handleComplete(mission.id)}
-                  loading={completing === mission.id}
-                  style={styles.completeBtn}
-                >
-                  완료했어요
-                </Button>
-              ) : null}
-            </Card>
-          ))}
+                {!mission.completed && !isSpecial ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      onPress={() => handleComplete(mission.id)}
+                      loading={completing === mission.id}
+                      disabled={skipping === mission.id}
+                      style={styles.completeBtn}
+                    >
+                      완료했어요
+                    </Button>
+                    <TouchableOpacity
+                      onPress={() => handleSkip(mission.id)}
+                      disabled={skipping === mission.id || completing === mission.id}
+                      style={styles.skipBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.skipText}>
+                        {skipping === mission.id ? '다른 미션을 가져오는 중…' : '오늘은 이 미션 건너뛰기'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </Card>
+            );
+          })}
         </View>
 
-        {doneCount === missions.length && missions.length > 0 ? (
+        {doneCount === totalCount && totalCount > 0 ? (
           <Text style={styles.allDone}>🎉 오늘 미션을 모두 완료했어요!</Text>
         ) : null}
       </ScrollView>
@@ -228,11 +291,15 @@ const styles = StyleSheet.create({
   missionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 },
   missionEmoji: { fontSize: 24, marginTop: 1 },
   missionInfo: { flex: 1 },
+  diffBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginBottom: 6 },
+  diffBadgeText: { fontSize: 11, fontWeight: '700' },
   missionTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
   missionTitleDone: { textDecorationLine: 'line-through', color: COLORS.textLight },
   missionDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 3 },
   missionRationale: { fontSize: 12, color: '#9B8DB8', marginTop: 6, lineHeight: 17 },
   completeBtn: { marginTop: 12 },
+  skipBtn: { alignSelf: 'center', paddingVertical: 8, marginTop: 8 },
+  skipText: { fontSize: 13, color: '#9B8DB8', fontWeight: '600', textDecorationLine: 'underline' },
   allDone: { textAlign: 'center', color: COLORS.primary, fontWeight: '700', fontSize: 15, marginTop: 20 },
   slideshowCard: {
     marginTop: 14,

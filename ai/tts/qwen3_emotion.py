@@ -100,7 +100,7 @@ def _load_model():
         device, dtype, attn = "cpu", torch.float32, None
     else:
         print(f"[gpu] {torch.cuda.get_device_name(0)}")
-        device, dtype, attn = "cuda:0", torch.bfloat16, None  # flash-attn 미설치 → 기본
+        device, dtype, attn = "cuda:0", torch.float16, None
 
     kwargs = dict(device_map=device, dtype=dtype)
     if attn:

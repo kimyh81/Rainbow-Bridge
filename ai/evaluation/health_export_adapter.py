@@ -180,6 +180,28 @@ def _parse_dt(raw: str) -> Optional[datetime]:
         return None
 
 
+def available_step_dates(steps_csv: str) -> list[str]:
+    """step CSV 안에 들어있는 날짜('YYYY-MM-DD') 오름차순·유니크 목록. 없으면 ``[]``.
+
+    적재 스크립트가 "어느 날짜를 넣을지"(기본=최근일) 고를 때 쓴다.
+    여러 날치 export 에서 단일 날짜를 안전하게 추리기 위한 헬퍼.
+    """
+    rows = _rows(steps_csv)
+    h = _find_header(rows, _STEP_DATE_COLS)
+    if h is None:
+        return []
+    di = _pick(rows[h], _STEP_DATE_COLS)
+    if di is None:
+        return []
+    seen: set[str] = set()
+    for row in rows[h + 1 :]:
+        if di < len(row):
+            d = _to_date(row[di])
+            if d:
+                seen.add(d)
+    return sorted(seen)
+
+
 def from_samsung_export(
     steps_csv: Optional[str] = None,
     sleep_csv: Optional[str] = None,

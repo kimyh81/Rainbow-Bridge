@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from health_export_adapter import (  # noqa: E402
     DUMMY_SLEEP_CSV,
     DUMMY_STEP_CSV,
+    available_step_dates,
     from_samsung_export,
     parse_sleep_csv,
     parse_steps_csv,
@@ -146,6 +147,8 @@ def test_real_samsung_export_columns():
         "steps": 9092,
         "sleep_hours": 3.5,
     }
+    # epoch ms → 날짜 파생 회귀 가드(적재 스크립트 날짜 결정의 근거)
+    assert available_step_dates(step_csv) == ["2025-09-17"]
 
 
 def test_end_to_end_into_health_signal():

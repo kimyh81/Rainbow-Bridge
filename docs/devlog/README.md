@@ -102,7 +102,7 @@
 | 모세종 | PR #257~#261 CI수정·머지, 회복지수 설계문서 작성, 서비스계정키 gitignore 추가 | [→](members/모세종.md) |
 | 김윤한 | — | [→](members/김윤한.md) |
 | 반소람 | — | [→](members/반소람.md) |
-| 정환주 | — | [→](members/정환주.md) |
+| 정환주 | TTS 신뢰성 하드닝(WinError5 500·VRAM hang 가드=server.py 타임아웃·degraded·단편화 완화), 터널 URL 자동등록 B안(watchdog→Redis, 윤한 PR #268 가동)+GPU 자동복구 | [→](members/정환주.md) |
 | 민경이 | — | [→](members/민경이.md) |
 | 장민수 | — | [→](members/장민수.md) |
 
@@ -117,7 +117,7 @@
 | 모세종 | TTS 무음 버그·LP GIF 비동기 job·Docker healthcheck·서버 안정화 | [→](members/모세종.md) |
 | 김윤한 | — | [→](members/김윤한.md) |
 | 반소람 | LP GIF 세마포어 타임아웃 조정·Cloudflare Tunnel 교체 | [→](members/반소람.md) |
-| 정환주 | TTS Cloudflare Tunnel 교체·Qwen3 API 검토 | [→](members/정환주.md) |
+| 정환주 | TTS "안 나옴" 단계별 전수해결+긴메시지 비동기 전환(async/status/result), ngrok→cloudflared 교체, Qwen3 API 조사, ⑧삼성헬스 export 파서, ⑦PII 비식별, 회복점수 재설계 v2 | [→](members/정환주.md) |
 | 민경이 | Expo SDK 54 업그레이드·추모영상 자동생성 연결·온보딩 디자인 머지 | [→](members/민경이.md) |
 | 장민수 | 온보딩 라우팅·UI 개선·윤리 동의 체크박스 추가, 사진 자동선택 파이프라인 분석 | [→](members/장민수.md#2026-06-12-day-12) |
 

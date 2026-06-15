@@ -42,7 +42,9 @@ export default function MissionScreen() {
 
   async function fetchMissions() {
     // 날짜가 바뀌었으면 완료 목록 초기화
-    const today = new Date().toDateString();
+    // 서버(UTC) 기준 날짜로 맞춘다 — 로컬 자정과 UTC 자정이 최대 9시간 어긋나
+    // 완료 목록이 엉뚱한 시점에 초기화되던 문제 방지 (BUG-11)
+    const today = new Date().toISOString().slice(0, 10);
     const savedDate = await AsyncStorage.getItem('mission_completed_date');
     if (savedDate !== today) {
       await AsyncStorage.removeItem(COMPLETED_KEY);
@@ -61,6 +63,14 @@ export default function MissionScreen() {
         completed: m.completed || savedIds.includes(m.id),
       }));
       setMissions(merged);
+
+      // 로컬엔 완료지만 서버에 미반영된 미션 → 백그라운드로 완료 재동기화.
+      // 완료 API가 실패했던 건이 재진입 때 서버에 반영돼, 서버값으로 리셋되는 문제 방지 (BUG-06)
+      data.forEach((m) => {
+        if (!m.completed && savedIds.includes(m.id)) {
+          completeMission({ mission_id: m.id }).catch(() => {});
+        }
+      });
     } catch {
       const saved = await AsyncStorage.getItem(COMPLETED_KEY);
       const savedIds = saved ? JSON.parse(saved) : [];

@@ -112,7 +112,7 @@ export default function ReportScreen() {
   // 미션 완료율 — mission.jsx와 동일 로직(오늘 기준): getMissions + 로컬 완료 ID 병합
   async function fetchMissionRate() {
     try {
-      const today = new Date().toDateString();
+      const today = new Date().toISOString().slice(0, 10); // mission.jsx와 동일한 UTC 기준
       const savedDate = await AsyncStorage.getItem('mission_completed_date');
       const petId = await AsyncStorage.getItem('pet_id');
       const data = await getMissions({ pet_id: petId });

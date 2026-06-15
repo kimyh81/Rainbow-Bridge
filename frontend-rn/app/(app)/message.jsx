@@ -280,8 +280,8 @@ export default function MessageScreen() {
         else if (mode !== 'first') loadMessage();
       }
     } catch {
-      // pet_id 없거나 네트워크 실패 시 로딩 무한 방지
-      setGateStatus('teaser');
+      // 게이트 확인 실패 시 fail-closed — 편지를 여는 쪽이 아니라 잠그는 쪽으로(설계 기준)
+      setGateStatus('locked');
     }
   }
 
@@ -291,6 +291,12 @@ export default function MessageScreen() {
     try {
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');
+      // 1인칭을 요청했는데 백엔드가 1인칭을 거부(first_person !== true)하면, 3인칭을
+      // 1인칭인 척 보여주지 않는다 — 조건 미충족 안내(teaser)로 전환 (윤리 게이트, BUG-08)
+      if (data.first_person !== true) {
+        setGateStatus('teaser');
+        return;
+      }
       await saveMessage(data);
     } catch {
       await saveMessage(makeFallbackMessage(petNameLocal));
@@ -427,6 +433,11 @@ export default function MessageScreen() {
     try {
       const petId = await AsyncStorage.getItem('pet_id');
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
+      // 1인칭 미충족(first_person !== true)이면 3인칭을 1인칭인 척 노출하지 않음 (BUG-08)
+      if (!data || data.first_person !== true) {
+        setError('아직 별에서 온 편지를 받을 조건이 안 됐어요. 감정 체크인을 조금 더 이어가 주세요.');
+        return;
+      }
       await saveMessage(data);
     } catch {
       setError('편지 생성에 실패했어요. 다시 시도해주세요.');

@@ -23,11 +23,11 @@ function JourneyNode({ emoji, label, done }) {
 }
 
 // ── 회복 여정 선물 카드 (추모 편지 자리) ─────────────
-function GiftJourneyCard({ gateStatus, hasVideo, hasLetter }) {
+function GiftJourneyCard({ gateStatus, hasGif, hasVideo, hasLetter }) {
   const letterReady = gateStatus === 'teaser' || gateStatus === 'open';
   const firstPersonReady = gateStatus === 'open';
   const steps = [
-    { emoji: '🎞️', label: 'GIF', done: hasVideo },
+    { emoji: '🎞️', label: 'GIF', done: hasGif },
     { emoji: '✉️', label: '위로 편지', done: letterReady },
     { emoji: '🌠', label: '별에서 온 편지', done: firstPersonReady },
     { emoji: '📦', label: '패키지', done: hasVideo || hasLetter },
@@ -173,7 +173,7 @@ function SurvivalHome({ onFarewellPress }) {
 }
 
 // ── 이별 후 모드 홈 ───────────────────────────────
-function MemorialHome({ gateStatus, hasVideo, hasLetter }) {
+function MemorialHome({ gateStatus, hasGif, hasVideo, hasLetter }) {
   return (
     <>
       <Text style={styles.sectionTitle}>오늘을 함께해요</Text>
@@ -194,7 +194,7 @@ function MemorialHome({ gateStatus, hasVideo, hasLetter }) {
         gradient={['#EDF5FF', '#F0EAFA']}
       />
 
-      <GiftJourneyCard gateStatus={gateStatus} hasVideo={hasVideo} hasLetter={hasLetter} />
+      <GiftJourneyCard gateStatus={gateStatus} hasGif={hasGif} hasVideo={hasVideo} hasLetter={hasLetter} />
 
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
       <View style={styles.subRow}>
@@ -215,6 +215,7 @@ export default function HomeScreen() {
   const [callerName, setCallerName] = useState('보호자');
   const [memorialMode, setMemorialMode] = useState(false);
   const [gateStatus, setGateStatus] = useState('locked');
+  const [hasGif, setHasGif] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
   const [hasLetter, setHasLetter] = useState(false);
   const [farewellDate, setFarewellDate] = useState(null);
@@ -229,7 +230,7 @@ export default function HomeScreen() {
   );
 
   async function loadData() {
-    const [name, species, gender, startDate, guardTitle, caller, mode, fd, petId, video, letter] = await Promise.all([
+    const [name, species, gender, startDate, guardTitle, caller, mode, fd, petId, video, gif, letter] = await Promise.all([
       AsyncStorage.getItem('pet_name'),
       AsyncStorage.getItem('pet_species'),
       AsyncStorage.getItem('pet_gender'),
@@ -240,6 +241,7 @@ export default function HomeScreen() {
       AsyncStorage.getItem('pet_farewell_date'),
       AsyncStorage.getItem('pet_id'),
       AsyncStorage.getItem('pet_video_url'),
+      AsyncStorage.getItem('pet_gif_url'),
       AsyncStorage.getItem('message_content'),
     ]);
     if (name) setPetName(name);
@@ -251,9 +253,13 @@ export default function HomeScreen() {
     if (mode === 'true') setMemorialMode(true);
     if (fd) setFarewellDate(fd);
     setHasVideo(!!video);
+    setHasGif(!!gif);
     setHasLetter(!!letter);
-    const { gateStatus: gs } = await fetchRecoveryGate(petId);
-    setGateStatus(gs);
+    // pet_id 가 없으면 게이트 조회를 건너뛴다 (잘못된 API 호출·무한 로딩 방지)
+    if (petId) {
+      const { gateStatus: gs } = await fetchRecoveryGate(petId);
+      setGateStatus(gs);
+    }
   }
 
   async function confirmFarewell() {

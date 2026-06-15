@@ -25,7 +25,7 @@ from typing import Any, Iterable, Optional, Sequence
 from .health_signal import (  # 수면·활동 객관데이터 확장(프로토타입)
     activity_to_score,
     blend_recovery_score,
-    cross_check,
+    condition_signal,
     sleep_to_score,
 )
 
@@ -438,6 +438,7 @@ def compute_recovery_signal(
             "sleep_score": sleep_norm,
             "activity_score": activity_norm,
             "cross_check": None,
+            "condition": None,  # 체크인 부족 → 감정 baseline 없어 컨디션 신뢰 불가
             "scoring": "insufficient",
             "evidence": evidence,
             "reason": "아직 데이터가 적어요. 체크인이 쌓이면 회복 추이를 보여드릴게요.",
@@ -491,14 +492,21 @@ def compute_recovery_signal(
     sleep_norm = sleep_to_score(sleep_score, sleep_hours)
     activity_norm = activity_to_score(steps)
     health_check: Optional[dict[str, Any]] = None
+    condition: Optional[dict[str, Any]] = None
     if activity_norm is not None:  # 활동만 점수 항
         index = blend_recovery_score(
             avg, completed_missions, consistency, activity_norm
         )
         evidence.append(f"활동 {round(activity_norm)}/100")
-    if sleep_norm is not None:  # 수면 — 점수 미반영, 교차검증·표시만
+    if sleep_norm is not None:  # 수면 — 점수 미반영, 교차검증·컨디션·표시만
         evidence.append(f"수면점수 {round(sleep_norm)}/100 (참고 — 점수 미반영)")
-        health_check = cross_check(sleep_norm, avg)
+        # 객관 수면 + 감정 → 오늘 컨디션 추정(회복점수와 별개 출력). cross_check 재사용.
+        cond = condition_signal(avg, sleep_score=sleep_norm)
+        health_check = cond["cross_check"]
+        condition = {
+            "condition": cond["condition"],
+            "confidence": cond["confidence"],
+        }
         if health_check["note"]:
             evidence.append(f"⚠ {health_check['note']}")
 
@@ -526,6 +534,7 @@ def compute_recovery_signal(
         "sleep_score": sleep_norm,
         "activity_score": activity_norm,
         "cross_check": health_check,
+        "condition": condition,  # 객관 수면+감정 → 오늘 컨디션(양호/주의/보통)+신뢰도. 점수 별개.
         "scoring": (
             "blend" if activity_norm is not None else "base"
         ),  # 어느 산식인지 명시(활동 반영 여부)

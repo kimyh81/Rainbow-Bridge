@@ -88,6 +88,14 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     # 앱 접속 빈도(일상복귀 신호 근거) — pet 소유자 기준 근사치
     access_counts = await _owner_access_counts(pet_id)
 
+    # 삼성헬스 객관 신호(health_logs 최근 1건) — POST /health/sync 가 날짜별로 적재.
+    # 활동(steps)만 회복점수 반영, 수면(sleep_hours)은 교차검증·표시로만(결정문서 §2).
+    # 없으면 {} → build_report 가 기존 40/35/25 산식 그대로(하위호환).
+    health_doc = await mongodb.db["health_logs"].find_one(
+        {"pet_id": pet_id}, sort=[("date", -1)]
+    )
+    health = health_doc or {}
+
     # TTS 재생 이벤트 날짜별 집계
     play_docs = await mongodb.db["play_logs"].find({"pet_id": pet_id}).to_list(None)
     play_day_counts: Counter = Counter()
@@ -115,6 +123,8 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
         play_counts=[pt.count for pt in play_trend_data],
         play_count=play_count,
         session_count=session_count,
+        sleep_hours=health.get("sleep_hours"),
+        steps=health.get("steps"),
     )
 
     return ReportResponse(

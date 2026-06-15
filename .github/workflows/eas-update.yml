@@ -50,5 +50,5 @@ jobs:
         run: |
           eas update \
             --channel preview \
-            --message "${{ github.event.head_commit.message }}" \
+            --message "${{ github.event.head_commit.message || 'Manual OTA update' }}" \
             --non-interactive

@@ -205,7 +205,7 @@ export default function MediaScreen() {
             </Card>
           ) : null}
 
-          {recoveryScore >= 20 && gifUrl ? (
+          {(recoveryScore === null || recoveryScore >= 20) && gifUrl ? (
             <Card style={styles.gifCard}>
               <Text style={styles.badge}>✅ 완성</Text>
               <Text style={styles.gifTitle}>✨ 숨쉬는 사진</Text>

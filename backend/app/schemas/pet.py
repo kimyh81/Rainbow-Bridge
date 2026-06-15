@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -13,10 +13,13 @@ class PetCreate(BaseModel):
     name: str = Field(..., description="반려동물 이름")
     species: str = Field(..., description="종 (예: 강아지, 고양이)")
     breed: Optional[str] = Field(None, description="품종")
+    gender: Optional[str] = Field(None, description="성별 (예: 수컷, 암컷)")
     period: Optional[str] = Field(
         None, description="함께한 기간 문자열 (예: 2018-01-01 ~ 2026-06-01)"
     )
-    memories: Optional[list[MemoryItem]] = Field(None, description="추억 목록")
+    memories: Optional[list[Union[MemoryItem, str]]] = Field(
+        None, description="추억 목록"
+    )
     photo_url: Optional[str] = Field(None, description="사진 URL")
     bucket_list: Optional[list[str]] = Field(None, description="버킷리스트 목록")
     caller_name: Optional[str] = Field(
@@ -34,6 +37,7 @@ class PetResponse(BaseModel):
     name: str
     species: str
     breed: Optional[str]
+    gender: Optional[str] = None
     period: Optional[str]
     memories: Optional[list[MemoryItem]]
     photo_url: Optional[str]
@@ -41,3 +45,15 @@ class PetResponse(BaseModel):
     caller_name: Optional[str] = None
     memorial_mode: bool = Field(False, description="추모 모드 전환 여부")
     created_at: datetime
+
+
+class PetUpdate(BaseModel):
+    name: Optional[str] = None
+    species: Optional[str] = None
+    breed: Optional[str] = None
+    gender: Optional[str] = None
+    period: Optional[str] = None
+    memories: Optional[list[Union[MemoryItem, str]]] = None
+    photo_url: Optional[str] = None
+    bucket_list: Optional[list[str]] = None
+    caller_name: Optional[str] = None

@@ -1,8 +1,14 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.core.deps import get_current_user
-from app.schemas.pet import PetCreate, PetPhotoResponse, PetResponse
-from app.services.pet import create_pet, get_pet, set_memorial_mode, upload_pet_photo
+from app.schemas.pet import PetCreate, PetPhotoResponse, PetResponse, PetUpdate
+from app.services.pet import (
+    create_pet,
+    get_pet,
+    set_memorial_mode,
+    update_pet,
+    upload_pet_photo,
+)
 
 router = APIRouter()
 
@@ -31,7 +37,6 @@ async def read_pet(pet_id: str, user: dict = Depends(get_current_user)):
 async def upload_photo(
     pet_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)
 ):
-    # 소유자 검증
     if not await get_pet(pet_id, user_id=user["user_id"]):
         raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
     result = await upload_pet_photo(pet_id, file)
@@ -40,9 +45,20 @@ async def upload_photo(
     return result
 
 
+@router.patch("/{pet_id}", response_model=PetResponse)
+async def update_pet_info(
+    pet_id: str, body: PetUpdate, user: dict = Depends(get_current_user)
+):
+    if not await get_pet(pet_id, user_id=user["user_id"]):
+        raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
+    pet = await update_pet(pet_id, body)
+    if not pet:
+        raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
+    return pet
+
+
 @router.patch("/{pet_id}/memorial", response_model=PetResponse)
 async def switch_memorial(pet_id: str, user: dict = Depends(get_current_user)):
-    # 소유자 검증
     if not await get_pet(pet_id, user_id=user["user_id"]):
         raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
     pet = await set_memorial_mode(pet_id)

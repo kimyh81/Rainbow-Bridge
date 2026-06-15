@@ -86,29 +86,42 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
     except Exception:
         log_ok = False
         if level == "L0":
-            missions_raw = [
-                {
-                    "title": "짧은 산책하기",
-                    "description": "15분 정도 밖에서 바람을 쐬어보세요.",
-                    "category": "activity",
-                    "rationale": None,
-                    "difficulty": "gentle",
-                },
-                {
-                    "title": "좋아하는 음악 듣기",
-                    "description": "마음이 편한 음악으로 잠시 쉬어가세요.",
-                    "category": "rest",
-                    "rationale": None,
-                    "difficulty": "small",
-                },
-                {
-                    "title": "30분 산책 또는 가벼운 운동",
-                    "description": "몸을 움직이며 활력을 찾아보세요.",
-                    "category": "activity",
-                    "rationale": None,
-                    "difficulty": "active",
-                },
-            ]
+            if recovery_score >= 45:
+                # L0 45점 이상 — active×1(1개)
+                missions_raw = [
+                    {
+                        "title": "30분 산책 또는 가벼운 운동",
+                        "description": "몸을 움직이며 활력을 찾아보세요.",
+                        "category": "activity",
+                        "rationale": None,
+                        "difficulty": "active",
+                    },
+                ]
+            else:
+                # L0 45점 미만 — L1과 동일(3개)
+                missions_raw = [
+                    {
+                        "title": "오늘 산책하기",
+                        "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
+                        "category": "activity",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                    {
+                        "title": "소중한 사람에게 연락하기",
+                        "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
+                        "category": "connection",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                    {
+                        "title": "반려동물과의 추억 기록하기",
+                        "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
+                        "category": "record",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                ]
         elif level == "L2~3":
             missions_raw = [
                 {

@@ -25,7 +25,7 @@ function toFullUrl(url) {
 export default function MediaScreen() {
   const [videoUrl, setVideoUrl] = useState(null);
   const [gifUrl, setGifUrl] = useState(null);
-  const [recoveryScore, setRecoveryScore] = useState(null);
+  const [gifUnlocked, setGifUnlocked] = useState(null); // null=로딩중, true=해금, false=잠김
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
@@ -63,10 +63,10 @@ export default function MediaScreen() {
       }
       if (petId) {
         try {
-          const { score } = await fetchRecoveryGate(petId);
-          setRecoveryScore(score ?? 0);
+          const { gifUnlocked: gu } = await fetchRecoveryGate(petId);
+          setGifUnlocked(gu ?? false);
         } catch {
-          setRecoveryScore(0);
+          setGifUnlocked(false);
         }
       }
     })();
@@ -194,7 +194,7 @@ export default function MediaScreen() {
             </Card>
           ) : null}
 
-          {videoUrl && recoveryScore !== null && recoveryScore < 20 ? (
+          {videoUrl && gifUnlocked === false ? (
             <Card style={styles.teaserCard}>
               <Text style={styles.teaserTitle}>✨ 숨쉬는 사진</Text>
               <Text style={styles.teaserDesc}>
@@ -205,7 +205,7 @@ export default function MediaScreen() {
             </Card>
           ) : null}
 
-          {(recoveryScore === null || recoveryScore >= 20) && gifUrl ? (
+          {gifUnlocked !== false && gifUrl ? (
             <Card style={styles.gifCard}>
               <Text style={styles.badge}>✅ 완성</Text>
               <Text style={styles.gifTitle}>✨ 숨쉬는 사진</Text>

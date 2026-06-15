@@ -12,6 +12,9 @@ export async function doLogout() {
       'bucketlist_items', 'diary_entries', 'caller_name',
       'pet_photos', 'recovery_cache', 'pet_farewell_date', 'memorial_mode',
       'pet_guardian_title', 'pet_gender', 'pet_start_date',
+      // 미디어·메시지 관련 키 — 재로그인 시 이전 데이터 잔존 방지
+      'pet_video_url', 'pet_gif_url', 'pet_video_asset_id',
+      'message_content', 'message_id', 'message_tone',
     ]);
   } catch {}
   router.replace('/(auth)/login');

@@ -119,20 +119,3 @@ async def set_memorial_mode(pet_id: str) -> PetResponse | None:
     return PetResponse(**doc)
 
 
-async def update_pet(pet_id: str, data) -> PetResponse | None:
-    update_fields = {k: v for k, v in data.model_dump().items() if v is not None}
-    if not update_fields:
-        doc = await _collection().find_one({"_id": _to_object_id(pet_id)})
-    else:
-        if "memories" in update_fields:
-            update_fields["memories"] = _normalize_memories(update_fields["memories"])
-        doc = await _collection().find_one_and_update(
-            {"_id": _to_object_id(pet_id)},
-            {"$set": update_fields},
-            return_document=True,
-        )
-    if not doc:
-        return None
-    doc["id"] = str(doc.pop("_id"))
-    doc["memories"] = _normalize_memories(doc.get("memories"))
-    return PetResponse(**doc)

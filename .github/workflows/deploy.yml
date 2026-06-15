@@ -45,6 +45,7 @@ jobs:
             cd backend
             docker rm -f rainbow_redis rainbow_mongo rainbow_backend || true
             docker-compose down --remove-orphans || true
+            fuser -k 8000/tcp || true
             docker-compose up -d --build
 
       - name: 프론트 파일 업로드

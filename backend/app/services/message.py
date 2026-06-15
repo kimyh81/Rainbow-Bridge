@@ -77,7 +77,15 @@ async def get_latest_message(pet_id: str) -> MessageResponse | None:
     if not doc:
         return None
     doc["id"] = str(doc.pop("_id"))
-    return MessageResponse(**doc)
+    response = MessageResponse(**doc)
+    # 게이트 상태는 DB 저장값 대신 실시간으로 덮어씀 — 기존 레코드도 최신 게이트 반영
+    try:
+        recovery = await get_recovery(pet_id)
+        response.content_unlocked = recovery.content_unlocked
+        response.allow_first_person = recovery.allow_first_person
+    except Exception:
+        pass
+    return response
 
 
 async def create_message(data: MessageCreate) -> MessageResponse:
@@ -160,6 +168,8 @@ async def create_message(data: MessageCreate) -> MessageResponse:
                     "tone": result.get("tone", tone),
                     "source": result.get("source", "local"),
                     "risk_level": result.get("risk_level", 0),
+                    "content_unlocked": content_unlocked,
+                    "allow_first_person": allow_first_person,
                     "created_at": datetime.now(timezone.utc),
                 }
                 inserted = await _collection().insert_one(doc)

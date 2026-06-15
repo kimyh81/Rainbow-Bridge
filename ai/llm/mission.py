@@ -248,9 +248,13 @@ _RULE_POOL: dict[str, tuple[tuple[str, str, str], ...]] = {
 # "무조건 가능"만). `_rule_missions(..., unconditional_only=True)` 에서 제외됩니다.
 _CONDITIONAL_TITLES: frozenset[str] = frozenset(
     {
-        # gentle — 연락할 사람이 없으면 못 함
+        # gentle — 집에 담요/향초 등이 없거나, 연락할 사람이 없으면 못 함
+        "담요 덮고 쉬기",
+        "좋아하는 향 맡기",
         "가까운 사람에게 짧은 메시지",
-        # small — 상대방 가용성에 의존
+        # small — 날씨·집안일 거리·상대방 가용성에 의존
+        "집 앞 5분 산책",
+        "간단한 집안일 하나",
         "안부 한 줄 보내기",
         "편한 사람과 짧은 통화",
         "가까운 사람에게 사진",

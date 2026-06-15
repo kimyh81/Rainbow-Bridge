@@ -21,10 +21,7 @@
 
 ## 🟡 남은 일
 
-- [ ] **L2~3 cap=41** — 회복점수 4축(`recovery_score_from_axes`)에 risk_level 기반 상한 적용 (백엔드 risk_level 연계 필요)
 - [ ] p_미션/p_지속성/p_생활패턴/p_감정추세 실측값 확보 후 시뮬레이션 재검증
-- [ ] L1/L0(0~45점)의 G×2+Sm×1 vs G×1+Sm×2 분기 기준(`emotion_score`) 유지/변경 여부 확정
-- [ ] `RECOVERY_SCORE_DESIGN.md` 6장 cap 표기 정정(44→41, 79→없음)
 - [ ] 평가 지표/스키마 최종 문서화 (`evaluation/`)
 
 ---
@@ -47,20 +44,21 @@
 - ✅ API 연동(모세종) — `POST /messages`
 
 ### L-⑤. 미션 추천
-- ✅ `mission.py` + `prompts/mission.py` — LLM + 규칙 폴백, 미션 풀 60개
+- ✅ `mission.py` + `prompts/mission.py` — LLM + 규칙 폴백, 미션 풀 60개. 프롬프트 최종본 동결(06-15)
 - ✅ 레벨별(L2~3/L1/L0) 난이도 조합(`mission_composition`), `difficulty` 3단계 태깅(레거시 경로 포함)
-- ✅ L0 active 전환 임계값 45 확정
-- ✅ API 연동(모세종) — `GET /missions/{pet_id}`, `PATCH /complete`
+- ✅ L0 active 전환 임계값 45 확정, L1/L0 G×2+Sm×1 vs G×1+Sm×2 분기(`emotion_score`≤3) 확정
+- ✅ 미션 건너뛰기 대체추천 `recommend_replacement()` — 조건부(날씨·자원·상대방 의존) 미션 제외(06-15)
+- ✅ API 연동(모세종) — `GET /missions/{pet_id}`, `PATCH /complete`, `PATCH /missions/{id}/skip`(`recommend_replacement` 연결, PR #311, 06-15)
 
 ### L-⑦. 위기 감정 감지 🚨
 - ✅ 위험 등급 4단계(L0~L3) + `subject`(self/pet/other) 구분
-- ✅ L0 규칙 레이어 + L1 LLM 분류(`prompts/safety.py`, json_mode) + 보수적 융합
+- ✅ L0 규칙 레이어 + L1 LLM 분류(`prompts/safety.py`, json_mode) + 보수적 융합. 프롬프트 최종본 동결(06-15)
 - ✅ `safety.detect_crisis()` — 골든셋 30개 통과, 미탐 0
 - ✅ `CRISIS_HOTLINE`(1393) 상수화, 위기 로그 PII 최소화
 - ✅ API 연동(모세종) — risk_level 2+ 시 1393 안내 자동 삽입
 
 ### 부가 모듈 (반소람)
-- ✅ `anniversary.py`/`funeral.py`/`terminal_care.py`/`emotion_inference.py`/`usage_observation.py` + 각 prompts — 기념일·장례 안내(RAG `funeral`)·시한부 케어·감정추론·폰사용 관찰
+- ✅ `anniversary.py`/`funeral.py`/`terminal_care.py`/`emotion_inference.py`/`usage_observation.py` + 각 prompts — 기념일·장례 안내(RAG `funeral`)·시한부 케어·감정추론·폰사용 관찰. 프롬프트 최종본 동결(06-15)
 
 ### 🎙️ ai/tts — MVP ④ (정환주)
 - ✅ 엔진: **WaveSpeedAI 메인** + Qwen3 GPU + Google Cloud + gTTS 4단계 폴백 (PR #275)
@@ -73,6 +71,7 @@
 - ✅ `build_report(...)` 순수 함수 + `GET /report/{pet_id}` 노출
 - ✅ 회복점수 4축 일원화 `recovery_score_from_axes`(미션40/지속성30/감정추세15/생활패턴15, 무페널티 재정규화) — 게이트·리포트 동일 산식 (PR #284·#286, 06-15)
 - ✅ 생활패턴(걸음/수면/야간폰사용) DB 배선 — `health_signal.py` + `backend/app/services/health_lifestyle.py` (06-15)
+- ✅ L2~3 cap=41 — `risk_level` 인자(`recovery_score_from_axes`/`compute_recovery_signal`) + `emotion.py::get_recovery`/`report.py::get_report` 연계, `RECOVERY_SCORE_DESIGN.md` 6장 정정 (06-15)
 - ✅ 감정추론(`emotion_inference`)·폰사용 분석(`phone_usage`)·삼성헬스 파서(`load_samsung_export`, `health_export_adapter`)
 - ✅ 옛↔새 산식 비교 스크립트 `compare_gate_scores.py`
 - ✅ 샘플 데이터 집계 검증 — `test_report`·`test_recovery_signal`·`test_health_signal`·`test_report_service`

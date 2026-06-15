@@ -38,9 +38,9 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas branch:create dev --non-interactive || true
+          eas branch:create preview --non-interactive || true
           eas channel:create preview --non-interactive || true
-          eas channel:edit preview --branch dev --non-interactive || true
+          eas channel:edit preview --branch preview --non-interactive || true
 
       - name: EAS Update
         working-directory: frontend-rn

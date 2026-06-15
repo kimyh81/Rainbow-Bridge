@@ -29,7 +29,6 @@ export default function HealthScreen() {
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
-  const [needsSetup, setNeedsSetup] = useState(false);
 
   // 권한이 안 잡힐 때 수동으로 열어보는 보조 버튼
   async function handleOpenSettings() {
@@ -145,7 +144,7 @@ export default function HealthScreen() {
 
           {result ? (
             <Card style={styles.resultCard}>
-              <Text style={styles.resultTitle}>✅ 연동 완료</Text>
+              <Text style={styles.resultTitle}>💜 연동 완료</Text>
               <View style={styles.resultRow}>
                 <Text style={styles.resultLabel}>기준 날짜</Text>
                 <Text style={styles.resultValue}>{result.date ?? '-'}</Text>
@@ -183,10 +182,10 @@ const styles = StyleSheet.create({
   bold: { fontWeight: '700', color: '#5B4E75' },
   error: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 12 },
   btn: { marginBottom: 12 },
-  resultCard: { backgroundColor: '#F0F8F6', borderColor: COLORS.success, borderWidth: 1 },
-  resultTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
+  resultCard: { backgroundColor: '#F0EBF8', borderColor: '#C9B8E8', borderWidth: 1 },
+  resultTitle: { fontSize: 15, fontWeight: '700', color: '#5B4E75', marginBottom: 12 },
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  resultLabel: { fontSize: 13, color: COLORS.textSecondary },
-  resultValue: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  resultHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10, lineHeight: 18 },
+  resultLabel: { fontSize: 13, color: '#8A7D9E' },
+  resultValue: { fontSize: 14, fontWeight: '700', color: '#5B4E75' },
+  resultHint: { fontSize: 12, color: '#8A7D9E', marginTop: 10, lineHeight: 18 },
 });

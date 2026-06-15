@@ -70,6 +70,7 @@ export default function AppLayout() {
       <Stack.Screen name="report"        options={{ title: '회복 리포트', headerShown: false }} />
       <Stack.Screen name="emotion"       options={{ title: '감정 체크인' }} />
       <Stack.Screen name="message"       options={{ title: '추모 메시지', headerShown: false, contentStyle: { backgroundColor: '#241e32' } }} />
+      <Stack.Screen name="gift"          options={{ title: '선물함' }} />
       <Stack.Screen name="tts"           options={{ title: 'TTS 음성' }} />
       <Stack.Screen name="bucketlist"    options={{ title: '버킷리스트' }} />
       <Stack.Screen name="diary"         options={{ title: '일기 & 추억 메모' }} />

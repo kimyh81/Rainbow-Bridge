@@ -10,6 +10,7 @@ class MissionResponse(BaseModel):
     description: str
     category: str = ""
     rationale: Optional[str] = None
+    difficulty: str = ""
     completed: bool
     created_at: datetime
     completed_at: Optional[datetime] = None
@@ -31,6 +32,7 @@ class MissionItem(BaseModel):
     description: str = ""
     category: str = ""
     rationale: Optional[str] = None
+    difficulty: str = ""
 
 
 class MissionRecommendResponse(BaseModel):

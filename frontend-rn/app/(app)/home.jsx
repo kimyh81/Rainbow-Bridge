@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchRecoveryGate } from '@/utils/recovery';
-import { iga } from '@/utils/josa';
+import { iga, gwa } from '@/utils/josa';
 
 // ── 회복 여정 선물 로드맵 노드 ──────────────────────
 function JourneyNode({ emoji, label, done }) {
@@ -167,11 +167,6 @@ function SurvivalHome({ onFarewellPress }) {
       >
         <Text style={styles.farewellBtnText}>무지개다리를 건넜어요 🌈</Text>
       </TouchableOpacity>
-
-      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
-      <View style={styles.subRow}>
-        <SmallCard emoji="🏃" title="삼성헬스 연동" route="/(app)/health" />
-      </View>
     </>
   );
 }
@@ -202,15 +197,8 @@ function MemorialHome({ gateStatus, hasVideo, hasLetter }) {
 
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
       <View style={styles.subRow}>
-        <SmallCard emoji="🌿" title="추모 타임라인" route="/(app)/timeline" />
-        <SmallCard emoji="📊" title="회복 리포트" route="/(app)/report" />
-      </View>
-      <View style={styles.subRow}>
         <SmallCard emoji="🎞️" title="추모 영상 만들기" route="/(app)/media" />
         <SmallCard emoji="🔊" title="음성으로 듣기" route="/(app)/tts" />
-      </View>
-      <View style={styles.subRow}>
-        <SmallCard emoji="🏃" title="삼성헬스 연동" route="/(app)/health" />
       </View>
     </>
   );
@@ -275,14 +263,14 @@ export default function HomeScreen() {
     }
   }
 
-  const speciesEmoji =
-    petSpecies === '강아지' ? '🐶' : petSpecies === '고양이' ? '🐱' : '🐾';
-
   const daysAfter = farewellDate
     ? Math.max(0, Math.floor((Date.now() - new Date(farewellDate).getTime()) / 86400000))
     : null;
 
   const petDisplay = petName || '소중한 친구';
+
+  const today = new Date();
+  const todayKorean = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
   return (
     <LinearGradient
@@ -295,25 +283,20 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logoSub}>소중한 가족을 기억해요</Text>
-
-          {/* 반려동물 카드 */}
+          {/* 반려동물 인사 (배경 위 텍스트) */}
           <View style={styles.petCard}>
-            <Text style={styles.petEmoji}>{speciesEmoji}</Text>
-            <View style={styles.petInfo}>
-              <Text style={styles.petName}>{petDisplay}</Text>
-              {(petGender || petSpecies) ? (
-                <Text style={styles.petMeta}>
-                  {[petGender, petSpecies].filter(Boolean).join(' · ')}
-                </Text>
-              ) : null}
-              {petStartDate && farewellDate ? (
-                <Text style={styles.petPeriod}>{petStartDate} ~ {farewellDate}</Text>
-              ) : null}
-              <Text style={styles.petSub}>
-                {memorialMode && daysAfter !== null
-                  ? `이별 후 D+${daysAfter}`
-                  : `${callerName || '보호자'}님과 함께하는 공간이에요`}
+            <Text style={styles.petGreeting}>안녕하세요, {callerName || '보호자'}님 🐾</Text>
+            <Text style={styles.petTitle}>
+              {petDisplay}{gwa(petDisplay)} 함께{memorialMode ? '한 날들' : '하는 오늘'}
+            </Text>
+            <Text style={styles.petDate}>
+              {memorialMode && petStartDate && farewellDate
+                ? `${petStartDate} ~ ${farewellDate}`
+                : todayKorean}
+            </Text>
+            <View style={styles.petBadge}>
+              <Text style={styles.petBadgeText}>
+                🌈 {memorialMode ? (daysAfter !== null ? `이별 후 D+${daysAfter}` : '추모 중') : '함께하는 중'}
               </Text>
             </View>
           </View>
@@ -369,31 +352,19 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingVertical: 28, paddingBottom: 60 },
 
-  logo: {
-    fontSize: 22, fontWeight: '700', color: '#5B4E75',
-    textAlign: 'center', marginBottom: 4,
-  },
-  logoSub: {
-    fontSize: 13, color: '#8A7D9E',
-    textAlign: 'center', marginBottom: 22,
-  },
-
   petCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18, paddingVertical: 16, paddingHorizontal: 20,
-    marginBottom: 22,
-    borderWidth: 1.5, borderColor: '#E5DCF0',
-    shadowColor: '#8A7D9E',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09, shadowRadius: 8, elevation: 2,
+    paddingVertical: 6, paddingHorizontal: 4,
+    marginBottom: 22, marginTop: 6,
   },
-  petEmoji: { fontSize: 36 },
-  petInfo: { flex: 1 },
-  petName: { fontSize: 18, fontWeight: '800', color: '#5B4E75' },
-  petMeta: { fontSize: 12, color: '#A89FBC', marginTop: 3 },
-  petPeriod: { fontSize: 11, color: '#B8B0CC', marginTop: 2 },
-  petSub: { fontSize: 13, color: '#8A7D9E', marginTop: 4 },
+  petGreeting: { fontSize: 13, color: '#8A7D9E', fontWeight: '600', marginBottom: 8 },
+  petTitle: { fontSize: 24, fontWeight: '800', color: '#5B4E75', marginBottom: 8 },
+  petDate: { fontSize: 13, color: '#8A7D9E', marginBottom: 14 },
+  petBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(196,168,216,0.25)',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  petBadgeText: { fontSize: 12, color: '#7A5CA8', fontWeight: '700' },
 
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: '#A89FBC',

@@ -7,7 +7,7 @@ const CACHE_TTL = 3600000; // 1시간
 function scoreToGate(score, riskGated) {
   if (riskGated) return 'locked'; // risk_level 2+ → 점수 무관하게 잠김
   if (score >= 80) return 'open';
-  if (score >= 50) return 'teaser';
+  if (score >= 45) return 'teaser';
   return 'locked';
 }
 
@@ -16,8 +16,8 @@ function scoreToGate(score, riskGated) {
  * 반환: { gateStatus: 'locked' | 'teaser' | 'open', score: number, riskGated: boolean }
  *
  * Continuing Bonds 연구에 근거:
- *  - locked  (0~49점):  이별 직후 취약기 — 강한 자극 차단
- *  - teaser (50~79점):  회복 중 — 찌라시 카드로 동기 부여
+ *  - locked  (0~44점):  이별 직후 취약기 — 강한 자극 차단
+ *  - teaser (45~79점):  회복 중 — 찌라시 카드로 동기 부여
  *  - open   (80점~  ):  충분한 회복 — 추모 편지·TTS 언락
  *
  * 백엔드 불가 시 캐시 → farewell_date 기반 시간 게이트 순서로 폴백합니다.

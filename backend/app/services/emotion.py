@@ -1,6 +1,5 @@
-from ai.evaluation.recovery_signal import recovery_score
-from app.services.mission import get_completed_mission_count, get_mission_completed_days
-from datetime import datetime, timezone
+from ai.evaluation.recovery_signal import recovery_score_from_axes
+from datetime import date, datetime, timezone
 import app.core.ai_path  # noqa: F401  프로젝트 루트를 sys.path에 추가
 from ai.llm.safety import assess_crisis
 from ai.llm.provider import generate
@@ -80,14 +79,27 @@ async def get_recovery(pet_id: str) -> RecoveryResponse:
     else:
         trend = "유지 중"
 
-        # 회복 점수 — 감정40 / 미션누적35(sticky) / 꾸준함25
-    completed_missions = await get_completed_mission_count(pet_id)
-    completed_days = await get_mission_completed_days(pet_id, days=14)
-    consistency_pct = round(completed_days / 14 * 100)
-    recovery_pct = recovery_score(
-        emotion_avg=avg,
-        completed_missions=completed_missions,
-        consistency_pct=consistency_pct,
+    # 회복 점수 — 4축(미션40·지속성30·감정추세15·생활패턴15) 일원화
+    mission_col = mongodb.db["missions"]
+    missions_list = []
+    async for m in mission_col.find({"pet_id": pet_id}):
+        created = m.get("created_at")
+        date_str = (
+            created.date().isoformat()
+            if hasattr(created, "date")
+            else str(created)[:10]
+        )
+        missions_list.append(
+            {
+                "date": date_str,
+                "done": bool(m.get("completed", False)),
+                "difficulty": m.get("difficulty", ""),
+            }
+        )
+    recovery_pct = recovery_score_from_axes(
+        missions_list,
+        records,
+        as_of=date.today(),
     )
 
     # 창(window) 내 최대 risk — 직전 L3 위기가 있었으면 여전히 잠금 유지

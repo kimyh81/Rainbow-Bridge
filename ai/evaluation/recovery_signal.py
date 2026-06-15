@@ -80,7 +80,7 @@ def _freq_trend(counts: Optional[Sequence[float]]) -> Optional[dict[str, Any]]:
     }
 
 
-_CONSISTENCY_WINDOW = 14  # 꾸준함 산정 창(일) — RECOVERY_GATE 설계와 동일.
+_CONSISTENCY_WINDOW = 28  # 꾸준함 산정 창(일) — 14→28 모세종·정환주 합의 2026-06-15.
 
 
 def _consistency(

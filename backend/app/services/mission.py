@@ -119,6 +119,7 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
             "description": m.get("description", ""),
             "category": m.get("category", ""),
             "rationale": m.get("rationale"),
+            "difficulty": m.get("difficulty", ""),
             "completed": False,
             "created_at": now,
             "completed_at": None,

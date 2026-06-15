@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     funerals,
     admin,
+    care,
     vets,
     diaries,
     auth,
@@ -53,3 +54,4 @@ api_router.include_router(
 api_router.include_router(
     usage_stats.router, prefix="/usage-stats", tags=["usage_stats"]
 )
+api_router.include_router(care.router, prefix="/care", tags=["care"])

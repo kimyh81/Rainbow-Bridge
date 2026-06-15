@@ -117,5 +117,3 @@ async def set_memorial_mode(pet_id: str) -> PetResponse | None:
         return None
     doc["id"] = str(doc.pop("_id"))
     return PetResponse(**doc)
-
-

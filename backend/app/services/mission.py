@@ -54,6 +54,24 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
     except Exception:
         pass
 
+    # 레벨 판정 — 회복 게이트 조회해서 L0/L1/L2~3 결정
+    level = "L1"
+    recovery_score = 0
+    try:
+        from app.services.emotion import get_recovery
+
+        recovery = await get_recovery(pet_id)
+        recovery_score = recovery.recovery_pct
+        max_risk = recovery.latest_risk_level or 0
+        if max_risk >= 2:
+            level = "L2~3"
+        elif recovery_score >= 80:
+            level = "L0"
+        else:
+            level = "L1"
+    except Exception:
+        pass
+
     cfg = get_config()
     log_ok = True
     timer = None
@@ -62,47 +80,96 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
             missions_raw = _ai_recommend(
                 emotion_score=emotion_score,
                 generate=generate,
-                count=5,
+                level=level,
+                recovery_score=recovery_score,
             )
     except Exception:
         log_ok = False
-        missions_raw = [
-            {
-                "title": "오늘 산책하기",
-                "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
-                "category": "activity",
-                "rationale": None,
-                "difficulty": "gentle",
-            },
-            {
-                "title": "좋아하는 음악 듣기",
-                "description": "마음이 편한 음악을 들으며 잠시 쉬어가세요.",
-                "category": "rest",
-                "rationale": None,
-                "difficulty": "gentle",
-            },
-            {
-                "title": "소중한 사람에게 연락하기",
-                "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
-                "category": "connection",
-                "rationale": None,
-                "difficulty": "gentle",
-            },
-            {
-                "title": "따뜻한 음료 마시기",
-                "description": "따뜻한 차 한 잔으로 마음을 달래보세요.",
-                "category": "rest",
-                "rationale": None,
-                "difficulty": "gentle",
-            },
-            {
-                "title": "반려동물과의 추억 기록하기",
-                "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
-                "category": "record",
-                "rationale": None,
-                "difficulty": "gentle",
-            },
-        ]
+        if level == "L0":
+            if recovery_score >= 45:
+                # L0 45점 이상 — active×1(1개)
+                missions_raw = [
+                    {
+                        "title": "30분 산책 또는 가벼운 운동",
+                        "description": "몸을 움직이며 활력을 찾아보세요.",
+                        "category": "activity",
+                        "rationale": None,
+                        "difficulty": "active",
+                    },
+                ]
+            else:
+                # L0 45점 미만 — L1과 동일(3개)
+                missions_raw = [
+                    {
+                        "title": "오늘 산책하기",
+                        "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
+                        "category": "activity",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                    {
+                        "title": "소중한 사람에게 연락하기",
+                        "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
+                        "category": "connection",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                    {
+                        "title": "반려동물과의 추억 기록하기",
+                        "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
+                        "category": "record",
+                        "rationale": None,
+                        "difficulty": "small",
+                    },
+                ]
+        elif level == "L2~3":
+            missions_raw = [
+                {
+                    "title": "따뜻한 음료 마시기",
+                    "description": "따뜻한 차 한 잔으로 마음을 달래보세요.",
+                    "category": "rest",
+                    "rationale": None,
+                    "difficulty": "gentle",
+                },
+                {
+                    "title": "좋아하는 음악 듣기",
+                    "description": "마음이 편한 음악을 들으며 잠시 쉬어가세요.",
+                    "category": "rest",
+                    "rationale": None,
+                    "difficulty": "gentle",
+                },
+                {
+                    "title": "반려동물과의 추억 기록하기",
+                    "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
+                    "category": "record",
+                    "rationale": None,
+                    "difficulty": "gentle",
+                },
+            ]
+        else:  # L1
+            missions_raw = [
+                {
+                    "title": "오늘 산책하기",
+                    "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
+                    "category": "activity",
+                    "rationale": None,
+                    "difficulty": "small",
+                },
+                {
+                    "title": "소중한 사람에게 연락하기",
+                    "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
+                    "category": "connection",
+                    "rationale": None,
+                    "difficulty": "small",
+                },
+                {
+                    "title": "반려동물과의 추억 기록하기",
+                    "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
+                    "category": "record",
+                    "rationale": None,
+                    "difficulty": "small",
+                },
+            ]
     finally:
         try:
             await alog_llm_call(

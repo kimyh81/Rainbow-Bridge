@@ -134,8 +134,8 @@ async def get_recovery(pet_id: str) -> RecoveryResponse:
         and max_risk <= _GATE_MAX_RISK
         and trend != "주의 필요"
     )
-    # 1인칭 편지는 창 내 위기 기록이 전혀 없을 때만 허용
-    allow_first_person = content_unlocked and max_risk == 0
+    # 1인칭 편지는 80점 이상 + L0(창 내 위기 없음) 조건 동시 충족 시에만 허용
+    allow_first_person = content_unlocked and max_risk == 0 and recovery_pct >= 80
 
     gif_unlocked = recovery_pct >= 20
 

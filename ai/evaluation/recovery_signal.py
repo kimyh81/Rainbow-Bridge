@@ -155,15 +155,25 @@ def recovery_score(
 
 
 # --- 4축 정규화(미션40/지속성30/생활패턴15/감정추세15) — 06-15 설계 -------------- #
-# [[project_recovery_score_axes_redesign_260614]] 확정안. 생활패턴(15%)은 별도
-# 정의 예정(미정) — 여기 3개(미션·지속성·감정추세)만 우선 구현. recovery_score()
-# 와의 통합(교체)은 후속 작업.
+# [[project_recovery_score_axes_redesign_260614]] 확정안. 축별 점수 함수
+# (mission_score·consistency_score·emotion_trend_score)와 이를 합성하는
+# `recovery_score_from_axes` 까지 구현. 생활패턴(15%)은 전용 함수 미정이라
+# 당분간 미리 계산한 `lifestyle_pct` 를 받는다.
+# ⚠️ 게이트(backend emotion.py)의 recovery_score → recovery_score_from_axes
+# **교체는 아직 안 함** — 감정축 절대→추세 전환이 게이트 동작을 바꿔 안전 민감,
+# 모세종·김윤한 합의 + consistency 윈도우(정환주) 정렬 후.
 
 _MISSION_WINDOW = 28  # mission_score 집계 윈도우(일)
 _DIFFICULTY_ACTIVE = "active"
 _EMOTION_TREND_SCALE = 20.0  # delta(1~10 스케일) × SCALE = 점수 변화폭
 _EMOTION_TREND_NEUTRAL = 50.0  # delta=0(유지) 기준점
 _EMOTION_TREND_FLOOR = 30.0  # 추세가 나빠져도 이 밑으로는 안 깎임("슬픔=감점 아님")
+
+# 4축 합성 가중치(%) — [[project_recovery_score_axes_redesign_260614]] 확정안.
+_W_MISSION = 40.0
+_W_CONSISTENCY = 30.0
+_W_EMOTION_TREND = 15.0
+_W_LIFESTYLE = 15.0
 
 
 def _group_assigned_by_day(
@@ -301,6 +311,69 @@ def emotion_trend_score(
         _EMOTION_TREND_FLOOR,
         min(100.0, _EMOTION_TREND_NEUTRAL + delta * _EMOTION_TREND_SCALE),
     )
+
+
+def recovery_score_from_axes(
+    missions: Iterable[dict[str, Any]],
+    emotion_checkins: Iterable[dict[str, Any]],
+    *,
+    lifestyle_pct: Optional[float] = None,
+    as_of: Optional[date] = None,
+) -> int:
+    """4축(미션40·지속성30·감정추세15·생활패턴15)을 묶은 회복 점수(0~100).
+
+    [recovery_score]() 의 후속 **일원화 버전** — 미리 계산한 스칼라 대신 원자료
+    (미션·감정 체크인 리스트)를 받아 축별 점수 함수(`mission_score`/
+    `consistency_score`/`emotion_trend_score`)를 직접 호출해 합성한다.
+
+    **무페널티 재정규화** — *판단할 데이터가 없는* 축은 분모에서 빼고 나머지로
+    재정규화한다(만점 100 유지, 06-15 확정):
+      - 감정추세: 체크인 3회 미만(`emotion_trend_score`→None)이면 추세를 못 내므로 제외.
+      - 생활패턴: `lifestyle_pct=None`(워치/삼성헬스 미사용)이면 제외.
+    미션·지속성은 사용자가 앱에서 직접 채우는 **핵심 축**이라 데이터가 없어도
+    (0점 기여로) 항상 분모에 포함한다 — 무페널티 대상이 아님.
+
+    ⚠️ 아직 어디서도 호출하지 않는다(추가만, 교체 X). 회복 게이트
+    (`backend/app/services/emotion.py`)는 여전히 [recovery_score]()(절대 감정)를
+    쓴다. 감정축이 '절대→추세'로 바뀌면 게이트 동작이 달라지므로 **모세종·김윤한
+    안전 합의 전 교체 금지**. 또한 consistency 윈도우 14→28(L0 캘리브레이션) 변경은
+    **정환주 영역** — 여기선 각 함수 기본 윈도우(미션28·지속성14)를 그대로 쓴다.
+    생활패턴 전용 `life_pattern_score` 는 미정이라 당분간 `lifestyle_pct`(미리 계산)를 받는다.
+
+    Args:
+        missions: ``[{"date": "YYYY-MM-DD", "done": bool, "difficulty"?: str}, ...]``
+            (배정일 기준). `mission_score`/`consistency_score` 입력 형식과 동일.
+        emotion_checkins: ``[{"score": 1~10, "created_at": ...}, ...]``(순서 무관).
+        lifestyle_pct: 생활패턴 정규화 점수(0~100). 없으면(None) 무페널티 제외.
+        as_of: 미션 축 윈도우 기준일. None 이면 데이터 최신 배정일.
+
+    Returns:
+        0~100 정수.
+    """
+    missions = list(missions)
+    earned = 0.0
+    max_w = 0.0
+
+    # 핵심 축(미션·지속성) — 데이터 없으면 0 기여, 그래도 항상 분모 포함.
+    earned += mission_score(missions, as_of) / 100 * _W_MISSION
+    max_w += _W_MISSION
+    earned += consistency_score(missions, as_of) / 100 * _W_CONSISTENCY
+    max_w += _W_CONSISTENCY
+
+    # 감정추세 — 체크인 3회 미만이면 추세 불가 → 무페널티 제외.
+    et = emotion_trend_score(emotion_checkins)
+    if et is not None:
+        earned += et / 100 * _W_EMOTION_TREND
+        max_w += _W_EMOTION_TREND
+
+    # 생활패턴 — 외부(health) 신호, 있을 때만 분모 포함(무페널티).
+    if lifestyle_pct is not None:
+        earned += max(0.0, min(100.0, lifestyle_pct)) / 100 * _W_LIFESTYLE
+        max_w += _W_LIFESTYLE
+
+    if max_w == 0:  # 방어적(미션·지속성이 항상 70을 더해 실제로는 도달 불가).
+        return 0
+    return max(0, min(100, round(earned / max_w * 100)))
 
 
 def compute_recovery_signal(

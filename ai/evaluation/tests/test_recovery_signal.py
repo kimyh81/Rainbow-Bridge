@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from ..recovery_signal import (
     SIGNAL_AT_RISK,
@@ -14,6 +14,7 @@ from ..recovery_signal import (
     emotion_trend_score,
     mission_score,
     recovery_score,
+    recovery_score_from_axes,
 )
 
 
@@ -312,3 +313,49 @@ def test_emotion_trend_score_floor_30_on_sharp_drop():
 
 def test_emotion_trend_score_none_when_insufficient():
     assert emotion_trend_score(_checkins([5, 5])) is None
+
+
+# --- 4축 합성 recovery_score_from_axes (06-15, 일원화 초안) ------------------ #
+
+
+def _full_days(base: date, n: int) -> list[dict]:
+    """base 부터 n일간 매일 미션 1개를 배정·완료한 목록(전부완료)."""
+    out: list[dict] = []
+    for i in range(n):
+        out += _assigned((base + timedelta(days=i)).isoformat(), 1, 1)
+    return out
+
+
+def test_recovery_score_from_axes_all_max_is_100():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)  # 28일 전부완료 → mission/consistency 만점
+    checkins = _checkins([1, 1, 3.5, 3.5])  # delta=2.5 → 감정추세 cap 100
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor
+    )
+    assert score == 100
+
+
+def test_recovery_score_from_axes_drops_absent_axes_no_penalty():
+    """감정추세(체크인<3)·생활패턴(None) 없으면 분모서 빠짐 — 점수 안 깎임."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    score = recovery_score_from_axes(
+        _full_days(base, 28), _checkins([5, 5]), as_of=anchor
+    )
+    # mission100·consistency100 → (40+30)/(40+30)*100 = 100
+    assert score == 100
+
+
+def test_recovery_score_from_axes_core_axes_count_when_zero():
+    """미션 전무면 핵심축(미션·지속성)은 0으로 분모 유지 — 무페널티 대상 아님."""
+    score = recovery_score_from_axes([], _checkins([1, 1, 3.5, 3.5]))
+    # mission0(40)+consistency0(30)+emotion100(15), lifestyle 제외 → 15/85*100
+    assert score == round(15 / 85 * 100)
+
+
+def test_recovery_score_from_axes_lifestyle_included_when_present():
+    """생활패턴이 있으면 분모에 15 추가(있을 때만 포함)."""
+    score = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
+    # mission0(40)+consistency0(30)+lifestyle100(15), emotion 제외 → 15/85*100
+    assert score == round(15 / 85 * 100)

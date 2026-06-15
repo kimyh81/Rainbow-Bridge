@@ -43,6 +43,7 @@ export default function GiftScreen() {
   const [gateStatus, setGateStatus] = useState('checking');
   const [hasVideo, setHasVideo] = useState(false);
   const [hasLetter, setHasLetter] = useState(false);
+  const [hasGif, setHasGif] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,20 +52,23 @@ export default function GiftScreen() {
   );
 
   async function load() {
-    const [name, video, letter, petId] = await Promise.all([
+    const [name, video, letter, gif, petId] = await Promise.all([
       AsyncStorage.getItem('pet_name'),
       AsyncStorage.getItem('pet_video_url'),
       AsyncStorage.getItem('message_content'),
+      AsyncStorage.getItem('pet_gif_url'),
       AsyncStorage.getItem('pet_id'),
     ]);
     if (name) setPetName(name);
     setHasVideo(!!video);
     setHasLetter(!!letter);
+    setHasGif(!!gif);
     const { gateStatus: gs } = await fetchRecoveryGate(petId);
     setGateStatus(gs);
   }
 
-  const letterReady = gateStatus === 'open';
+  const letterReady = gateStatus === 'teaser' || gateStatus === 'open';
+  const firstPersonReady = gateStatus === 'open';
   const canPackage = hasLetter || hasVideo;
 
   // ── 추억 패키지 내보내기 ──
@@ -99,6 +103,25 @@ export default function GiftScreen() {
     }
   }
 
+  async function exportGif() {
+    const url = await AsyncStorage.getItem('pet_gif_url');
+    if (!url) {
+      Alert.alert('아직 숨쉬는 사진이 없어요', '조금 더 함께하면 도착할 거예요.');
+      return;
+    }
+    try {
+      const { FileSystem, Sharing } = loadFileModules();
+      const safeName = (petName || '추모').replace(/[\\/:*?"<>|]/g, '');
+      const fileUri = `${FileSystem.documentDirectory}${safeName}_숨쉬는사진.gif`;
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/gif', dialogTitle: '숨쉬는 사진 저장' });
+      }
+    } catch {
+      Alert.alert('저장 기능 준비 중', '숨쉬는 사진 저장은 다음 앱 업데이트(새 빌드)부터 쓸 수 있어요.');
+    }
+  }
+
   async function exportVideo() {
     const url = await AsyncStorage.getItem('pet_video_url');
     if (!url) {
@@ -121,7 +144,8 @@ export default function GiftScreen() {
   function handlePackage() {
     const buttons = [];
     if (hasLetter) buttons.push({ text: '✉️ 편지 저장', onPress: exportLetter });
-    if (hasVideo) buttons.push({ text: '🎞️ 영상 저장', onPress: exportVideo });
+    if (hasVideo) buttons.push({ text: '🎬 영상 저장 (MP4)', onPress: exportVideo });
+    if (hasGif) buttons.push({ text: '✨ 숨쉬는 사진 저장', onPress: exportGif });
     buttons.push({ text: '취소', style: 'cancel' });
     Alert.alert(
       '추억 패키지 내보내기',
@@ -154,19 +178,19 @@ export default function GiftScreen() {
             <GiftCard
               emoji="🌠"
               title="별에서 온 편지"
-              desc={letterReady ? `${petName}${iga(petName)} 직접 전하는 말` : '마음이 더 단단해지면 열려요'}
-              state={letterReady ? 'ready' : 'locked'}
-              actionLabel={letterReady ? '열어보기' : '준비 중'}
+              desc={firstPersonReady ? `${petName}${iga(petName)} 직접 전하는 말` : '마음이 더 단단해지면 열려요'}
+              state={firstPersonReady ? 'ready' : 'locked'}
+              actionLabel={firstPersonReady ? '열어보기' : '준비 중'}
               onPress={() => router.push('/(app)/message?mode=first')}
             />
 
-            {/* GIF 추억 카드 (추모 영상) */}
+            {/* 숨쉬는 사진 (추모 영상 + GIF) */}
             <GiftCard
               emoji="🎞️"
-              title="GIF 추억 카드"
-              desc={hasVideo ? '도착 완료' : '사진으로 만들 수 있어요'}
-              state="ready"
-              actionLabel={hasVideo ? '열어보기' : '만들러 가기'}
+              title="숨쉬는 사진"
+              desc={hasVideo ? '아이의 살며시 움직이는 순간이에요' : '슬라이드쇼 미션을 완료하면 도착해요'}
+              state={hasVideo ? 'ready' : 'locked'}
+              actionLabel={hasVideo ? '열어보기' : '준비 중'}
               onPress={() => router.push('/(app)/media')}
             />
 

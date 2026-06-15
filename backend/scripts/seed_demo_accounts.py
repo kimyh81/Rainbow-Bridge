@@ -22,7 +22,12 @@ ACCOUNTS = [
         "email": "demo1@test.com",
         "password": "demo1234",
         "nickname": "데모1",
-        "pet": {"name": "하늘이", "species": "강아지", "caller_name": "엄마", "gender": "남아"},
+        "pet": {
+            "name": "하늘이",
+            "species": "강아지",
+            "caller_name": "엄마",
+            "gender": "남아",
+        },
         "checkins": [],  # 0개
         "memorial_mode": False,
     },
@@ -31,7 +36,12 @@ ACCOUNTS = [
         "email": "demo2@test.com",
         "password": "demo1234",
         "nickname": "데모2",
-        "pet": {"name": "별이", "species": "강아지", "caller_name": "아빠", "gender": "여아"},
+        "pet": {
+            "name": "별이",
+            "species": "강아지",
+            "caller_name": "아빠",
+            "gender": "여아",
+        },
         "checkins": [{"score": 7, "risk_level": 0}],  # 1개
         "memorial_mode": True,
     },
@@ -40,7 +50,12 @@ ACCOUNTS = [
         "email": "demo3@test.com",
         "password": "demo1234",
         "nickname": "데모3",
-        "pet": {"name": "콩이", "species": "고양이", "caller_name": "누나", "gender": "남아"},
+        "pet": {
+            "name": "콩이",
+            "species": "고양이",
+            "caller_name": "누나",
+            "gender": "남아",
+        },
         "checkins": [
             {"score": 3, "risk_level": 0},
             {"score": 2, "risk_level": 0},
@@ -53,7 +68,12 @@ ACCOUNTS = [
         "email": "demo4@test.com",
         "password": "demo1234",
         "nickname": "데모4",
-        "pet": {"name": "달이", "species": "강아지", "caller_name": "엄마", "gender": "여아"},
+        "pet": {
+            "name": "달이",
+            "species": "강아지",
+            "caller_name": "엄마",
+            "gender": "여아",
+        },
         "checkins": [
             {"score": 8, "risk_level": 2},  # 최근 risk=2 → 락
             {"score": 8, "risk_level": 0},
@@ -68,7 +88,12 @@ ACCOUNTS = [
         "email": "demo5@test.com",
         "password": "demo1234",
         "nickname": "데모5",
-        "pet": {"name": "봄이", "species": "고양이", "caller_name": "오빠", "gender": "여아"},
+        "pet": {
+            "name": "봄이",
+            "species": "고양이",
+            "caller_name": "오빠",
+            "gender": "여아",
+        },
         "checkins": [
             {"score": 7, "risk_level": 1},  # risk=1 있음 → 1인칭 락
             {"score": 8, "risk_level": 0},
@@ -83,7 +108,12 @@ ACCOUNTS = [
         "email": "demo6@test.com",
         "password": "demo1234",
         "nickname": "데모6",
-        "pet": {"name": "구름이", "species": "강아지", "caller_name": "엄마", "gender": "남아"},
+        "pet": {
+            "name": "구름이",
+            "species": "강아지",
+            "caller_name": "엄마",
+            "gender": "남아",
+        },
         "checkins": [
             {"score": 9, "risk_level": 0},
             {"score": 9, "risk_level": 0},
@@ -98,11 +128,14 @@ ACCOUNTS = [
 
 async def create_account(client: httpx.AsyncClient, acc: dict) -> str | None:
     """회원가입 → user_id 반환."""
-    r = await client.post(f"{BASE_URL}/api/v1/auth/register", json={
-        "email": acc["email"],
-        "password": acc["password"],
-        "nickname": acc["nickname"],
-    })
+    r = await client.post(
+        f"{BASE_URL}/api/v1/auth/register",
+        json={
+            "email": acc["email"],
+            "password": acc["password"],
+            "nickname": acc["nickname"],
+        },
+    )
     if r.status_code not in (200, 201):
         print(f"  ⚠️  회원가입 실패 ({r.status_code}): {r.text[:80]}")
         return None
@@ -112,10 +145,13 @@ async def create_account(client: httpx.AsyncClient, acc: dict) -> str | None:
 
 async def login(client: httpx.AsyncClient, acc: dict) -> str | None:
     """로그인 → JWT 토큰 반환."""
-    r = await client.post(f"{BASE_URL}/api/v1/auth/login", json={
-        "email": acc["email"],
-        "password": acc["password"],
-    })
+    r = await client.post(
+        f"{BASE_URL}/api/v1/auth/login",
+        json={
+            "email": acc["email"],
+            "password": acc["password"],
+        },
+    )
     if r.status_code != 200:
         print(f"  ⚠️  로그인 실패: {r.text[:80]}")
         return None
@@ -150,13 +186,15 @@ async def seed_checkins(db, pet_id: str, checkins: list, memorial_mode: bool):
         now = datetime.now(timezone.utc)
         docs = []
         for i, c in enumerate(checkins):
-            docs.append({
-                "pet_id": pet_id,
-                "score": c["score"],
-                "note": "",
-                "risk_level": c["risk_level"],
-                "created_at": now - timedelta(hours=i),
-            })
+            docs.append(
+                {
+                    "pet_id": pet_id,
+                    "score": c["score"],
+                    "note": "",
+                    "risk_level": c["risk_level"],
+                    "created_at": now - timedelta(hours=i),
+                }
+            )
         await db["emotions"].insert_many(docs)
         print(f"  ✅ 체크인 {len(docs)}개 삽입")
 
@@ -165,7 +203,7 @@ async def seed_checkins(db, pet_id: str, checkins: list, memorial_mode: bool):
             {"_id": ObjectId(pet_id)},
             {"$set": {"memorial_mode": True}},
         )
-        print(f"  ✅ memorial_mode=true 설정")
+        print("  ✅ memorial_mode=true 설정")
 
 
 async def main():
@@ -195,7 +233,9 @@ async def main():
     print()
     print("계정 요약:")
     for acc in ACCOUNTS:
-        print(f"  {acc['email']} / {acc['password']}  →  {acc['label'].split('—')[1].strip()}")
+        print(
+            f"  {acc['email']} / {acc['password']}  →  {acc['label'].split('—')[1].strip()}"
+        )
 
 
 if __name__ == "__main__":

@@ -47,7 +47,11 @@ class RecoveryResponse(BaseModel):
         False,
         description="1인칭 편지 허용 여부 — content_unlocked + 창 내 위기 기록 없음(max_risk=0)",
     )
+    gif_unlocked: bool = Field(
+        False,
+        description="GIF 해금 여부 — 20점 이상",
+    )
     gate_status: str = Field(
         "locked",
-        description="회복 게이트 단계: locked(0~49) / teaser(50~79) / open(80+)",
+        description="회복 게이트 단계: locked(0~44) / teaser(45~79) / open(80+)",
     )

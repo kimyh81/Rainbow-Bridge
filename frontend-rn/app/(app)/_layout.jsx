@@ -25,6 +25,9 @@ const TABS = [
   { key: 'report', emoji: '📊', label: '리포트', path: '/report', route: '/(app)/report' },
 ];
 
+// 하단 바를 숨길 화면 — 추모 편지(별에서 온 편지)는 다크 몰입형이라 바가 어색함
+const BAR_HIDDEN_PATHS = ['/message'];
+
 function BottomBar() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
@@ -34,6 +37,9 @@ function BottomBar() {
   useEffect(() => {
     AsyncStorage.getItem('memorial_mode').then((v) => setMemorialMode(v === 'true'));
   }, [pathname]);
+
+  // 추모 편지 등 몰입형 화면에선 하단 바 숨김
+  if (BAR_HIDDEN_PATHS.includes(pathname)) return null;
 
   // 추모 타임라인·회복 리포트는 이별 후에만 노출
   const tabs = memorialMode

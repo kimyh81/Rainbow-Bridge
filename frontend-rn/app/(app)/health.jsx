@@ -30,85 +30,61 @@ export default function HealthScreen() {
   const [result, setResult] = useState(null);
   const [needsSetup, setNeedsSetup] = useState(false);
 
+  // Health Connect 설정 열기 → 수동으로 권한 허용 안내
+  async function handleOpenSettings() {
+    try {
+      await initialize();
+    } catch {}
+    try {
+      openHealthConnectSettings();
+    } catch (e) {
+      setError('Health Connect 설정을 열 수 없어요: ' + (e?.message ?? e));
+    }
+  }
+
+  // 권한이 허용된 후 데이터 읽기 + 전송
   async function handleSync() {
     setLoading(true);
     setError('');
     setResult(null);
-    setNeedsSetup(false);
 
-    // 1) SDK 상태 확인
-    let sdk;
     try {
-      setStatusMsg('1/5 Health Connect 확인 중...');
-      sdk = await getSdkStatus();
-    } catch (e) {
-      setError(`[1단계 실패] getSdkStatus 오류: ${e?.message ?? e}`);
-      setLoading(false);
-      return;
-    }
-    if (sdk !== SdkAvailabilityStatus.SDK_AVAILABLE) {
-      setNeedsSetup(true);
-      setError(`[1단계] SDK 사용 불가 (status=${sdk}). 삼성헬스 설정에서 Health Connect 동기화를 켜주세요.`);
-      setLoading(false);
-      return;
-    }
+      setStatusMsg('Health Connect 확인 중...');
+      const sdk = await getSdkStatus();
+      if (sdk !== SdkAvailabilityStatus.SDK_AVAILABLE) {
+        setError('Health Connect를 사용할 수 없어요. 아래 버튼으로 설정을 열어주세요.');
+        setLoading(false);
+        return;
+      }
 
-    // 2) 초기화
-    try {
-      setStatusMsg('2/5 초기화 중...');
-      const ok = await initialize();
-      if (!ok) throw new Error('initialize() returned false');
-    } catch (e) {
-      setError(`[2단계 실패] initialize 오류: ${e?.message ?? e}`);
-      setLoading(false);
-      return;
-    }
+      await initialize();
 
-    // 3) 권한 요청
-    let granted = [];
-    try {
-      setStatusMsg('3/5 권한 요청 중... (팝업이 뜨면 허용해주세요)');
-      granted = await requestPermission(PERMISSIONS);
-    } catch (e) {
-      setError(`[3단계 실패] requestPermission 오류: ${e?.message ?? e}`);
-      setLoading(false);
-      return;
-    }
+      setStatusMsg('걸음·수면 기록 읽는 중...');
+      const now = new Date();
+      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const timeRangeFilter = {
+        operator: 'between',
+        startTime: start.toISOString(),
+        endTime: now.toISOString(),
+      };
 
-    const can = (type) =>
-      granted.some((p) => p.recordType === type && p.accessType === 'read');
-
-    // 4) 데이터 읽기
-    setStatusMsg('4/5 걸음·수면 기록 읽는 중...');
-    const now = new Date();
-    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const timeRangeFilter = {
-      operator: 'between',
-      startTime: start.toISOString(),
-      endTime: now.toISOString(),
-    };
-    let steps_result = null;
-    let sleep_result = null;
-    if (can('Steps')) {
+      let steps_result = null;
+      let sleep_result = null;
       try { steps_result = await readRecords('Steps', { timeRangeFilter }); } catch {}
-    }
-    if (can('SleepSession')) {
       try { sleep_result = await readRecords('SleepSession', { timeRangeFilter }); } catch {}
-    }
-    if (!steps_result && !sleep_result) {
-      setError('읽을 수 있는 데이터가 없어요. 권한을 허용했는지, 삼성헬스에 기록이 있는지 확인해주세요.');
-      setLoading(false);
-      return;
-    }
 
-    // 5) 전송
-    try {
-      setStatusMsg('5/5 서버로 전송 중...');
+      if (!steps_result && !sleep_result) {
+        setError('데이터가 없어요. 아래 버튼으로 Health Connect를 열어 레인보우 브릿지 권한을 허용해주세요.');
+        setLoading(false);
+        return;
+      }
+
+      setStatusMsg('서버로 전송 중...');
       const petId = await AsyncStorage.getItem('pet_id');
       const res = await syncHealth({ pet_id: petId, steps_result, sleep_result });
       setResult(res);
     } catch (e) {
-      setError(`[5단계 실패] 서버 전송 오류: ${e?.message ?? e}`);
+      setError('오류: ' + (e?.message ?? String(e)));
     } finally {
       setLoading(false);
     }
@@ -125,8 +101,9 @@ export default function HealthScreen() {
 
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>
-              📱 먼저 <Text style={styles.bold}>삼성헬스 설정 → Health Connect 동기화</Text>를 켜주세요.{'\n'}
-              연동 버튼을 누르면 걸음·수면 읽기 권한을 요청해요.
+              {'① '}아래 <Text style={styles.bold}>Health Connect 설정 열기</Text>를 눌러{'\n'}
+              {'   '}앱 권한 → 레인보우 브릿지 → 걸음수·수면 허용{'\n\n'}
+              {'② '}앱으로 돌아와 <Text style={styles.bold}>데이터 읽기</Text> 눌러요
             </Text>
           </View>
 
@@ -135,16 +112,15 @@ export default function HealthScreen() {
           {loading ? (
             <LoadingSpinner message={statusMsg || '잠시만 기다려주세요...'} />
           ) : (
-            <Button onPress={handleSync} variant="primary" style={styles.btn}>
-              삼성헬스 연동하기
-            </Button>
+            <>
+              <Button onPress={handleOpenSettings} variant="ghost" style={styles.btn}>
+                ① Health Connect 설정 열기
+              </Button>
+              <Button onPress={handleSync} variant="primary" style={styles.btn}>
+                ② 데이터 읽기
+              </Button>
+            </>
           )}
-
-          {needsSetup ? (
-            <Button onPress={openHealthConnectSettings} variant="ghost" style={styles.btn}>
-              Health Connect 설정 열기
-            </Button>
-          ) : null}
 
           {result ? (
             <Card style={styles.resultCard}>

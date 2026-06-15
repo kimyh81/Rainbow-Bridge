@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { getMissions, completeMission } from '@/api/missions';
 import { mockMissions } from '@/api/mock';
+import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
 import { gwa } from '@/utils/josa';
 import { doLogout } from './_layout';
@@ -149,6 +151,27 @@ export default function MissionScreen() {
                 </View>
               </View>
 
+              {mission.video_url ? (
+                <View style={styles.slideshowCard}>
+                  <Text style={styles.slideshowBadge}>✅ 완성</Text>
+                  <Text style={styles.slideshowLabel}>🎞️ 추모 슬라이드쇼가 준비됐어요</Text>
+                  <Video
+                    source={{
+                      uri: mission.video_url.startsWith('http')
+                        ? mission.video_url
+                        : `${API_URL}${mission.video_url}`,
+                    }}
+                    style={styles.video}
+                    useNativeControls
+                    resizeMode={ResizeMode.CONTAIN}
+                    isLooping={false}
+                  />
+                  <Text style={styles.videoDisclaimer}>
+                    {petName}{gwa(petName)} 함께한 추억 사진으로 만든 슬라이드쇼예요.
+                  </Text>
+                </View>
+              ) : null}
+
               {!mission.completed ? (
                 <Button
                   variant="primary"
@@ -209,4 +232,16 @@ const styles = StyleSheet.create({
   missionRationale: { fontSize: 12, color: '#9B8DB8', marginTop: 6, lineHeight: 17 },
   completeBtn: { marginTop: 12 },
   allDone: { textAlign: 'center', color: COLORS.primary, fontWeight: '700', fontSize: 15, marginTop: 20 },
+  slideshowCard: {
+    marginTop: 14,
+    backgroundColor: '#F0F8F6',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#7DCFBC',
+  },
+  slideshowBadge: { fontSize: 11, fontWeight: '700', color: '#2D7A4F', marginBottom: 6 },
+  slideshowLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 10 },
+  video: { width: '100%', aspectRatio: 1, borderRadius: 10, backgroundColor: '#000' },
+  videoDisclaimer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 8, lineHeight: 18 },
 });

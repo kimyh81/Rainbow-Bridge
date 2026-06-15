@@ -2,7 +2,7 @@
 
 > 팀원이 자기 작업 상태를 직접 갱신하는 문서입니다.
 > 상태 바꾸면 `docs: 진행도 업데이트` 로 커밋해 주세요.
-> **최종 수정:** 2026-06-13 (모세종)
+> **최종 수정:** 2026-06-15 (모세종)
 
 ## 상태 표기
 - ⬜ 시작 전  |  🟡 진행 중  |  🔵 리뷰 중(PR)  |  ✅ 완료  |  ⛔ 막힘(blocked)
@@ -59,15 +59,15 @@
 ### ④ 음성 톤 선택 + TTS 낭독
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| TTS 엔진 | 정환주 | ✅ | Qwen3 확정, Cloudflare Tunnel 연동, 비동기 폴링 방식 (PR #260, 06-13) |
-| API 연동 | 모세종·정환주 | ✅ | POST /tts → Qwen3 remote wav (+ Google 폴백). E2E 음성재생 확인 (06-10) |
+| TTS 엔진 | 정환주 | ✅ | **WaveSpeedAI 메인** + Qwen3 GPU + Google Cloud + gTTS 4단계 폴백 (PR #275, 06-14). URL 자동 핸드오프 완성 (PR #285) |
+| API 연동 | 모세종·정환주 | ✅ | POST /tts → WaveSpeed wav (+ 3단계 폴백). 메시지 생성 시 narration TTS 사전 생성 (PR #277, 06-14) |
 | 화면 | 민경이 | ✅ | TtsPage 완성, audio_url null 크래시 수정 (PR #259) |
 
 ### ⑤ 일상 복귀 미션 추천
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| 추천 로직 | 반소람 | ✅ | LLM+규칙 폴백, 미션 풀 30개 |
-| API | 모세종 | ✅ | GET /missions/{pet_id}, PATCH /complete |
+| 추천 로직 | 반소람 | ✅ | LLM+규칙 폴백, 미션 풀 60개, difficulty 3단계 |
+| API | 모세종 | ✅ | GET /missions/{pet_id}, PATCH /complete. `difficulty` 필드 DB 저장·응답 포함 (PR #281) |
 | 화면 | 민경이 | ✅ | MissionPage 완성 |
 
 ### ⑥ 추모 타임라인 저장
@@ -87,8 +87,8 @@
 ### ⑧ 평가 리포트
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| 지표/집계 | 정환주 | ✅ | report.py 완성 + llm_logs 라이트 로깅 연결 (06-08) |
-| API | 모세종 | ✅ | build_report 실연결 완료 (llm_logs·emotions·missions DB 연동) |
+| 지표/집계 | 정환주 | ✅ | report.py + recovery_score_from_axes 4축 일원화 (PR #284, 06-15). 감정추론·폰사용 분석·삼성헬스 파서 추가 |
+| API | 모세종 | ✅ | build_report 실연결 완료. 회복 게이트 4축 산식 교체 (PR #286, 06-15) |
 | 화면 | 민경이 | ✅ | ReportPage 완성 |
 
 ---

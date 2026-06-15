@@ -10,9 +10,7 @@
     "runtimeVersion": {
       "policy": "sdkVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/1ad8b58b-0827-4f57-9c12-ee85be4823d9"
-    },
+    "updates": {},
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -54,19 +52,22 @@
       "./modules/usage-stats/app.plugin.js",
       "react-native-health-connect",
       "./plugins/withHealthConnectDelegate.js",
-      ["expo-build-properties", {
-        "android": {
-          "minSdkVersion": 26,
-          "newArchEnabled": false
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "newArchEnabled": false
+          }
         }
-      }]
+      ]
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1ad8b58b-0827-4f57-9c12-ee85be4823d9"
+        "projectId": "aaed6170-970b-46d9-bfec-ccf378d20648"
       }
     },
-    "owner": "minkyeongyi"
+    "owner": "sejongmo"
   }
 }

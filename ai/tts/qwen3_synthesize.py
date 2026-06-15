@@ -145,6 +145,10 @@ def synthesize(text: str, tone: str = "girl", *, filename: str | None = None) ->
 
     if not text or not text.strip():
         raise ValueError("합성할 텍스트가 비어 있습니다.")
+    # 끝 억양 보정: 문장부호 없이 끝나면 마침표 추가(올림 억양 방지)
+    text = text.strip()
+    if text[-1] not in ".!?…":
+        text += "."
     try:
         v = _VOICES[tone]
     except KeyError as e:

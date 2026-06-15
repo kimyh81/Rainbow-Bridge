@@ -243,7 +243,7 @@ def _generate_remote_gif(source: Path, output_dir: Path) -> Path:
         raise LivePortraitError("requests 패키지 미설치: pip install requests") from e
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"{source.stem}--remote.gif"
+    out_path = output_dir / f"{source.stem}_remote.gif
 
     # 1. 비동기 job 시작 (즉시 반환 — Cloudflare 100초 제한 이내)
     try:
@@ -340,8 +340,7 @@ def _generate_remote(source: Path, output_dir: Path) -> Path:
         raise LivePortraitError("requests 패키지 미설치: pip install requests") from e
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"{source.stem}--remote.mp4"
-
+    out_path = output_dir / f"{source.stem}_remote.mp4
     try:
         with open(source, "rb") as img:
             resp = requests.post(

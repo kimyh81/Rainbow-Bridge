@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -187,6 +187,8 @@ function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
 
 export default function MessageScreen() {
   const router = useRouter();
+  // 선물함에서 '1인칭 편지'로 진입하면 mode === 'first'
+  const { mode } = useLocalSearchParams();
   // gate: 'checking' | 'locked' | 'teaser' | 'open'
   const [gateStatus, setGateStatus] = useState('checking');
   const [recoveryScore, setRecoveryScore] = useState(0);
@@ -281,7 +283,22 @@ export default function MessageScreen() {
     setGateStatus(gs);
     if (gs === 'open') {
       if (riskGated) setSafetyOpen(true);
-      loadMessage();
+      // 1인칭 모드(선물함의 '1인칭 편지')는 곧장 1인칭 편지를 생성.
+      // 실제 1인칭 허용 여부(최근 체크인 risk=0)는 백엔드가 최종 판단함.
+      if (mode === 'first') loadFirstPerson();
+      else loadMessage();
+    }
+  }
+
+  async function loadFirstPerson() {
+    const petId = await AsyncStorage.getItem('pet_id');
+    const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
+    try {
+      const data = await generateMessage({ pet_id: petId, request_first_person: true });
+      if (!data || data.source === 'unavailable') throw new Error('unavailable');
+      await saveMessage(data);
+    } catch {
+      await saveMessage(makeFallbackMessage(petNameLocal));
     }
   }
 

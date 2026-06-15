@@ -26,7 +26,13 @@ _WEEKS = 8
 _SCORES = [2, 3, 4, 5, 6, 7, 8, 9]  # 감정 점수: 우상향
 _ACCESS = [12, 11, 9, 8, 6, 4, 3, 2]  # 앱 접속: 우하향(의존 ↓)
 _PLAYS = [14, 12, 10, 7, 6, 4, 3, 2]  # 영상 재생: 우하향
-_MISSIONS = [{"done": d} for d in (1, 1, 0, 1, 1, 1, 0, 1, 1, 1)]  # 완료율 80%
+# 완료율 80% — 완료된 항목에만 completed_at 부여(미완료는 날짜 없음, graceful).
+# 2026-06-12 재정의: 꾸준함 25점은 이제 "최근 14일 중 미션 완료한 날 수" 기준.
+_MISSION_DONE = (1, 1, 0, 1, 1, 1, 0, 1, 1, 1)
+_MISSIONS = [
+    {"done": bool(d), **({"completed_at": f"2026-04-{i + 1:02d}"} if d else {})}
+    for i, d in enumerate(_MISSION_DONE)
+]
 
 
 def _bar(value: float, scale: float, width: int = 20, ch: str = "█") -> str:

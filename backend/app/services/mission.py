@@ -140,14 +140,14 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
                     "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
                     "category": "activity",
                     "rationale": None,
-                    "difficulty": "gentle",
+                    "difficulty": "small",
                 },
                 {
                     "title": "소중한 사람에게 연락하기",
                     "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
                     "category": "connection",
                     "rationale": None,
-                    "difficulty": "gentle",
+                    "difficulty": "small",
                 },
                 {
                     "title": "반려동물과의 추억 기록하기",

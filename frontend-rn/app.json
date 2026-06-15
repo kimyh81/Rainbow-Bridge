@@ -52,7 +52,12 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "./modules/usage-stats/app.plugin.js",
-      "react-native-health-connect"
+      "react-native-health-connect",
+      ["expo-build-properties", {
+        "android": {
+          "minSdkVersion": 26
+        }
+      }]
     ],
     "extra": {
       "router": {},

@@ -750,6 +750,7 @@ def assess_crisis(
     context: Optional[dict] = None,
     *,
     generate: Optional[GenerateFn] = None,
+    llm_text: Optional[str] = None,
 ) -> CrisisResult:
     """위기 감지 **공식 창구** — 백엔드는 이 함수만 호출하세요.
 
@@ -763,9 +764,15 @@ def assess_crisis(
       미탐 0은 규칙이 보장하므로 융합은 등급을 내리지 않습니다. L1 실패 시 규칙 폴백.
 
     Args:
-        text: 보호자가 입력한 문장.
+        text: 보호자가 입력한 문장. **규칙 레이어(L0)는 항상 이 원문**으로 본다
+            (미탐 0 보장 — 로컬 처리라 외부 전송 없음).
         context: 향후 확장용(이전 대화 등). 현재 미사용.
         generate: 주입 시 L1 활성화(provider.generate). None 이면 규칙만.
+        llm_text: **LLM 레이어(L1)에만** 쓰는 대체 입력. 비식별(PII 가림)한 텍스트를
+            여기 넘기면 외부 LLM 으로 원문 PII 가 안 나가면서도, 규칙 레이어는
+            원문(`text`)으로 보므로 미탐 0 이 유지된다. 융합은 `max` 라 L1 은 등급을
+            **올리기만** 하므로, 가림으로 신호가 약해져도 규칙 floor 아래로 못 내려간다.
+            None 이면 `text` 를 그대로 L1 에도 사용(기존 동작).
 
     Returns:
         CrisisResult — risk_level·hotline_required 등 (detect_crisis와 동일 타입).
@@ -774,7 +781,7 @@ def assess_crisis(
     if generate is None:
         return rule
 
-    verdict = classify_with_llm(text, generate)
+    verdict = classify_with_llm(text if llm_text is None else llm_text, generate)
     if verdict is None:  # L1 실패 → 규칙 결과로 폴백
         return rule
 

@@ -105,6 +105,7 @@ async def test_get_report_full_with_recovery_signal():
         "access_logs": _FakeCollection(access_logs),
         "media_assets": _FakeCollection([{"play_count": 5}, {"play_count": 3}]),
         "play_logs": _FakeCollection([]),
+        "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
     with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
@@ -138,6 +139,7 @@ async def test_get_report_graceful_when_owner_missing():
         "access_logs": _FakeCollection([]),
         "media_assets": _FakeCollection([]),
         "play_logs": _FakeCollection([]),
+        "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
     with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
@@ -173,6 +175,7 @@ async def test_get_report_play_logs_feed_recovery_signal():
         "access_logs": _FakeCollection([]),
         "media_assets": _FakeCollection([]),
         "play_logs": _FakeCollection(play_logs),
+        "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
     with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
@@ -184,3 +187,46 @@ async def test_get_report_play_logs_feed_recovery_signal():
     assert play_trend is not None
     assert play_trend["direction"] == "감소"
     assert any("영상 재생" in e for e in result.recovery_signal["evidence"])
+
+
+@pytest.mark.asyncio
+async def test_get_report_health_logs_reach_recovery_score():
+    """삼성헬스 걸음(health_logs)이 실제로 회복점수에 닿는지 — 배선 핵심 검증.
+
+    steps 가 들어오면 회복점수 산식이 base→blend 로 바뀌고 activity_score 가 채워져야 한다.
+    (수면은 점수 제외 — sleep_hours 는 score 에 안 들어가고 교차검증·표시로만.)
+    """
+    emotions = [  # 체크인 3회 이상이라야 insufficient 가 아님
+        {"created_at": _dt(1), "score": 7},
+        {"created_at": _dt(2), "score": 7},
+        {"created_at": _dt(3), "score": 8},
+        {"created_at": _dt(4), "score": 8},
+    ]
+    collections = {
+        "emotions": _FakeCollection(emotions),
+        "missions": _FakeCollection([{"completed": True}, {"completed": True}]),
+        "llm_logs": _FakeCollection([]),
+        "pets": _FakeCollection(find_one_result={"user_id": 42}),
+        "access_logs": _FakeCollection([]),
+        "media_assets": _FakeCollection([]),
+        "play_logs": _FakeCollection([]),
+        # 삼성헬스 동기화 결과(걸음 9000·수면 8h)가 적재돼 있는 상황
+        "health_logs": _FakeCollection(
+            find_one_result={"steps": 9000, "sleep_hours": 8.0, "date": "2026-06-05"}
+        ),
+    }
+
+    with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
+        result = await get_report(_PET_ID, period="2026-06")
+
+    sig = result.recovery_signal
+    # 핵심: 걸음 데이터가 점수 산식까지 닿아 base→blend 로 전환됐다
+    assert sig["scoring"] == "blend"
+    # 활동 점수가 채워졌다(9000걸음 → 8000 기준 천장 100)
+    assert sig["activity_score"] == 100.0
+    # 수면은 점수 항이 아니라 교차검증 쪽으로만 들어간다(sleep_score 존재, 산식엔 미반영)
+    assert sig["sleep_score"] is not None
+    # 객관 수면+감정 → 컨디션 추정도 응답에 실린다(회복점수 게이트와 별개 출력)
+    assert sig["condition"] is not None
+    assert sig["condition"]["condition"] in {"양호", "주의", "보통"}
+    assert sig["condition"]["confidence"] in {"높음", "낮음"}

@@ -36,8 +36,8 @@ def total_steps(steps_result: Optional[dict[str, Any]]) -> Optional[int]:
     if not steps_result:
         return None
     records = steps_result.get("records", [])
-    if not records:
-        return None
+    if not isinstance(records, list) or not records:
+        return None  # records 가 리스트 아니면(잘못된 JSON) graceful None
     total = 0
     for r in records:
         try:
@@ -56,6 +56,8 @@ def total_sleep_hours(sleep_result: Optional[dict[str, Any]]) -> Optional[float]
     if not sleep_result:
         return None
     records = sleep_result.get("records", [])
+    if not isinstance(records, list):
+        return None  # records 가 리스트 아니면(잘못된 JSON) graceful None
     hours = 0.0
     for r in records:
         try:

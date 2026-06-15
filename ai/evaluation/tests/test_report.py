@@ -99,13 +99,18 @@ def test_recovery_signal_as_of_forwarded_detects_dropout():
         {"created_at": f"2026-06-{i + 1:02d}", "score": s}
         for i, s in enumerate([5, 6, 7, 5, 6, 7])  # 6/1~6/6
     ]
-    # as_of 없으면 최근 체크인 기준 → 꾸준함 있음
+    missions = [
+        {"done": True, "completed_at": d} for d in ("2026-06-01", "2026-06-02")
+    ]
+    # as_of 없으면 최근 미션 완료일 기준 → 꾸준함 있음
     assert (
-        build_report("pet1", emotion_checkins=checkins)["recovery_signal"][
-            "checkin_consistency"
-        ]
+        build_report("pet1", emotion_checkins=checkins, missions=missions)[
+            "recovery_signal"
+        ]["checkin_consistency"]
         > 0
     )
     # as_of=한 달 뒤 → 14일 창에 0일 → 이탈로 0%
-    r = build_report("pet1", emotion_checkins=checkins, as_of=date(2026, 7, 10))
+    r = build_report(
+        "pet1", emotion_checkins=checkins, missions=missions, as_of=date(2026, 7, 10)
+    )
     assert r["recovery_signal"]["checkin_consistency"] == 0.0

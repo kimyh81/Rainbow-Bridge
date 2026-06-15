@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from ..recovery_signal import (
     SIGNAL_AT_RISK,
     SIGNAL_INSUFFICIENT,
     SIGNAL_RECOVERING,
     SIGNAL_STABLE,
     compute_recovery_signal,
+    consistency_score,
+    emotion_trend_score,
+    mission_score,
     recovery_score,
+    recovery_score_from_axes,
 )
 
 
@@ -17,6 +23,11 @@ def _checkins(scores: list[float]) -> list[dict]:
     return [
         {"score": s, "created_at": f"2026-06-{i + 1:02d}"} for i, s in enumerate(scores)
     ]
+
+
+def _done_missions(dates: list[str]) -> list[dict]:
+    """완료 날짜 목록을 완료 미션 목록으로(done=True, completed_at 부여)."""
+    return [{"done": True, "completed_at": d} for d in dates]
 
 
 def test_insufficient_data():
@@ -135,20 +146,20 @@ def test_graceful_without_engagement_or_missions():
     )  # 미션 없음 → None(개수 0 아님, 최상위 관례와 일치)
 
 
-# --- 회복 점수 (RECOVERY_GATE 40/35/25) ------------------------------------- #
+# --- 회복 점수 (RECOVERY_SCORE_DESIGN 15/40/30/15) --------------------------- #
 
 
-def test_recovery_score_weighted_40_35_25():
-    """감정40·미션누적35(sticky)·꾸준25 가중합. 모두 만점이면 100, 모두 절반이면 50."""
-    assert recovery_score(10, 35, 100) == 100  # E=100·M=35·C=25
-    assert recovery_score(5.5, 17, 50) == 50  # E=50·M=17·C=12.5
+def test_recovery_score_weighted_15_40_30_15():
+    """감정추세15·미션40(sticky)·지속성30·생활패턴15 가중합. 모두 만점이면 100, 모두 절반이면 50."""
+    assert recovery_score(10, 40, 100, 100) == 100  # E=15·M=40·C=30·L=15
+    assert recovery_score(5.5, 20, 50, 50) == 50  # E=7.5·M=20·C=15·L=7.5
 
 
 def test_recovery_score_clamped_0_100():
     """범위 밖 입력이어도 0~100 보장(음수/초과 클램프)."""
-    assert recovery_score(1, 0, 0) == 0  # E=0
-    assert recovery_score(0, 0, 0) == 0  # 음수 입력 → 0
-    assert recovery_score(11, 35, 100) == 100  # 초과 입력 → 100
+    assert recovery_score(1, 0, 0, 0) == 0  # E=0
+    assert recovery_score(0, 0, 0, 0) == 0  # 음수 입력 → 0
+    assert recovery_score(11, 40, 100, 100) == 100  # 초과 입력 → 100
 
 
 # --- 불변식 (예시가 아닌 '어떤 입력이든' 보장) ------------------------------ #
@@ -177,16 +188,29 @@ def test_consistency_detects_dropout_with_as_of():
     from datetime import date
 
     rows = _checkins([5, 6, 7, 5, 6, 7])  # 6/1~6/6 체크인
-    # 기본(as_of 없음) = 최근 체크인 기준 → 꾸준함 있음
-    assert compute_recovery_signal(rows)["checkin_consistency"] > 0
+    missions = _done_missions(["2026-06-01", "2026-06-02", "2026-06-03"])
+    # 기본(as_of 없음) = 최근 미션 완료일 기준 → 꾸준함 있음
+    assert compute_recovery_signal(rows, missions)["checkin_consistency"] > 0
     # 한 달 뒤 기준 → 14일 창에 0일 → 0%
-    out = compute_recovery_signal(rows, as_of=date(2026, 7, 10))
+    out = compute_recovery_signal(rows, missions, as_of=date(2026, 7, 10))
     assert out["checkin_consistency"] == 0.0
+
+
+def test_consistency_none_without_completion_dates():
+    """미션이 있어도 완료 날짜(completed_at/date)가 없으면 꾸준함은 None(graceful)."""
+    missions = [{"done": True}, {"done": True}]  # 날짜 없음
+    out = compute_recovery_signal(_checkins([5, 5, 6, 6]), missions)
+    assert out["checkin_consistency"] is None
+    # 완료율은 그대로 집계됨(꾸준함과 독립).
+    assert out["mission_completion_rate"] == 1.0
 
 
 def test_recovery_index_uses_composite_not_avg10():
     """recovery_index 가 단순 avg*10 이 아니라 40/35/25 산식(꾸준함 포함)으로 나온다."""
-    missions = [{"done": True}, {"done": False}]  # 완료 1개
+    missions = [
+        {"done": True, "completed_at": "2026-06-04"},
+        {"done": False},
+    ]  # 완료 1개
     out = compute_recovery_signal(_checkins([5, 5, 6, 6]), missions)
     c = out["checkin_consistency"]
     assert c is not None
@@ -197,7 +221,141 @@ def test_recovery_index_uses_composite_not_avg10():
 
 
 def test_checkin_consistency_in_output_and_evidence():
-    """꾸준함이 출력·근거 문장에 실린다(최근 14일 중 체크인 날 수)."""
-    out = compute_recovery_signal(_checkins([3, 3, 4, 7, 8, 8]))  # 연속 6일
-    assert out["checkin_consistency"] == round(6 / 14 * 100, 1)
-    assert any("체크인 꾸준함" in e for e in out["evidence"])
+    """꾸준함이 출력·근거 문장에 실린다(최근 28일 중 미션 완료한 날 수)."""
+    missions = _done_missions([f"2026-06-{i:02d}" for i in range(1, 7)])  # 연속 6일 완료
+    out = compute_recovery_signal(_checkins([3, 3, 4, 7, 8, 8]), missions)
+    assert out["checkin_consistency"] == round(6 / 28 * 100, 1)
+    assert any("미션 완료 꾸준함" in e for e in out["evidence"])
+
+
+# --- 4축 정규화 (06-15, project_recovery_score_axes_redesign_260614) -------- #
+
+
+def _assigned(date_str: str, total: int, completed: int, difficulties=None) -> list[dict]:
+    """하루치 배정 미션 목록. 앞에서부터 `completed`개를 완료(done=True) 처리."""
+    diffs = difficulties or ["gentle"] * total
+    return [
+        {"date": date_str, "done": i < completed, "difficulty": diffs[i]}
+        for i in range(total)
+    ]
+
+
+def test_mission_score_all_or_nothing():
+    """배정 개수와 무관하게 '전부완료한 날'만 인정(3/3, 1/1) — 부분완료(2/3)는 0."""
+    missions = (
+        _assigned("2026-06-01", 3, 3)
+        + _assigned("2026-06-02", 3, 2)
+        + _assigned("2026-06-03", 1, 1)
+        + _assigned("2026-06-04", 1, 0)
+    )
+    score = mission_score(missions, as_of=date(2026, 6, 4), window_days=28)
+    assert score == round(2 / 28 * 100, 1)  # 06-01, 06-03만 인정
+
+
+def test_mission_score_empty_is_zero():
+    assert mission_score([]) == 0.0
+
+
+def test_mission_score_window_excludes_old_days():
+    missions = _assigned("2026-01-01", 3, 3) + _assigned("2026-06-04", 3, 3)
+    score = mission_score(missions, as_of=date(2026, 6, 4), window_days=28)
+    assert score == round(1 / 28 * 100, 1)  # 1월 데이터는 윈도우 밖
+
+
+def test_consistency_score_two_of_three_credited():
+    missions = _assigned("2026-06-01", 3, 2)
+    score = consistency_score(missions, as_of=date(2026, 6, 1), window_days=14)
+    assert score == round(1 / 14 * 100, 1)
+
+
+def test_consistency_score_one_of_three_not_credited():
+    missions = _assigned("2026-06-01", 3, 1)
+    score = consistency_score(missions, as_of=date(2026, 6, 1), window_days=14)
+    assert score == 0.0
+
+
+def test_consistency_score_single_mission_requires_completion():
+    """L0 80~100(미션1개) — 미완료면 인정 안 됨('배정수-1=0 → 항상인정' 버그 방지)."""
+    not_done = _assigned("2026-06-01", 1, 0)
+    done = _assigned("2026-06-02", 1, 1)
+    assert consistency_score(not_done, as_of=date(2026, 6, 1), window_days=14) == 0.0
+    assert consistency_score(done, as_of=date(2026, 6, 2), window_days=14) == round(
+        1 / 14 * 100, 1
+    )
+
+
+def test_consistency_score_active_completion_credits_partial_day():
+    """3개 중 1개(active)만 완료해도 그날은 인정."""
+    missions = [
+        {"date": "2026-06-01", "done": True, "difficulty": "active"},
+        {"date": "2026-06-01", "done": False, "difficulty": "gentle"},
+        {"date": "2026-06-01", "done": False, "difficulty": "gentle"},
+    ]
+    score = consistency_score(missions, as_of=date(2026, 6, 1), window_days=14)
+    assert score == round(1 / 14 * 100, 1)
+
+
+def test_emotion_trend_score_neutral_when_flat():
+    rows = _checkins([6, 6, 6, 6])
+    assert emotion_trend_score(rows) == 50.0
+
+
+def test_emotion_trend_score_rises_above_neutral():
+    rows = _checkins([3, 3, 8, 8])
+    assert emotion_trend_score(rows) > 50.0
+
+
+def test_emotion_trend_score_floor_30_on_sharp_drop():
+    """절대 슬픔은 감점 대상이 아님 — 추세가 크게 나빠져도 30 밑으로는 안 깎임."""
+    rows = _checkins([10, 10, 1, 1])
+    assert emotion_trend_score(rows) == 30.0
+
+
+def test_emotion_trend_score_none_when_insufficient():
+    assert emotion_trend_score(_checkins([5, 5])) is None
+
+
+# --- 4축 합성 recovery_score_from_axes (06-15, 일원화 초안) ------------------ #
+
+
+def _full_days(base: date, n: int) -> list[dict]:
+    """base 부터 n일간 매일 미션 1개를 배정·완료한 목록(전부완료)."""
+    out: list[dict] = []
+    for i in range(n):
+        out += _assigned((base + timedelta(days=i)).isoformat(), 1, 1)
+    return out
+
+
+def test_recovery_score_from_axes_all_max_is_100():
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)  # 28일 전부완료 → mission/consistency 만점
+    checkins = _checkins([1, 1, 3.5, 3.5])  # delta=2.5 → 감정추세 cap 100
+    score = recovery_score_from_axes(
+        _full_days(base, 28), checkins, lifestyle_pct=100, as_of=anchor
+    )
+    assert score == 100
+
+
+def test_recovery_score_from_axes_drops_absent_axes_no_penalty():
+    """감정추세(체크인<3)·생활패턴(None) 없으면 분모서 빠짐 — 점수 안 깎임."""
+    base = date(2026, 6, 1)
+    anchor = base + timedelta(days=27)
+    score = recovery_score_from_axes(
+        _full_days(base, 28), _checkins([5, 5]), as_of=anchor
+    )
+    # mission100·consistency100 → (40+30)/(40+30)*100 = 100
+    assert score == 100
+
+
+def test_recovery_score_from_axes_core_axes_count_when_zero():
+    """미션 전무면 핵심축(미션·지속성)은 0으로 분모 유지 — 무페널티 대상 아님."""
+    score = recovery_score_from_axes([], _checkins([1, 1, 3.5, 3.5]))
+    # mission0(40)+consistency0(30)+emotion100(15), lifestyle 제외 → 15/85*100
+    assert score == round(15 / 85 * 100)
+
+
+def test_recovery_score_from_axes_lifestyle_included_when_present():
+    """생활패턴이 있으면 분모에 15 추가(있을 때만 포함)."""
+    score = recovery_score_from_axes([], _checkins([5, 5]), lifestyle_pct=100)
+    # mission0(40)+consistency0(30)+lifestyle100(15), emotion 제외 → 15/85*100
+    assert score == round(15 / 85 * 100)

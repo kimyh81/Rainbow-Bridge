@@ -63,7 +63,7 @@ def build_report(
         period: 집계 기간 라벨(예: "2026-06"). 필터링은 호출부(백엔드)에서.
         llm_logs: `llm_logs` 조회 결과(이미 pet_id·기간으로 필터됨).
         emotion_checkins: 감정 체크인 조회 결과(`score`, `created_at`).
-        missions: 미션 조회 결과(`done`).
+        missions: 미션 조회 결과(`done`, 완료 꾸준함 계산엔 `completed_at`/`date`도 필요).
         access_counts: 기간별 앱 접속 횟수(오래된→최근). `access_logs` 를 일/주 단위로
             묶어 넣으면 일상복귀 신호의 '의존 감소' 근거로 쓰입니다. 없으면 생략(graceful).
         play_counts: 기간별 영상/음성 재생 횟수(오래된→최근). `play_logs`(per-play 타임스탬프)

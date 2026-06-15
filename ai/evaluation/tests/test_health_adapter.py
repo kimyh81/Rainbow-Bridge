@@ -29,6 +29,14 @@ def test_sleep_skips_bad_timestamps():
     assert total_sleep_hours(bad) is None
 
 
+def test_malformed_records_not_list_graceful():
+    # records 가 리스트 아닌 잘못된 JSON → 크래시 없이 None (POST /health/sync 500 방지)
+    assert total_steps({"records": "oops"}) is None
+    assert total_sleep_hours({"records": "oops"}) is None
+    assert total_steps({"records": {"count": 1}}) is None
+    assert total_sleep_hours({"records": 123}) is None
+
+
 def test_sleep_skips_null_or_numeric_timestamps():
     # 실연동서 필드 누락(None)·형 불일치(epoch int) → AttributeError 안 터지고 skip.
     null_ts = {"records": [{"startTime": None, "endTime": None, "stages": []}]}

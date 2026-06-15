@@ -1,7 +1,8 @@
-from ai.evaluation.recovery_signal import recovery_score
-from app.services.mission import get_completed_mission_count, get_mission_completed_days
-from datetime import datetime, timezone
+from ai.evaluation.recovery_signal import recovery_score_from_axes
+from datetime import date, datetime, timezone
 import app.core.ai_path  # noqa: F401  프로젝트 루트를 sys.path에 추가
+from bson import ObjectId
+from ai.evaluation.pii import redact
 from ai.llm.safety import assess_crisis
 from ai.llm.provider import generate
 from app.db.mongodb import mongodb
@@ -23,10 +24,22 @@ def _collection():
 
 
 async def create_emotion(data: EmotionCreate) -> EmotionResponse:
-    # 반소람님 assess_crisis() — L1 LLM 레이어 연동
-    crisis = assess_crisis(data.note or "", generate=generate)
+    # 비식별화 — note 원문을 LLM(Gemini) 전송·DB 저장 전에 PII 가림.
+    # 반려동물 이름(pet 레코드)은 정확 치환, 전화·이메일은 best-effort.
+    # 조회 실패해도 연락처 마스킹은 진행(graceful).
+    try:
+        pet_doc = await mongodb.db["pets"].find_one({"_id": ObjectId(data.pet_id)})
+        pet_name = (pet_doc or {}).get("name") or ""
+    except Exception:
+        pet_name = ""
+    safe_note = redact(data.note, pet_names=[pet_name] if pet_name else [])
+
+    # 위기판정 — 규칙(L0)은 원문으로(미탐 0), LLM(L1)에만 가린 텍스트 전송(PII 비전송).
+    # 융합이 max 라 가림으로 신호가 약해져도 규칙 floor 아래로 안 내려감.
+    crisis = assess_crisis(data.note or "", generate=generate, llm_text=safe_note)
     risk_level = int(crisis.risk_level)
     doc = data.model_dump()
+    doc["note"] = safe_note  # 원문 PII 미저장 — 가린 note 만 적재
     doc["risk_level"] = risk_level
     doc["created_at"] = datetime.now(timezone.utc)
     result = await _collection().insert_one(doc)
@@ -80,14 +93,27 @@ async def get_recovery(pet_id: str) -> RecoveryResponse:
     else:
         trend = "유지 중"
 
-        # 회복 점수 — 감정40 / 미션누적35(sticky) / 꾸준함25
-    completed_missions = await get_completed_mission_count(pet_id)
-    completed_days = await get_mission_completed_days(pet_id, days=14)
-    consistency_pct = round(completed_days / 14 * 100)
-    recovery_pct = recovery_score(
-        emotion_avg=avg,
-        completed_missions=completed_missions,
-        consistency_pct=consistency_pct,
+    # 회복 점수 — 4축(미션40·지속성30·감정추세15·생활패턴15) 일원화
+    mission_col = mongodb.db["missions"]
+    missions_list = []
+    async for m in mission_col.find({"pet_id": pet_id}):
+        created = m.get("created_at")
+        date_str = (
+            created.date().isoformat()
+            if hasattr(created, "date")
+            else str(created)[:10]
+        )
+        missions_list.append(
+            {
+                "date": date_str,
+                "done": bool(m.get("completed", False)),
+                "difficulty": m.get("difficulty", ""),
+            }
+        )
+    recovery_pct = recovery_score_from_axes(
+        missions_list,
+        records,
+        as_of=date.today(),
     )
 
     # 창(window) 내 최대 risk — 직전 L3 위기가 있었으면 여전히 잠금 유지

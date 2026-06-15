@@ -71,30 +71,35 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
                 "description": "15분이라도 밖에 나가 바람을 쐬어보세요.",
                 "category": "activity",
                 "rationale": None,
+                "difficulty": "gentle",
             },
             {
                 "title": "좋아하는 음악 듣기",
                 "description": "마음이 편한 음악을 들으며 잠시 쉬어가세요.",
                 "category": "rest",
                 "rationale": None,
+                "difficulty": "gentle",
             },
             {
                 "title": "소중한 사람에게 연락하기",
                 "description": "가까운 가족이나 친구에게 안부를 전해보세요.",
                 "category": "connection",
                 "rationale": None,
+                "difficulty": "gentle",
             },
             {
                 "title": "따뜻한 음료 마시기",
                 "description": "따뜻한 차 한 잔으로 마음을 달래보세요.",
                 "category": "rest",
                 "rationale": None,
+                "difficulty": "gentle",
             },
             {
                 "title": "반려동물과의 추억 기록하기",
                 "description": "소중한 기억을 글이나 사진으로 남겨보세요.",
                 "category": "record",
                 "rationale": None,
+                "difficulty": "gentle",
             },
         ]
     finally:
@@ -119,6 +124,7 @@ async def create_default_missions(pet_id: str) -> list[MissionResponse]:
             "description": m.get("description", ""),
             "category": m.get("category", ""),
             "rationale": m.get("rationale"),
+            "difficulty": m.get("difficulty", ""),
             "completed": False,
             "created_at": now,
             "completed_at": None,

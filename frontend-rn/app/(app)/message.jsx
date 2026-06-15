@@ -138,7 +138,7 @@ function GateLockedScreen({ petName, onGoCheckin, onGoMission, onGoHome, onLogou
 //       찌라시가 회복 동기를 만든다
 // ─────────────────────────────────────────────────────────────
 function GateTeaserScreen({ petName, score, onGoCheckin, onGoHome, onLogout }) {
-  const pct = Math.max(0, Math.min(99, ((score - 50) / 30) * 100));
+  const pct = Math.max(0, Math.min(99, ((score - 45) / 35) * 100));
   const filledBlocks = Math.floor(pct / 10);
   const bar = '█'.repeat(filledBlocks) + '░'.repeat(10 - filledBlocks);
 
@@ -281,12 +281,12 @@ export default function MessageScreen() {
     const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
     setRecoveryScore(score);
     setGateStatus(gs);
-    if (gs === 'open') {
+    if (gs === 'open' || gs === 'teaser') {
       if (riskGated) setSafetyOpen(true);
-      // 1인칭 모드(선물함의 '1인칭 편지')는 곧장 1인칭 편지를 생성.
-      // 실제 1인칭 허용 여부(최근 체크인 risk=0)는 백엔드가 최종 판단함.
-      if (mode === 'first') loadFirstPerson();
-      else loadMessage();
+      // 1인칭(별에서 온 편지)은 게이트가 완전히 open일 때만 생성.
+      // teaser 구간에서는 위로 편지(3인칭)만 노출. 실제 1인칭 허용 여부(최근 체크인 risk=0)는 백엔드가 최종 판단함.
+      if (mode === 'first' && gs === 'open') loadFirstPerson();
+      else if (gs === 'teaser' || (gs === 'open' && mode !== 'first')) loadMessage();
     }
   }
 

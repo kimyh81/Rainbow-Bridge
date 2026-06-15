@@ -108,7 +108,9 @@ async def test_get_report_full_with_recovery_signal():
         "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
-    with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
+    with patch(
+        "app.services.report.mongodb", new=(_m := _fake_mongo(collections))
+    ), patch("app.services.health_lifestyle.mongodb", new=_m):
         result = await get_report(_PET_ID, period="2026-06")
 
     assert result.pet_id == _PET_ID
@@ -142,7 +144,9 @@ async def test_get_report_graceful_when_owner_missing():
         "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
-    with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
+    with patch(
+        "app.services.report.mongodb", new=(_m := _fake_mongo(collections))
+    ), patch("app.services.health_lifestyle.mongodb", new=_m):
         result = await get_report(_PET_ID)
 
     assert result.recovery_signal["access_trend"] is None
@@ -178,7 +182,9 @@ async def test_get_report_play_logs_feed_recovery_signal():
         "health_logs": _FakeCollection(find_one_result=None),  # 헬스 없음 → base 경로
     }
 
-    with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
+    with patch(
+        "app.services.report.mongodb", new=(_m := _fake_mongo(collections))
+    ), patch("app.services.health_lifestyle.mongodb", new=_m):
         result = await get_report(_PET_ID, period="2026-06")
 
     # 표시용 play_trend(날짜별 리스트)도, recovery_signal 의 추세도 함께 채워진다
@@ -193,7 +199,7 @@ async def test_get_report_play_logs_feed_recovery_signal():
 async def test_get_report_health_logs_reach_recovery_score():
     """삼성헬스 걸음(health_logs)이 실제로 회복점수에 닿는지 — 배선 핵심 검증.
 
-    steps 가 들어오면 회복점수 산식이 base→blend 로 바뀌고 activity_score 가 채워져야 한다.
+    steps 가 들어오면 activity_score(lifestyle_pct)가 채워져 recovery_score_from_axes 에 반영된다.
     (수면은 점수 제외 — sleep_hours 는 score 에 안 들어가고 교차검증·표시로만.)
     """
     emotions = [  # 체크인 3회 이상이라야 insufficient 가 아님
@@ -216,12 +222,14 @@ async def test_get_report_health_logs_reach_recovery_score():
         ),
     }
 
-    with patch("app.services.report.mongodb", new=_fake_mongo(collections)):
+    with patch(
+        "app.services.report.mongodb", new=(_m := _fake_mongo(collections))
+    ), patch("app.services.health_lifestyle.mongodb", new=_m):
         result = await get_report(_PET_ID, period="2026-06")
 
     sig = result.recovery_signal
-    # 핵심: 걸음 데이터가 점수 산식까지 닿아 base→blend 로 전환됐다
-    assert sig["scoring"] == "blend"
+    # 핵심: 걸음 데이터가 lifestyle_pct 로 점수 산식까지 닿는다(06-15 일원화: 항상 axes)
+    assert sig["scoring"] == "axes"
     # 활동 점수가 채워졌다(9000걸음 → 8000 기준 천장 100)
     assert sig["activity_score"] == 100.0
     # 수면은 점수 항이 아니라 교차검증 쪽으로만 들어간다(sleep_score 존재, 산식엔 미반영)

@@ -10,6 +10,7 @@ from ai.evaluation.report import build_report
 
 from app.db.mongodb import mongodb
 from app.schemas.report import EmotionTrend, PlayTrend, ReportResponse
+from app.services.health_lifestyle import get_lifestyle_pct
 
 
 def _bucket_access_counts(timestamps: Iterable[Any]) -> list[int]:
@@ -61,9 +62,22 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
         .sort("created_at", 1)
     ]
 
-    # 미션: DB completed → done 키로 정규화
+    # 미션: DB 필드 → mission_score/consistency_score 입력 규약으로 정규화
+    # date(배정일)=created_at, difficulty, completed_at(꾸준함 날짜용) 포함
     raw_missions = await mongodb.db["missions"].find({"pet_id": pet_id}).to_list(None)
-    missions = [{"done": m.get("completed")} for m in raw_missions]
+    missions = [
+        {
+            "done": m.get("completed"),
+            "date": (
+                m["created_at"].date().isoformat() if m.get("created_at") else None
+            ),
+            "difficulty": m.get("difficulty"),
+            "completed_at": (
+                m["completed_at"].date().isoformat() if m.get("completed_at") else None
+            ),
+        }
+        for m in raw_missions
+    ]
 
     # LLM 사용 로그: llm_logs 컬렉션 (messages.count 임시 → 실데이터)
     llm_logs = await mongodb.db["llm_logs"].find({"pet_id": pet_id}).to_list(None)
@@ -96,6 +110,9 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     )
     health = health_doc or {}
 
+    # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
+    lifestyle = await get_lifestyle_pct(pet_id)
+
     # TTS 재생 이벤트 날짜별 집계
     play_docs = await mongodb.db["play_logs"].find({"pet_id": pet_id}).to_list(None)
     play_day_counts: Counter = Counter()
@@ -125,6 +142,7 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
         session_count=session_count,
         sleep_hours=health.get("sleep_hours"),
         steps=health.get("steps"),
+        lifestyle_pct=lifestyle,
     )
 
     return ReportResponse(

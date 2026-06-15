@@ -7,7 +7,7 @@ from bson.errors import InvalidId
 from fastapi import HTTPException, UploadFile
 
 from app.db.mongodb import mongodb
-from app.schemas.pet import PetCreate, PetPhotoResponse, PetResponse
+from app.schemas.pet import PetCreate, PetPhotoResponse, PetResponse, PetUpdate
 
 
 def _to_object_id(pet_id: str) -> ObjectId:
@@ -87,6 +87,24 @@ async def upload_pet_photo(pet_id: str, file: UploadFile) -> PetPhotoResponse | 
         {"_id": _to_object_id(pet_id)}, {"$set": {"photo_url": photo_url}}
     )
     return PetPhotoResponse(id=pet_id, photo_url=photo_url)
+
+
+async def update_pet(pet_id: str, data: PetUpdate, user_id: int) -> PetResponse | None:
+    update_fields = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "memories" in update_fields:
+        update_fields["memories"] = _normalize_memories(update_fields["memories"])
+    if not update_fields:
+        return await get_pet(pet_id, user_id=user_id)
+    doc = await _collection().find_one_and_update(
+        {"_id": _to_object_id(pet_id), "user_id": user_id},
+        {"$set": update_fields},
+        return_document=True,
+    )
+    if not doc:
+        return None
+    doc["id"] = str(doc.pop("_id"))
+    doc["memories"] = _normalize_memories(doc.get("memories"))
+    return PetResponse(**doc)
 
 
 async def set_memorial_mode(pet_id: str) -> PetResponse | None:

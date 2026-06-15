@@ -33,6 +33,16 @@ async def read_pet(pet_id: str, user: dict = Depends(get_current_user)):
     return pet
 
 
+@router.patch("/{pet_id}", response_model=PetResponse)
+async def update_pet_info(
+    pet_id: str, body: PetUpdate, user: dict = Depends(get_current_user)
+):
+    pet = await update_pet(pet_id, body, user_id=user["user_id"])
+    if not pet:
+        raise HTTPException(status_code=404, detail="반려동물 정보를 찾을 수 없습니다.")
+    return pet
+
+
 @router.post("/{pet_id}/photo", response_model=PetPhotoResponse)
 async def upload_photo(
     pet_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)

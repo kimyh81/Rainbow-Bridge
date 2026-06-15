@@ -20,13 +20,12 @@ export default function ProfileScreen() {
     species: '강아지',
     gender: '남아',
     start_date: '',
-    end_date: '',
     guardian_title: '',
     caller_name: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pickerField, setPickerField] = useState(null); // 'start_date' | 'end_date' | null
+  const [pickerField, setPickerField] = useState(null); // 'start_date' | null
 
   function getDateObj(field) {
     const v = form[field];
@@ -48,8 +47,8 @@ export default function ProfileScreen() {
       setError('반려동물 이름을 입력해주세요.');
       return;
     }
-    if (!form.start_date || !form.end_date) {
-      setError('함께한 기간을 입력해주세요. (예: 2018-01-01)');
+    if (!form.start_date) {
+      setError('태어난 날을 입력해주세요.');
       return;
     }
     setError('');
@@ -62,11 +61,6 @@ export default function ProfileScreen() {
       'recovery_cache', 'pet_farewell_date', 'memorial_mode',
       'pet_guardian_title', 'pet_gender', 'pet_start_date',
     ]);
-
-    // farewell_date 미리 저장 (memories.jsx에서 덮어씀)
-    if (form.end_date) {
-      await AsyncStorage.setItem('pet_farewell_date', form.end_date);
-    }
 
     setLoading(false);
     // createPet은 memories.jsx에서 추억 데이터와 함께 한 번에 호출
@@ -141,30 +135,18 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* 함께한 기간 */}
+            {/* 태어난 날 */}
             <View style={styles.field}>
-              <Text style={styles.label}>함께한 기간 <Text style={styles.required}>*</Text></Text>
-              <View style={styles.dateRow}>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateInput, styles.datePicker]}
-                  onPress={() => setPickerField('start_date')}
-                  activeOpacity={0.75}
-                >
-                  <Text style={form.start_date ? styles.dateText : styles.datePlaceholder}>
-                    {form.start_date || '시작일 선택 📅'}
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.dateSep}>~</Text>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateInput, styles.datePicker]}
-                  onPress={() => setPickerField('end_date')}
-                  activeOpacity={0.75}
-                >
-                  <Text style={form.end_date ? styles.dateText : styles.datePlaceholder}>
-                    {form.end_date || '종료일 선택 📅'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.label}>태어난 날 <Text style={styles.required}>*</Text></Text>
+              <TouchableOpacity
+                style={[styles.input, styles.datePicker]}
+                onPress={() => setPickerField('start_date')}
+                activeOpacity={0.75}
+              >
+                <Text style={form.start_date ? styles.dateText : styles.datePlaceholder}>
+                  {form.start_date || '태어난 날 선택 📅'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* iOS: 달력 모달 */}

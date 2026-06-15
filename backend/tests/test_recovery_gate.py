@@ -137,14 +137,14 @@ async def test_allow_first_person_only_when_no_risk():
 
 @pytest.mark.asyncio
 async def test_allow_first_person_when_all_safe():
-    """창 내 risk 전부 0이면 1인칭 편지 허용."""
+    """창 내 risk 전부 0 + 80점 이상이면 1인칭 편지 허용."""
     records = _make_records(
         scores=[8, 7, 6, 6, 7],
         risks=[0, 0, 0, 0, 0],
     )
     with patch(
         "app.services.emotion.get_recent_emotions", new=AsyncMock(return_value=records)
-    ), patch("app.services.emotion.recovery_score_from_axes", return_value=0), patch(
+    ), patch("app.services.emotion.recovery_score_from_axes", return_value=80), patch(
         "app.services.emotion.mongodb", (_mongo_mock := _make_mongo_mock())
     ), patch(
         "app.services.health_lifestyle.mongodb", _mongo_mock

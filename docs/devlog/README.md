@@ -117,7 +117,7 @@
 | 모세종 | WaveSpeedAI TTS 폴백+메인전환+species별 감성 프롬프트, 메시지 생성 시 narration TTS 사전 자동 생성, 미션 날짜·리포트 버그 수정 (PR #272·274·275·277) | [→](members/모세종.md) |
 | 김윤한 | MissionResponse difficulty 필드 추가 (PR #281) | [→](members/김윤한.md) |
 | 반소람 | — | [→](members/반소람.md) |
-| 정환주 | — | [→](members/정환주.md) |
+| 정환주 | TTS 트러블슈팅 종합 런북 작성, 600자 메시지 폴백 진짜원인 확정(`_SYNTH_TIMEOUT` 150→300s, 「환경벽」 오진단 정정·실서버 검증) | [→](members/정환주.md) |
 | 민경이 | 홈 카드 개선·한글 조사 유틸·tsconfig 수정·회복 여정 선물함+편지 분리·선물함 흰 화면 수정 (PR #271·273·276·279·283) | [→](members/민경이.md) |
 | 장민수 | — | [→](members/장민수.md) |
 

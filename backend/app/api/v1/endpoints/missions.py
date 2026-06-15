@@ -8,7 +8,13 @@ from app.schemas.mission import (
     MissionRecommendResponse,
     MissionResponse,
 )
-from app.services.mission import complete_mission, create_default_missions, get_missions
+from app.schemas.mission import MissionSkipResponse
+from app.services.mission import (
+    complete_mission,
+    create_default_missions,
+    get_missions,
+    skip_mission,
+)
 
 router = APIRouter()
 
@@ -29,6 +35,16 @@ async def done_mission(
     if not mission:
         raise HTTPException(status_code=404, detail="미션을 찾을 수 없습니다.")
     return mission
+
+
+@router.patch("/{mission_id}/skip", response_model=MissionSkipResponse)
+async def skip_mission_endpoint(
+    mission_id: str, user: dict = Depends(get_current_user)
+):
+    skipped, replacement = await skip_mission(mission_id)
+    if not skipped:
+        raise HTTPException(status_code=404, detail="미션을 찾을 수 없습니다.")
+    return MissionSkipResponse(skipped_mission=skipped, replacement=replacement)
 
 
 # TODO: 반소람님 AI recommend() 연결 후 교체

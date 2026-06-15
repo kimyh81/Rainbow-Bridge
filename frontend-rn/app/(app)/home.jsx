@@ -167,6 +167,11 @@ function SurvivalHome({ onFarewellPress }) {
       >
         <Text style={styles.farewellBtnText}>무지개다리를 건넜어요 🌈</Text>
       </TouchableOpacity>
+
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
+      <View style={styles.subRow}>
+        <SmallCard emoji="🏃" title="삼성헬스 연동" route="/(app)/health" />
+      </View>
     </>
   );
 }

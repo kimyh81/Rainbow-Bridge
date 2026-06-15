@@ -127,26 +127,31 @@ def recovery_score(
 ) -> int:
     """회복 점수 — 감정추세15 / 지속성30 / 미션누적40(sticky, 천장40) / 생활패턴15.
 
-    ⚠️ 생활패턴은 2026-06-13 기준 **보류**(정의 미확정) — `lifestyle_pct` 가 없으면
-    0점 처리되어 현재 만점은 85(=15+30+40). 정의되면 그대로 15점 채워짐.
+    생활패턴(health 데이터) **무페널티 처리** — 2026-06-15 확정(반소람·정환주):
+    `lifestyle_pct` 가 없으면(스마트워치/삼성헬스 미사용 사용자) 그 축을 **분모에서
+    빼고 재정규화**한다. 데이터가 없다고 점수가 깎이지 않는다(만점 여전히 100).
+    정환주 `health_signal.blend_recovery_score` 옵션 A(재정규화)·결정문서 §2와 같은 원칙.
+    → 과거 "없으면 0점·천장 85"(데이터 없는 사용자 페널티)를 폐기.
 
     Args:
         emotion_avg: 감정 점수 평균(1~10, 체크인 스냅샷). `(avg-1)/9*15` 로 0~15 정규화.
         completed_missions: 완료한 미션 수(누적, sticky — 안 떨어짐). 천장 40점.
-        consistency_pct: 미션 완료한 날 / 14 × 30. 없으면 0 취급.
-        lifestyle_pct: 생활패턴 정규화 점수(0~100, 미정). 없으면 0 취급.
+        consistency_pct: 미션 완료한 날 / 14 × 30. 핵심 축이라 없어도 분모엔 포함(0 기여).
+        lifestyle_pct: 생활패턴 정규화 점수(0~100). 없으면(None) 분모서 제외(무페널티).
     """
+    # 핵심 3축(감정·미션·지속성)은 사용자가 채울 수 있어 항상 분모 포함.
     e = max(0.0, min(15.0, (emotion_avg - 1) / 9 * 15))
     m = min(40.0, float(completed_missions))  # 1미션=1점, 천장 40
     c = max(
         0.0,
         min(30.0, (consistency_pct / 100 * 30) if consistency_pct is not None else 0.0),
     )
-    l = max(
-        0.0,
-        min(15.0, (lifestyle_pct / 100 * 15) if lifestyle_pct is not None else 0.0),
-    )
-    return max(0, min(100, round(e + m + c + l)))
+    earned = e + m + c
+    max_w = 15.0 + 40.0 + 30.0  # 핵심 분모 85
+    if lifestyle_pct is not None:  # 외부 신호(health) — 있을 때만 분모에 포함
+        earned += max(0.0, min(15.0, lifestyle_pct / 100 * 15))
+        max_w += 15.0  # → 분모 100
+    return max(0, min(100, round(earned / max_w * 100)))
 
 
 # --- 4축 정규화(미션40/지속성30/생활패턴15/감정추세15) — 06-15 설계 -------------- #

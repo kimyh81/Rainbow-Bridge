@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 
+from ai.llm.mission import recommend_replacement as _ai_recommend_replacement
 from ai.evaluation.logs import (
     COLLECTION as LLM_LOGS,
     KIND_MISSION,
@@ -210,6 +211,58 @@ async def _get_or_create_slideshow_mission(pet_id: str) -> MissionResponse | Non
         completed_at=asset.get("created_at"),
         video_url=asset.get("slideshow_url"),
     )
+
+
+async def skip_mission(
+    mission_id: str,
+) -> tuple[MissionResponse | None, MissionResponse | None]:
+    """미션을 건너뛰고 같은 난이도의 대체 미션 1개를 반환합니다.
+
+    Returns:
+        (skipped_mission, replacement) — replacement는 대체 미션이 없으면 None.
+    """
+    doc = await _collection().find_one_and_update(
+        {"_id": ObjectId(mission_id)},
+        {"$set": {"skipped": True}},
+        return_document=True,
+    )
+    if not doc:
+        return None, None
+    doc["id"] = str(doc.pop("_id"))
+    skipped = MissionResponse(**doc)
+
+    # 최근 미션 제목 수집 (중복 회피용)
+    recent_cursor = (
+        _collection()
+        .find({"pet_id": skipped.pet_id}, {"title": 1})
+        .sort("created_at", -1)
+        .limit(20)
+    )
+    history = [d["title"] async for d in recent_cursor]
+
+    raw = _ai_recommend_replacement(
+        difficulty=skipped.difficulty or "gentle",
+        history=history,
+    )
+    if not raw:
+        return skipped, None
+
+    now = datetime.now(timezone.utc)
+    new_doc = {
+        "pet_id": skipped.pet_id,
+        "title": raw["title"],
+        "description": raw.get("description", ""),
+        "category": raw.get("category", ""),
+        "rationale": raw.get("rationale"),
+        "difficulty": raw.get("difficulty", skipped.difficulty),
+        "completed": False,
+        "skipped": False,
+        "created_at": now,
+        "completed_at": None,
+    }
+    result = await _collection().insert_one(new_doc)
+    new_doc["id"] = str(result.inserted_id)
+    return skipped, MissionResponse(**new_doc)
 
 
 async def get_completed_mission_count(pet_id: str) -> int:

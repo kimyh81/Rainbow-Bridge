@@ -198,7 +198,9 @@ export default function MediaScreen() {
             <Card style={styles.teaserCard}>
               <Text style={styles.teaserTitle}>✨ 숨쉬는 사진</Text>
               <Text style={styles.teaserDesc}>
-                천천히 오고 있어요{'\n'}조금 더 함께하면 살며시 도착할 거예요.
+                {gifUrl
+                  ? '아이가 기다리고 있어요\n조금만 더 회복하면 만날 수 있어요.'
+                  : '천천히 오고 있어요\n조금 더 함께하면 살며시 도착할 거예요.'}
               </Text>
             </Card>
           ) : null}

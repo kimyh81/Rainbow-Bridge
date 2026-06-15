@@ -11,6 +11,7 @@ on:
       - '!frontend-rn/eas.json'
       - '!frontend-rn/ios/**'
       - '!frontend-rn/android/**'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -32,6 +33,15 @@ jobs:
 
       - name: EAS CLI 설치
         run: npm install -g eas-cli
+
+      - name: EAS 채널·브랜치 초기화 (신규 프로젝트 최초 1회)
+        working-directory: frontend-rn
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas branch:create preview --non-interactive || true
+          eas channel:create preview --non-interactive || true
+          eas channel:edit preview --branch preview --non-interactive || true
 
       - name: EAS Update
         working-directory: frontend-rn

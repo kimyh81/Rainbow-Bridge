@@ -12,9 +12,15 @@ class MissionResponse(BaseModel):
     rationale: Optional[str] = None
     difficulty: str = ""
     completed: bool
+    skipped: bool = False
     created_at: datetime
     completed_at: Optional[datetime] = None
     video_url: Optional[str] = None  # 슬라이드쇼 등 자동 생성 영상 URL
+
+
+class MissionSkipResponse(BaseModel):
+    skipped_mission: MissionResponse
+    replacement: Optional[MissionResponse] = None
 
 
 class MissionComplete(BaseModel):

@@ -54,6 +54,7 @@ def build_report(
     sleep_score: Optional[float] = None,
     sleep_hours: Optional[float] = None,
     steps: Optional[int] = None,
+    lifestyle_pct: Optional[float] = None,
     as_of: Optional[date] = None,
 ) -> dict[str, Any]:
     """반려동물별 사용 데이터를 리포트로 집계합니다.
@@ -72,7 +73,11 @@ def build_report(
         sleep_score: 삼성헬스(→Health Connect) 수면점수 0~100. 넘기면 recovery_signal 의
             회복점수가 수면·활동 재정규화 산식으로 바뀌고 주관·객관 교차검증이 실립니다.
         sleep_hours: 수면점수 없을 때 수면시간(시간)으로 환산(어댑터 `from_health_connect`).
-        steps: 걸음수 → 활동점수. 위 셋 모두 없으면 기존 동작 그대로(하위호환).
+        steps: 걸음수 → 활동점수(표시용 `activity_score`). 위 셋 모두 없으면 기존
+            동작 그대로(하위호환).
+        lifestyle_pct: 생활패턴(15%) 축 합성 점수(0~100, `health_signal.lifestyle_pct`
+            — 걸음+수면+야간폰사용). 넘기면 회복점수 산식이 이 값을 쓰고, 없으면
+            `activity_to_score(steps)` 로 대체(하위호환).
         as_of: 꾸준함 기준일(보통 `date.today()`). 백엔드 `get_report` 가 넘기면 장기 미접속
             (이탈)이 꾸준함 0% 로 잡힘. None 이면 최근 체크인 기준(하위호환).
 
@@ -107,6 +112,7 @@ def build_report(
             sleep_score=sleep_score,
             sleep_hours=sleep_hours,
             steps=steps,
+            lifestyle_pct=lifestyle_pct,
             as_of=as_of,
         ),
         # 🚧 재방문(revisit): 세션/접속 로그 스키마 확정 후 추가 (백엔드 합의)

@@ -29,7 +29,11 @@ from qwen3_emotion import _generate, _load_model, build_instruct  # noqa: E402
 from tone_down import high_shelf  # noqa: E402  # 쨍함(고역) 톤다운, 다이얼과 동일
 
 # 음성 파일 저장 위치 — git 미포함(.gitignore). tts.py 와 동일 env 키 사용.
-_OUTPUT_DIR = os.environ.get("TTS_OUTPUT_DIR", "ai/tts/_output")
+# 기본값은 이 모듈 옆 _output(절대경로) — 자동기동 시 CWD 가 시스템 폴더라
+# 상대경로("ai/tts/_output")면 거기에 폴더 생성이 WinError 5(권한 거부)로 실패함.
+_OUTPUT_DIR = os.environ.get("TTS_OUTPUT_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "_output"
+)
 
 # 확정 보이스 3종 (PROTOTYPE_VOICE.md 동기화 — seed 가 화자 ID, 고정 필수).
 _VOICES: dict[str, dict] = {
@@ -104,6 +108,7 @@ def _apply_atempo(path: str, atempo: float) -> None:
             [ffmpeg, "-y", "-i", path, "-filter:a", f"atempo={atempo}", tmp],
             check=True,
             capture_output=True,
+            timeout=30,  # ffmpeg 멈춰도 합성 스레드 영구블록 방지 (woman 경로)
         )
         os.replace(tmp, path)
     except Exception:
@@ -165,7 +170,11 @@ def synthesize(text: str, tone: str = "girl", *, filename: str | None = None) ->
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-    out = _generate(model, text, instruct, {"temperature": v["temp"]})
+    # max_new_tokens 상한 — codec EOS 미방출(반복루프)로 기본 8192 폭주 시 수백 초 hang 차단.
+    # 3072 ≈ 255초·~1500자: 추모 메시지(600~800자) 안 자름, 폭주(8192)만 차단.
+    out = _generate(
+        model, text, instruct, {"temperature": v["temp"], "max_new_tokens": 3072}
+    )
     wavs, sr = out if isinstance(out, tuple) else (out, 24000)
     wav = wavs[0] if hasattr(wavs, "__len__") and not hasattr(wavs, "ndim") else wavs
     wav = np.asarray(wav, dtype=np.float32)
@@ -183,6 +192,8 @@ def synthesize(text: str, tone: str = "girl", *, filename: str | None = None) ->
     if v.get("atempo", 1.0) != 1.0:
         _apply_atempo(path, v["atempo"])
 
+    # 매 합성 후 CUDA 캐시 반납 — 요청 간 VRAM 누적/단편화 방지 (8GB 공유 환경).
+    torch.cuda.empty_cache()
     return {"audio_path": path, "duration": round(len(wav) / sr, 1), "format": "wav"}
 
 

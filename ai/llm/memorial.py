@@ -109,6 +109,9 @@ def _violates_guardrail(
     - 부활/환생 단정 표현 — first_person 여부와 관계없이 항상 차단.
     - 반려동물 이름 + 1인칭이 같은 문장에 등장 — first_person=True 이면 허용.
       → 보호자가 "나는 봄이가 그리워요"라고 하는 경우는 차단하지 않습니다.
+    - first_person=True 인데 반려동물이 1인칭으로 말하지 않음(LLM이 지시를
+      무시하고 3인칭 내레이션을 반환) — "꿈 속 작별 편지" 라며 3인칭 글이
+      그대로 나가는 것을 막기 위해 위반으로 처리하고 재생성을 유도합니다.
     """
     normalized = content.replace(" ", "")
 
@@ -116,7 +119,10 @@ def _violates_guardrail(
         if marker in normalized:
             return f"부활/환생 표현 감지: '{marker}'"
 
-    if not first_person and _has_pet_first_person(content, pet_name):
+    if first_person:
+        if not _has_pet_first_person(content, pet_name):
+            return f"1인칭 모드 요청이지만 반려동물({pet_name}) 1인칭 화법 미사용"
+    elif _has_pet_first_person(content, pet_name):
         return f"반려동물({pet_name}) 1인칭 화법 감지"
 
     return None

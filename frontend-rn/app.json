@@ -53,6 +53,7 @@
       "expo-font",
       "./modules/usage-stats/app.plugin.js",
       "react-native-health-connect",
+      "./plugins/withHealthConnectDelegate.js",
       ["expo-build-properties", {
         "android": {
           "minSdkVersion": 26,

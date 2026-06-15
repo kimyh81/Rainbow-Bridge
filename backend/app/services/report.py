@@ -10,6 +10,7 @@ from ai.evaluation.report import build_report
 
 from app.db.mongodb import mongodb
 from app.schemas.report import EmotionTrend, PlayTrend, ReportResponse
+from app.services.health_lifestyle import get_lifestyle_pct
 
 
 def _bucket_access_counts(timestamps: Iterable[Any]) -> list[int]:
@@ -109,6 +110,9 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     )
     health = health_doc or {}
 
+    # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
+    lifestyle = await get_lifestyle_pct(pet_id)
+
     # TTS 재생 이벤트 날짜별 집계
     play_docs = await mongodb.db["play_logs"].find({"pet_id": pet_id}).to_list(None)
     play_day_counts: Counter = Counter()
@@ -138,6 +142,7 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
         session_count=session_count,
         sleep_hours=health.get("sleep_hours"),
         steps=health.get("steps"),
+        lifestyle_pct=lifestyle,
     )
 
     return ReportResponse(

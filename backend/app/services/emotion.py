@@ -8,6 +8,7 @@ from ai.llm.provider import generate
 from app.db.mongodb import mongodb
 from app.db.redis_client import get_recent_emotions, push_emotion
 from app.schemas.emotion import EmotionCreate, EmotionResponse, RecoveryResponse
+from app.services.health_lifestyle import get_lifestyle_pct
 
 CRISIS_HOTLINE = "1393"
 
@@ -110,9 +111,13 @@ async def get_recovery(pet_id: str) -> RecoveryResponse:
                 "difficulty": m.get("difficulty", ""),
             }
         )
+    # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
+    lifestyle_pct = await get_lifestyle_pct(pet_id)
+
     recovery_pct = recovery_score_from_axes(
         missions_list,
         records,
+        lifestyle_pct=lifestyle_pct,
         as_of=date.today(),
     )
 

@@ -11,6 +11,7 @@ on:
       - '!frontend-rn/eas.json'
       - '!frontend-rn/ios/**'
       - '!frontend-rn/android/**'
+  workflow_dispatch:
 
 jobs:
   update:

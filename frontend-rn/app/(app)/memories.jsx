@@ -51,7 +51,7 @@ export default function MemoriesScreen() {
         name: profile.name.trim(),
         species: profile.species,
         gender: profile.gender,
-        period: `${profile.start_date} ~ ${profile.end_date}`,
+        period: profile.start_date || '',
         caller_name: callerName,
         bucket_list: [],
         memories,
@@ -73,7 +73,6 @@ export default function MemoriesScreen() {
       await AsyncStorage.setItem('pet_guardian_title', profile.guardian_title?.trim() || '');
       await AsyncStorage.setItem('pet_gender', profile.gender || '');
       if (profile.start_date) await AsyncStorage.setItem('pet_start_date', profile.start_date);
-      if (profile.end_date) await AsyncStorage.setItem('pet_farewell_date', profile.end_date);
       setLoading(false);
       router.replace('/(app)/home');
     }

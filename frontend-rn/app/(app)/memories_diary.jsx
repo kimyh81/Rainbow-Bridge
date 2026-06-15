@@ -33,7 +33,7 @@ export default function MemoriesDiaryScreen() {
       const payload = {
         name: profile.name.trim(),
         species: profile.species,
-        period: `${profile.start_date} ~ ${profile.end_date}`,
+        period: profile.start_date || '',
         caller_name: profile.guardian_title?.trim() || '보호자',
         bucket_list: bucketlist.trim()
           ? bucketlist.trim().split(/[,\/\n]+/).map(s => s.trim()).filter(Boolean)

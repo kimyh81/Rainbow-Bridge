@@ -25,10 +25,12 @@ export const mockMessage = {
   tone: '따뜻함',
 };
 
+// 난이도(difficulty)는 소람님 LLM이 회복 단계에 맞춰 내려줌 — gentle/small/active
+// 아래는 L1(45~79점) 예시 구성: gentle×2 + small×1
 export const mockMissions = [
-  { id: 'mis_001', pet_id: 'pet_001', title: '집 앞 5분 산책', description: '집 근처를 5분만 천천히 걸어보세요.', category: '행동활성화', rationale: '작은 활동이 가라앉은 기분을 끌어올려요', completed: false, created_at: '2026-06-04T00:00:00Z', completed_at: null },
-  { id: 'mis_002', pet_id: 'pet_001', title: '콩이 사진 한 장 바라보기', description: '함께한 사진 한 장을 천천히 바라보세요.', category: '지속적 유대', rationale: '기억을 이어가며 슬픔을 따뜻하게 바꿔요', completed: false, created_at: '2026-06-04T00:00:00Z', completed_at: null },
-  { id: 'mis_003', pet_id: 'pet_001', title: '오늘 감정 한 줄', description: '지금 느끼는 감정을 한 줄로만 적어보세요.', category: '표현적 글쓰기', rationale: '감정을 글로 꺼내면 마음이 가벼워져요', completed: true, created_at: '2026-06-04T00:00:00Z', completed_at: '2026-06-04T09:00:00Z' },
+  { id: 'mis_001', pet_id: 'pet_001', title: '집 앞 5분 산책', description: '집 근처를 5분만 천천히 걸어보세요.', category: '행동활성화', difficulty: 'gentle', rationale: '작은 활동이 가라앉은 기분을 끌어올려요', completed: false, skipped: false, created_at: '2026-06-04T00:00:00Z', completed_at: null },
+  { id: 'mis_002', pet_id: 'pet_001', title: '콩이 사진 한 장 바라보기', description: '함께한 사진 한 장을 천천히 바라보세요.', category: '지속적 유대', difficulty: 'gentle', rationale: '기억을 이어가며 슬픔을 따뜻하게 바꿔요', completed: false, skipped: false, created_at: '2026-06-04T00:00:00Z', completed_at: null },
+  { id: 'mis_003', pet_id: 'pet_001', title: '오늘 감정 한 줄', description: '지금 느끼는 감정을 한 줄로만 적어보세요.', category: '표현적 글쓰기', difficulty: 'small', rationale: '감정을 글로 꺼내면 마음이 가벼워져요', completed: false, skipped: false, created_at: '2026-06-04T00:00:00Z', completed_at: null },
 ];
 
 export const mockTimeline = [

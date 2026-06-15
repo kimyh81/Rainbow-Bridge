@@ -42,19 +42,21 @@ export default function MediaScreen() {
         AsyncStorage.getItem('pet_video_asset_id'),
       ]);
       if (savedVideo) setVideoUrl(savedVideo);
-      if (savedGif) {
-        // gif 캐시 있으면 바로 복원
-        setGifUrl(savedGif);
-      } else if (savedAssetId && savedVideo) {
-        // 캐시 없으면 API로 최신 gif 상태 확인
+      if (savedGif) setGifUrl(savedGif); // gif 캐시 먼저 복원, API 결과로 덮어씌움
+      if (savedAssetId) {
+        // assetId 있으면 voiced_url 갱신 + gif 최신 상태 확인
         try {
           const res = await getMediaStatus(savedAssetId);
+          const latestUrl = toFullUrl(res.voiced_url || res.video_url);
+          if (latestUrl && latestUrl !== savedVideo) {
+            setVideoUrl(latestUrl);
+            await AsyncStorage.setItem('pet_video_url', latestUrl);
+          }
           if (res.gif_url) {
             const fullGif = toFullUrl(res.gif_url);
             setGifUrl(fullGif);
             await AsyncStorage.setItem('pet_gif_url', fullGif);
-          } else {
-            // 영상은 있는데 gif 아직 없음 → 폴링
+          } else if (!savedGif) {
             pollGif(savedAssetId, 0);
           }
         } catch {}
@@ -102,7 +104,7 @@ export default function MediaScreen() {
     pollRef.current = setTimeout(async () => {
       try {
         const res = await getMediaStatus(assetId);
-        const url = res.video_url;
+        const url = res.voiced_url || res.video_url;
         if (res.status === 'done' && url) {
           const fullUrl = toFullUrl(url);
           setVideoUrl(fullUrl);

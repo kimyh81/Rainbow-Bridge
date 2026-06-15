@@ -13,7 +13,6 @@ import { mockMissions } from '@/api/mock';
 import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
 import { gwa } from '@/utils/josa';
-import { doLogout } from './_layout';
 
 const COMPLETED_KEY = 'mission_completed_ids';
 
@@ -147,11 +146,7 @@ export default function MissionScreen() {
           <Text style={styles.headerBack}>← 뒤로</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>오늘의 미션</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={doLogout} style={styles.headerBtn} activeOpacity={0.7}>
-            <Text style={styles.headerLogout}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -276,9 +271,7 @@ const styles = StyleSheet.create({
   headerBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   headerBack: { fontSize: 14, color: '#8A7D9E' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#5B4E75' },
-  headerRight: { flexDirection: 'row', gap: 12 },
-  headerHome: { fontSize: 14, fontWeight: '700', color: '#C4A8D8' },
-  headerLogout: { fontSize: 14, fontWeight: '700', color: '#E57373' },
+  headerSpacer: { width: 56 },
   scroll: { paddingHorizontal: 20, paddingVertical: 24 },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 24 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },

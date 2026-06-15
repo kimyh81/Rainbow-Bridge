@@ -9,11 +9,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Card from '@/components/Card';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { getReport } from '@/api/report';
+import { getMissions } from '@/api/missions';
 import { mockReport } from '@/api/mock';
 import { COLORS } from '@/constants/colors';
 import { eulreul } from '@/utils/josa';
-import { doLogout } from './_layout';
-import { hasPermission, openPermissionSettings, collectTodayReport } from '../../modules/usage-stats/src';
+
+const COMPLETED_KEY = 'mission_completed_ids';
+const HEALTH_LATEST_KEY = 'health_latest';
 
 const CHART_W = Dimensions.get('window').width - 80;
 const CHART_H = 90;
@@ -82,14 +84,15 @@ export default function ReportScreen() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [petName, setPetName] = useState('소중한 친구');
-  const [usageReport, setUsageReport] = useState(null);
-  const [permissionGranted, setPermissionGranted] = useState(null);
+  const [missionRate, setMissionRate] = useState(null);
+  const [healthLatest, setHealthLatest] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
       fetchReport();
-      fetchUsageReport();
+      fetchMissionRate();
+      fetchHealthLatest();
     }, [])
   );
 
@@ -106,17 +109,29 @@ export default function ReportScreen() {
     }
   }
 
-  async function fetchUsageReport() {
+  // 미션 완료율 — mission.jsx와 동일 로직(오늘 기준): getMissions + 로컬 완료 ID 병합
+  async function fetchMissionRate() {
     try {
-      const granted = await hasPermission();
-      setPermissionGranted(granted);
-      if (granted) {
-        const data = await collectTodayReport();
-        setUsageReport(data);
-      }
+      const today = new Date().toDateString();
+      const savedDate = await AsyncStorage.getItem('mission_completed_date');
+      const petId = await AsyncStorage.getItem('pet_id');
+      const data = await getMissions({ pet_id: petId });
+      const saved = await AsyncStorage.getItem(COMPLETED_KEY);
+      const savedIds = savedDate === today && saved ? JSON.parse(saved) : [];
+      const visible = data.filter((m) => !m.skipped);
+      const done = visible.filter((m) => m.completed || savedIds.includes(m.id)).length;
+      setMissionRate(visible.length ? Math.round((done / visible.length) * 100) : 0);
     } catch {
-      // 네이티브 모듈 미지원 환경(iOS/Expo Go) — 조용히 무시
+      setMissionRate(null); // 실패 시 백엔드 누적값으로 폴백
     }
+  }
+
+  // 삼성헬스 최근 동기화 결과(걸음·수면) — health.jsx가 캐시에 저장
+  async function fetchHealthLatest() {
+    try {
+      const raw = await AsyncStorage.getItem(HEALTH_LATEST_KEY);
+      if (raw) setHealthLatest(JSON.parse(raw));
+    } catch {}
   }
 
   if (loading) {
@@ -131,7 +146,8 @@ export default function ReportScreen() {
 
   const trend = report?.emotion_trend ?? [];
   const sleepTrend = report?.sleep_trend ?? [];
-  const missionRate = Math.round((report?.mission_completion_rate ?? 0) * 100);
+  // 미션 완료율: getMissions 기반(오늘, mission.jsx와 동일) 우선 — 실패 시 백엔드 누적값
+  const missionPct = missionRate ?? Math.round((report?.mission_completion_rate ?? 0) * 100);
 
   return (
     <LinearGradient colors={['#F9DFE6', '#EBDDF5', '#F0F4F8', '#E4DAF5']} locations={[0, 0.35, 0.6, 1]} style={styles.gradient}>
@@ -142,70 +158,36 @@ export default function ReportScreen() {
           <Text style={styles.headerBack}>← 뒤로</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>회복 리포트</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={doLogout} style={styles.headerBtn} activeOpacity={0.7}>
-            <Text style={styles.headerLogout}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.subtitle}>{petName}{eulreul(petName)} 기억하며 함께한 시간이에요.</Text>
 
-        {/* 앱 사용 기록 — 권한 없으면 안내 카드 */}
-        {permissionGranted === false ? (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>📱 스마트폰 사용 패턴</Text>
-            <Text style={styles.noData}>일상 복귀 분석을 위해 앱 사용 기록 권한이 필요해요.</Text>
-            <TouchableOpacity style={styles.permBtn} onPress={openPermissionSettings} activeOpacity={0.7}>
-              <Text style={styles.permBtnText}>권한 허용하기</Text>
-            </TouchableOpacity>
-          </Card>
-        ) : usageReport ? (
-          <>
-            {/* 오늘 행동 신호 */}
-            {usageReport.signals.length > 0 ? (
-              <Card style={styles.card}>
-                <Text style={styles.sectionTitle}>📱 오늘 행동 신호</Text>
-                {usageReport.signals.map((s, i) => (
-                  <View key={i} style={styles.signalRow}>
-                    <Text style={styles.signalIcon}>{s.icon}</Text>
-                    <View style={styles.signalInfo}>
-                      <Text style={styles.signalTitle}>{s.title}</Text>
-                      <Text style={styles.signalDetail}>오늘 {s.todayMinutes}분</Text>
-                    </View>
-                  </View>
-                ))}
-                {usageReport.estimatedSleepTime ? (
-                  <Text style={styles.sleepHint}>🌙 {usageReport.estimatedSleepTime}</Text>
-                ) : null}
-              </Card>
-            ) : (
-              <Card style={styles.card}>
-                <Text style={styles.sectionTitle}>📱 오늘 행동 신호</Text>
-                <Text style={styles.noData}>오늘은 특이 패턴이 없어요. 건강한 하루예요! 🌿</Text>
-                {usageReport.estimatedSleepTime ? (
-                  <Text style={styles.sleepHint}>🌙 {usageReport.estimatedSleepTime}</Text>
-                ) : null}
-              </Card>
-            )}
-
-            {/* 앱 사용 현황 상위 5개 */}
-            <Card style={styles.card}>
-              <Text style={styles.sectionTitle}>⏱ 오늘 앱 사용 현황</Text>
-              <Text style={styles.chartHint}>총 {usageReport.totalMinutes}분 · 새벽 {usageReport.lateNightMinutes}분</Text>
-              {usageReport.daily.slice(0, 5).map((app, i) => (
-                <View key={i} style={styles.appRow}>
-                  <Text style={styles.appLabel} numberOfLines={1}>{app.appLabel}</Text>
-                  <View style={styles.appBarWrap}>
-                    <View style={[styles.appBar, { width: `${Math.min((app.usageMinutes / Math.max(usageReport.totalMinutes, 1)) * 100, 100)}%` }]} />
-                  </View>
-                  <Text style={styles.appMin}>{app.usageMinutes}분</Text>
+        {/* 삼성헬스 — 최근 동기화한 걸음·수면 (health.jsx에서 연동) */}
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>🏃 삼성헬스 기록</Text>
+          {healthLatest ? (
+            <>
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>{healthLatest.steps ?? 0}</Text>
+                  <Text style={styles.statLabel}>걸음</Text>
                 </View>
-              ))}
-            </Card>
-          </>
-        ) : null}
+                <View style={styles.statDivider} />
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>{healthLatest.sleep_hours ?? 0}</Text>
+                  <Text style={styles.statLabel}>수면(시간)</Text>
+                </View>
+              </View>
+              {healthLatest.date ? (
+                <Text style={styles.healthDate}>{healthLatest.date} 기준</Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.noData}>삼성헬스를 연동하면 걸음·수면이 표시돼요.</Text>
+          )}
+        </Card>
 
         {/* 서비스 이용 현황 */}
         <Card style={styles.card}>
@@ -242,9 +224,9 @@ export default function ReportScreen() {
           <Text style={styles.sectionTitle}>🌱 미션 완료율</Text>
           <View style={styles.completionRow}>
             <View style={styles.completionTrack}>
-              <View style={[styles.completionFill, { width: `${missionRate}%` }]} />
+              <View style={[styles.completionFill, { width: `${missionPct}%` }]} />
             </View>
-            <Text style={styles.completionPct}>{missionRate}%</Text>
+            <Text style={styles.completionPct}>{missionPct}%</Text>
           </View>
         </Card>
 
@@ -279,9 +261,7 @@ const styles = StyleSheet.create({
   headerBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   headerBack: { fontSize: 14, color: '#8A7D9E' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#5B4E75' },
-  headerRight: { flexDirection: 'row', gap: 12 },
-  headerHome: { fontSize: 14, fontWeight: '700', color: '#C4A8D8' },
-  headerLogout: { fontSize: 14, fontWeight: '700', color: '#E57373' },
+  headerSpacer: { width: 56 },
   scroll: { paddingHorizontal: 20, paddingVertical: 24 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center', marginBottom: 6 },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 28 },
@@ -299,17 +279,5 @@ const styles = StyleSheet.create({
   completionFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 5 },
   completionPct: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, minWidth: 40, textAlign: 'right' },
   noData: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 20 },
-  permBtn: { marginTop: 12, backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  permBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  signalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F0EAF5' },
-  signalIcon: { fontSize: 20 },
-  signalInfo: { flex: 1 },
-  signalTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  signalDetail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  sleepHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10 },
-  appRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
-  appLabel: { fontSize: 12, color: COLORS.textPrimary, width: 80 },
-  appBarWrap: { flex: 1, height: 6, backgroundColor: '#EDE5DF', borderRadius: 3, overflow: 'hidden' },
-  appBar: { height: '100%', backgroundColor: '#C4A8D8', borderRadius: 3 },
-  appMin: { fontSize: 12, color: COLORS.textSecondary, minWidth: 32, textAlign: 'right' },
+  healthDate: { fontSize: 11, color: COLORS.textLight, textAlign: 'center', marginTop: 8 },
 });

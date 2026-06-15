@@ -24,7 +24,6 @@ from typing import Any, Iterable, Optional, Sequence
 
 from .health_signal import (  # 수면·활동 객관데이터 확장(프로토타입)
     activity_to_score,
-    blend_recovery_score,
     condition_signal,
     sleep_to_score,
 )
@@ -157,11 +156,12 @@ def recovery_score(
 # --- 4축 정규화(미션40/지속성30/생활패턴15/감정추세15) — 06-15 설계 -------------- #
 # [[project_recovery_score_axes_redesign_260614]] 확정안. 축별 점수 함수
 # (mission_score·consistency_score·emotion_trend_score)와 이를 합성하는
-# `recovery_score_from_axes` 까지 구현. 생활패턴(15%)은 전용 함수 미정이라
-# 당분간 미리 계산한 `lifestyle_pct` 를 받는다.
-# ⚠️ 게이트(backend emotion.py)의 recovery_score → recovery_score_from_axes
-# **교체는 아직 안 함** — 감정축 절대→추세 전환이 게이트 동작을 바꿔 안전 민감,
-# 모세종·김윤한 합의 + consistency 윈도우(정환주) 정렬 후.
+# `recovery_score_from_axes` 까지 구현. 생활패턴(15%)은 `activity_to_score(steps)`
+# 결과를 `lifestyle_pct` 로 주입받는다(수면·폰사용은 [[project_sleep_signal_decision]]·
+# [[project_phone_usage_analyzer]] 결정대로 점수 미반영, advisory만).
+# ✅ 게이트(backend emotion.py)는 06-15 PR #286으로 recovery_score_from_axes 교체 완료
+# (모세종·김윤한 합의, [[project_recovery_gate_switch_approved_260615]]).
+# consistency 윈도우도 14→28 정렬됨(`_CONSISTENCY_WINDOW`).
 
 _MISSION_WINDOW = 28  # mission_score 집계 윈도우(일)
 _DIFFICULTY_ACTIVE = "active"
@@ -333,12 +333,14 @@ def recovery_score_from_axes(
     미션·지속성은 사용자가 앱에서 직접 채우는 **핵심 축**이라 데이터가 없어도
     (0점 기여로) 항상 분모에 포함한다 — 무페널티 대상이 아님.
 
-    ⚠️ 아직 어디서도 호출하지 않는다(추가만, 교체 X). 회복 게이트
-    (`backend/app/services/emotion.py`)는 여전히 [recovery_score]()(절대 감정)를
-    쓴다. 감정축이 '절대→추세'로 바뀌면 게이트 동작이 달라지므로 **모세종·김윤한
-    안전 합의 전 교체 금지**. 또한 consistency 윈도우 14→28(L0 캘리브레이션) 변경은
-    **정환주 영역** — 여기선 각 함수 기본 윈도우(미션28·지속성14)를 그대로 쓴다.
-    생활패턴 전용 `life_pattern_score` 는 미정이라 당분간 `lifestyle_pct`(미리 계산)를 받는다.
+    ✅ 회복 게이트(`backend/app/services/emotion.py`)가 06-15 PR #286으로
+    이 함수를 호출하도록 교체됨(모세종·김윤한 안전 합의 완료,
+    [[project_recovery_gate_switch_approved_260615]]). consistency 윈도우도
+    14→28로 정렬됨(`_CONSISTENCY_WINDOW`, 미션·지속성 모두 28일).
+    생활패턴 전용 `life_pattern_score` 함수는 따로 안 두고, 게이트에서
+    `activity_to_score(steps)` 결과를 `lifestyle_pct` 로 주입한다(수면·폰사용은
+    [[project_sleep_signal_decision]]·[[project_phone_usage_analyzer]] 결정대로
+    점수 미반영).
 
     Args:
         missions: ``[{"date": "YYYY-MM-DD", "done": bool, "difficulty"?: str}, ...]``
@@ -385,6 +387,7 @@ def compute_recovery_signal(
     sleep_score: Optional[float] = None,
     sleep_hours: Optional[float] = None,
     steps: Optional[int] = None,
+    lifestyle_pct: Optional[float] = None,
     as_of: Optional[date] = None,
 ) -> dict[str, Any]:
     """일상복귀 신호를 산출합니다.
@@ -398,17 +401,20 @@ def compute_recovery_signal(
             묶어 넣습니다. 없으면 생략(graceful).
         play_counts: 기간별 영상 재생 횟수(오래된→최근). 재생 이벤트 로그가 있을 때만.
             ⚠️ `play_count` 누적 카운터만 있으면 시계열이 아니라 못 넣음 → None.
+        lifestyle_pct: 생활패턴(15%) 축 합성 점수(0~100, `health_signal.lifestyle_pct`
+            결과 — 걸음40/수면30/야간폰사용30). 넘기면 회복점수 산식에 이 값을 그대로
+            쓴다. None 이면(호출부 미배선) `activity_to_score(steps)` 로 대체(하위호환).
         as_of: 꾸준함 기준일. 백엔드가 `date.today()` 를 주면 **장기 미접속(이탈)** 이 꾸준함
             0% 로 잡힘. None 이면 최근 미션 완료일 기준(하위호환).
 
     Returns:
         ``{signal, recovery_index, emotion, mission_completion_rate, checkin_consistency,
         access_trend, play_trend, sleep_score, activity_score, cross_check, evidence, reason}``.
-        ``recovery_index`` 는 기본 RECOVERY_GATE 40/35/25 산식(`recovery_score`)이지만,
-        **활동(걸음) 객관데이터가 들어오면** 40/35/25 + 활동10 가중치를 들어온 항목끼리
-        재정규화한 산식(`blend_recovery_score`)으로 교체된다(빠진 외부신호는 분모서 제외 —
-        데이터 없다고 페널티 없음). 스케일 동일 0~100. 소비자는 ``scoring`` 값으로 구분.
-        **수면은 점수서 제외**(결정문서 §2) — `sleep_score`·`cross_check` 로 표시·교차검증만.
+        ``recovery_index`` 는 회복 게이트와 동일한 4축 산식(`recovery_score_from_axes`,
+        미션40/지속성30/감정추세15/생활패턴15, 무페널티 재정규화) — 06-15 일원화로
+        리포트·게이트가 같은 점수를 본다. **수면은 점수서 제외**(결정문서 §2) —
+        `sleep_score`·`cross_check` 로 표시·교차검증만. ``activity_score``(걸음 기반)는
+        `lifestyle_pct` 로 점수 항에도 들어간다(없으면 무페널티 제외).
         ``evidence`` 는 그대로 보여줄 수 있는 근거 문장 목록.
     """
     rows = list(emotion_checkins)  # generator 두 번 순회(점수·꾸준함) 대비 materialize.
@@ -462,14 +468,23 @@ def compute_recovery_signal(
     access = _freq_trend(access_counts)
     play = _freq_trend(play_counts)
 
-    # 회복 점수 — RECOVERY_GATE 40/35/25 산식(감정·미션완료·꾸준함). 단순 avg*10 대체.
-    index = recovery_score(avg, completed_missions, consistency)
+    # 객관데이터(삼성헬스→Health Connect). 수면은 점수서 제외(결정문서 §2) — 활동(걸음)만
+    # lifestyle_pct 로 점수 항에 들어간다. 미제공이면 무페널티 제외(기존 동작 보존).
+    sleep_norm = sleep_to_score(sleep_score, sleep_hours)
+    activity_norm = activity_to_score(steps)
+
+    # 회복 점수 — 게이트와 동일한 4축 산식(미션40/지속성30/감정추세15/생활패턴15).
+    # 생활패턴 축은 lifestyle_pct(걸음+수면+야간폰사용)가 있으면 그걸, 없으면(미배선)
+    # 기존 activity_to_score(steps)로 대체(하위호환).
+    axes_lifestyle_pct = lifestyle_pct if lifestyle_pct is not None else activity_norm
+    index = recovery_score_from_axes(
+        missions, rows, lifestyle_pct=axes_lifestyle_pct, as_of=as_of
+    )
+
     # 근거 문장 — 발표/화면에 그대로 노출.
     evidence = [f"감정 점수 {round(older, 1)} → {round(recent, 1)} ({emo_dir})"]
     if completed_missions > 0:
-        evidence.append(
-            f"미션 누적 {completed_missions}개 완료 ({min(completed_missions, 35)}점)"
-        )
+        evidence.append(f"미션 누적 {completed_missions}개 완료")
     if consistency is not None:
         evidence.append(
             f"미션 완료 꾸준함 {round(consistency)}% (최근 {_CONSISTENCY_WINDOW}일)"
@@ -486,17 +501,9 @@ def compute_recovery_signal(
                 f"{label} {trend['older']}→{trend['recent']}회 ({trend['direction']})"
             )
 
-    # 객관데이터(삼성헬스→Health Connect) 반영. 수면은 점수서 제외(결정문서 §2) →
-    # 활동(걸음)만 점수 항으로 blend 교체. 수면은 교차검증·표시로만. 미제공이면
-    # 위 recovery_score 결과 그대로 — 기존 동작 100% 보존(하위호환).
-    sleep_norm = sleep_to_score(sleep_score, sleep_hours)
-    activity_norm = activity_to_score(steps)
     health_check: Optional[dict[str, Any]] = None
     condition: Optional[dict[str, Any]] = None
     if activity_norm is not None:  # 활동만 점수 항
-        index = blend_recovery_score(
-            avg, completed_missions, consistency, activity_norm
-        )
         evidence.append(f"활동 {round(activity_norm)}/100")
     if sleep_norm is not None:  # 수면 — 점수 미반영, 교차검증·컨디션·표시만
         evidence.append(f"수면점수 {round(sleep_norm)}/100 (참고 — 점수 미반영)")
@@ -518,7 +525,7 @@ def compute_recovery_signal(
 
     return {
         "signal": signal,
-        "recovery_index": index,  # 0~100. 기본 40/35/25, 활동 제공 시 +활동10(수면 제외)
+        "recovery_index": index,  # 0~100. 4축(미션40/지속성30/감정추세15/생활패턴15)
         "emotion": {
             "older_avg": round(older, 1),
             "recent_avg": round(recent, 1),
@@ -535,9 +542,7 @@ def compute_recovery_signal(
         "activity_score": activity_norm,
         "cross_check": health_check,
         "condition": condition,  # 객관 수면+감정 → 오늘 컨디션(양호/주의/보통)+신뢰도. 점수 별개.
-        "scoring": (
-            "blend" if activity_norm is not None else "base"
-        ),  # 어느 산식인지 명시(활동 반영 여부)
+        "scoring": "axes",  # 06-15 일원화: 항상 recovery_score_from_axes(게이트와 동일 산식)
         "evidence": evidence,
         "reason": reason,
     }

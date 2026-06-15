@@ -38,7 +38,16 @@ _EMOTION_GOOD = 6.0  # 감정 평균(1~10) 이 이상이면 '좋음'
 _EMOTION_BAD = 4.0  # 이 이하면 '나쁨'
 
 # ── 활동량 정규화 기준(설계 판단) ──
-_STEPS_TARGET = 8000  # 이 걸음수를 100점으로
+_STEPS_TARGET = 6000  # 이 걸음수를 100점으로 (06-15: 활동 유도 위해 8000→6000)
+
+# ── 생활패턴(15%) 축 합성 가중치 — 걸음40/수면30/앱사용량30 (06-15 합의) ──
+W_LIFESTYLE_STEPS = 0.40
+W_LIFESTYLE_SLEEP = 0.30
+W_LIFESTYLE_PHONE = 0.30
+
+_SLEEP_HOURS_TARGET = 6.0  # 수면 첫주 고정기준 — 이 시간을 100점으로
+_NIGHT_USAGE_PER_PENALTY_MIN = 10.0  # 새벽(2~6시) 사용 이 분(分)마다 -1점
+_PERSONALIZE_MIN_HISTORY = 7  # 이만큼 기록이 쌓이면 개인화(최근 평균 대비 비율)로 전환
 
 
 def sleep_to_score(
@@ -71,6 +80,97 @@ def activity_to_score(steps: Optional[int] = None) -> Optional[float]:
     if steps is None:
         return None
     return max(0.0, min(100.0, float(steps) / _STEPS_TARGET * 100.0))
+
+
+def night_usage_to_score(night_minutes: Optional[float] = None) -> Optional[float]:
+    """새벽(2~6시) 폰사용 분(分) → 0~100 점수. 100점에서 시작해 10분당 -1점.
+
+    ⚠️ `sleep_to_score`와는 별도 — 회복점수 점수 항이 아니라 생활패턴 축의
+    앱사용량 신호로만 쓰인다.
+    """
+    if night_minutes is None:
+        return None
+    return max(0.0, min(100.0, 100.0 - float(night_minutes) / _NIGHT_USAGE_PER_PENALTY_MIN))
+
+
+def _personalized_ratio(today: float, history: Optional[list[float]]) -> Optional[float]:
+    """최근 기록이 `_PERSONALIZE_MIN_HISTORY`일 이상이면 '최근 평균 대비 오늘' 비율(cap 100).
+
+    기록이 부족하면 None(호출부에서 첫주 고정기준으로 대체).
+    """
+    if not history or len(history) < _PERSONALIZE_MIN_HISTORY:
+        return None
+    avg = sum(history) / len(history)
+    if avg <= 0:
+        return 100.0  # 평소도 0이면 "평소와 같음" = 변화 없음으로 본다
+    return max(0.0, min(100.0, today / avg * 100.0))
+
+
+def sleep_pattern_score(
+    sleep_hours: Optional[float] = None, *, history: Optional[list[float]] = None
+) -> Optional[float]:
+    """수면시간 → 생활패턴(15%) 축의 수면(30%) 점수.
+
+    - 첫주(기록 `_PERSONALIZE_MIN_HISTORY`일 미만): 고정기준 — `_SLEEP_HOURS_TARGET`시간=100점.
+    - 이후: 개인화 — 최근 기록 평균 대비 오늘 수면시간 비율(cap 100).
+    """
+    if sleep_hours is None:
+        return None
+    personalized = _personalized_ratio(float(sleep_hours), history)
+    if personalized is not None:
+        return personalized
+    return max(0.0, min(100.0, float(sleep_hours) / _SLEEP_HOURS_TARGET * 100.0))
+
+
+def night_usage_pattern_score(
+    night_minutes: Optional[float] = None, *, history: Optional[list[float]] = None
+) -> Optional[float]:
+    """새벽(2~6시) 폰사용 분 → 생활패턴(15%) 축의 앱사용량(30%) 점수.
+
+    - 첫주(기록 `_PERSONALIZE_MIN_HISTORY`일 미만): 고정기준 — `night_usage_to_score`(10분당 -1점) 그대로.
+    - 이후: 개인화 — 최근 기록의 `night_usage_to_score` 평균 대비 오늘 비율(cap 100).
+    """
+    raw_today = night_usage_to_score(night_minutes)
+    if raw_today is None:
+        return None
+    raw_history = None
+    if history:
+        raw_history = [r for m in history if (r := night_usage_to_score(m)) is not None]
+    personalized = _personalized_ratio(raw_today, raw_history)
+    if personalized is not None:
+        return personalized
+    return raw_today
+
+
+def lifestyle_pct(
+    steps: Optional[int] = None,
+    sleep_hours: Optional[float] = None,
+    night_minutes: Optional[float] = None,
+    *,
+    sleep_history: Optional[list[float]] = None,
+    night_minutes_history: Optional[list[float]] = None,
+) -> Optional[float]:
+    """생활패턴(15%) 축 합성 점수 — 걸음40%/수면30%/앱사용량30% (06-15 합의).
+
+    `recovery_score_from_axes`의 `lifestyle_pct` 인자에 그대로 넘긴다. 무페널티
+    재정규화 — 값이 없는 항목은 분모에서 제외하고 나머지로 재정규화한다(전부
+    없으면 None → 생활패턴 축 자체가 빠짐, `recovery_score_from_axes`와 동일 패턴).
+    """
+    parts: list[tuple[float, float]] = []
+    a = activity_to_score(steps)
+    if a is not None:
+        parts.append((a, W_LIFESTYLE_STEPS))
+    s = sleep_pattern_score(sleep_hours, history=sleep_history)
+    if s is not None:
+        parts.append((s, W_LIFESTYLE_SLEEP))
+    p = night_usage_pattern_score(night_minutes, history=night_minutes_history)
+    if p is not None:
+        parts.append((p, W_LIFESTYLE_PHONE))
+
+    if not parts:
+        return None
+    total_w = sum(w for _, w in parts)
+    return round(sum(v * w for v, w in parts) / total_w, 1)
 
 
 def blend_recovery_score(

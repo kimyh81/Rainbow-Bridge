@@ -22,9 +22,20 @@ const MOODS = [
 
 const RISK_MOODS = ['너무 힘들어요'];
 
+// 주관적 수면 질 5단계 (1=매우 나쁨 ~ 5=매우 좋음) — 미션 난이도 보정용(선택 입력).
+// 소람님 mission.py _apply_sleep: 1·2 → 난이도 ↓, 3 → 유지, 4·5 → ↑
+const SLEEPS = [
+  { emoji: '😴', label: '푹 잤어요', value: 5 },
+  { emoji: '🙂', label: '잘 잤어요', value: 4 },
+  { emoji: '😐', label: '보통', value: 3 },
+  { emoji: '😪', label: '뒤척임', value: 2 },
+  { emoji: '😫', label: '못 잤어요', value: 1 },
+];
+
 export default function EmotionScreen() {
   const router = useRouter();
   const [selectedMood, setSelectedMood] = useState(null);
+  const [sleepQuality, setSleepQuality] = useState(null);
   const [note, setNote] = useState('');
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,7 +57,7 @@ export default function EmotionScreen() {
       const petId = await AsyncStorage.getItem('pet_id');
       if (!petId) throw new Error('pet_id 없음');
       const moodScore = MOODS.find((m) => m.label === selectedMood)?.score ?? 5;
-      const response = await postEmotion({ pet_id: petId, score: moodScore, note });
+      const response = await postEmotion({ pet_id: petId, score: moodScore, note, sleep_quality: sleepQuality });
 
       if (response.risk_level >= 2 || RISK_MOODS.includes(selectedMood)) {
         setSafetyOpen(true);
@@ -95,6 +106,26 @@ export default function EmotionScreen() {
               >
                 <Text style={styles.moodEmoji}>{emoji}</Text>
                 <Text style={[styles.moodLabel, selected && styles.moodLabelSelected]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={styles.sleepHeading}>어젯밤 수면은 어떠셨나요? <Text style={styles.optional}>(선택)</Text></Text>
+        <View style={styles.sleepRow}>
+          {SLEEPS.map(({ emoji, label, value }) => {
+            const selected = sleepQuality === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                onPress={() => setSleepQuality(selected ? null : value)}
+                style={[styles.sleepBtn, selected && styles.sleepBtnSelected]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.sleepEmoji}>{emoji}</Text>
+                <Text style={[styles.sleepText, selected && styles.sleepTextSelected]} numberOfLines={1}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -172,6 +203,18 @@ const styles = StyleSheet.create({
   moodEmoji: { fontSize: 28 },
   moodLabel: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '500' },
   moodLabelSelected: { color: COLORS.selectedText, fontWeight: '700' },
+  sleepHeading: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 12 },
+  optional: { fontSize: 12, color: COLORS.textLight, fontWeight: '400' },
+  sleepRow: { flexDirection: 'row', gap: 6, marginBottom: 24 },
+  sleepBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 10, gap: 4,
+    borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.divider,
+    backgroundColor: COLORS.white,
+  },
+  sleepBtnSelected: { borderColor: COLORS.selectedBorder, backgroundColor: '#FBF1F3' },
+  sleepEmoji: { fontSize: 22 },
+  sleepText: { fontSize: 10, color: COLORS.textSecondary, fontWeight: '500' },
+  sleepTextSelected: { color: COLORS.selectedText, fontWeight: '700' },
   noteInput: {
     backgroundColor: COLORS.white,
     borderRadius: 16,

@@ -36,7 +36,9 @@
       "package": "com.rainbowbridge.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_SLEEP"
       ]
     },
     "web": {
@@ -49,7 +51,8 @@
       "expo-av",
       "@react-native-community/datetimepicker",
       "expo-font",
-      "./modules/usage-stats/app.plugin.js"
+      "./modules/usage-stats/app.plugin.js",
+      "react-native-health-connect"
     ],
     "extra": {
       "router": {},

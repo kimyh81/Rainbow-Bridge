@@ -44,7 +44,13 @@ export default function LoginScreen() {
       }
 
       // 재방문자: 이 계정의 펫이 이미 있는지 API로 확인
-      await AsyncStorage.multiRemove(['pet_id', 'pet_name', 'pet_species', 'bucketlist_items', 'diary_entries']);
+      await AsyncStorage.multiRemove([
+        'pet_id', 'pet_name', 'pet_species', 'bucketlist_items', 'diary_entries',
+        'pet_video_url', 'pet_voiced_url', 'pet_gif_url', 'pet_video_asset_id', 'pet_photo_url',
+        'message_content', 'message_id', 'message_tone', 'tts_done',
+        'recovery_cache', 'pet_farewell_date', 'memorial_mode', 'pet_guardian_title',
+        'pet_gender', 'pet_start_date', 'caller_name',
+      ]);
       let hasPet = false;
       try {
         const raw = await getMyPets();

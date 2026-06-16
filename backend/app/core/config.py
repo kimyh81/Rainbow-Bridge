@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # LivePortrait
     LIVEPORTRAIT_MODE: str = "local"  # "local" | "remote"
-    LIVEPORTRAIT_API_URL: str = ""  # remote 모드 시 GPU 서버 URL
+    LIVEPORTRAIT_REMOTE_URL: str = ""  # remote 모드 시 GPU 서버 URL
     REPLICATE_API_TOKEN: str = ""
 
     # Redis

@@ -90,10 +90,10 @@ async def trigger_liveportrait_for_pet(pet_id: str) -> None:
 
 def _remote_generate_gif(source_path: str, output_dir: Path) -> Path:
     """GPU 서버 /generate/gif/async → 폴링 → 결과 저장."""
-    api = settings.LIVEPORTRAIT_API_URL.rstrip("/")
+    api = settings.LIVEPORTRAIT_REMOTE_URL.rstrip("/")
     if not api:
         raise ValueError(
-            "LIVEPORTRAIT_API_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
+            "LIVEPORTRAIT_REMOTE_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
         )
 
     with open(source_path, "rb") as f:
@@ -118,10 +118,10 @@ def _remote_generate_gif(source_path: str, output_dir: Path) -> Path:
 
 def _remote_generate_video(source_path: str, output_dir: Path) -> Path:
     """GPU 서버 /generate → MP4 다운로드."""
-    api = settings.LIVEPORTRAIT_API_URL.rstrip("/")
+    api = settings.LIVEPORTRAIT_REMOTE_URL.rstrip("/")
     if not api:
         raise ValueError(
-            "LIVEPORTRAIT_API_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
+            "LIVEPORTRAIT_REMOTE_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
         )
     with open(source_path, "rb") as f:
         resp = requests.post(f"{api}/generate", files={"source": f}, timeout=120)
@@ -148,7 +148,7 @@ async def run_liveportrait_gif(
         if repo_root not in sys.path:
             sys.path.insert(0, repo_root)
 
-        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_API_URL:
+        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_REMOTE_URL:
             gif_path = await asyncio.to_thread(
                 _remote_generate_gif, source_path, _VIDEO_DIR
             )
@@ -186,7 +186,7 @@ async def run_liveportrait(asset_id: str, source_path: str, pet_id: str = ""):
         if repo_root not in sys.path:
             sys.path.insert(0, repo_root)
 
-        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_API_URL:
+        if settings.LIVEPORTRAIT_MODE == "remote" and settings.LIVEPORTRAIT_REMOTE_URL:
             video_path = await asyncio.to_thread(
                 _remote_generate_video, source_path, _VIDEO_DIR
             )

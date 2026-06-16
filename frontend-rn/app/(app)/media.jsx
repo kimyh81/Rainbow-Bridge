@@ -193,6 +193,7 @@ export default function MediaScreen() {
                 resizeMode={ResizeMode.CONTAIN}
                 isLooping
                 shouldPlay
+                isMuted
               />
               <Text style={styles.disclaimer}>
                 AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.

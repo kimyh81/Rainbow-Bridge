@@ -718,7 +718,7 @@ export default function MessageScreen() {
                 {isFirst && (petVoicedUrl || petVideoUrl) && (
                   <View style={[styles.videoWrap, styles.videoWrapFirst]}>
                     <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
-                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted={!petVoicedUrl} />
+                      resizeMode={ResizeMode.COVER} isLooping={!petVoicedUrl} shouldPlay isMuted={!petVoicedUrl} />
                   </View>
                 )}
                 {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (

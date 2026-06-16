@@ -47,7 +47,7 @@ Invoke-RestMethod http://localhost:8002/health    # model_ready:True, degraded:F
 **또 다른 새 창**에서, B에서 복사한 주소를 `[복사한주소]` 자리에 넣고 실행:
 
 ```powershell
-Invoke-RestMethod -Uri https://rainbow-bridge.duckdns.org/api/v1/tts/register-url -Method Post -Headers @{"X-TTS-Secret"="rainbow-tts-secret-2026"} -ContentType "application/json" -Body (@{url="https://[복사한주소].trycloudflare.com"}|ConvertTo-Json)
+Invoke-RestMethod -Uri https://rainbow-bridge.duckdns.org/api/v1/tts/register-url -Method Post -Headers @{"X-TTS-Secret"="<팀_TTS_시크릿>"} -ContentType "application/json" -Body (@{url="https://[복사한주소].trycloudflare.com"}|ConvertTo-Json)
 ```
 
 - `ok: True` 가 나오면 **완료**. 이제 백엔드가 이 주소로 TTS를 호출한다.
@@ -89,6 +89,6 @@ Invoke-RestMethod -Uri https://rainbow-bridge.duckdns.org/api/v1/tts/register-ur
 
 - 서버 포트: `8002`
 - 백엔드 도메인: `https://rainbow-bridge.duckdns.org`
-- 등록 비밀키 헤더: `X-TTS-Secret: rainbow-tts-secret-2026`
+- 등록 비밀키 헤더: `X-TTS-Secret: <팀_TTS_시크릿>` — 평문 금지. 루트 `.env`의 `TTS_REGISTER_SECRET` 값 사용(팀에 문의)
 - pm2 설정 파일: `ai/tts/ecosystem.config.js` (이건 한 번 만들어둔 거라 건드릴 일 없음)
 - `start_tts.bat` 은 **이제 쓰지 않는다** (pm2 와 충돌). pm2 로 켠다.

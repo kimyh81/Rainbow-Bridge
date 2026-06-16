@@ -488,9 +488,9 @@ export default function MessageScreen() {
         await sound.playAsync();
         let vol = 0;
         const fade = setInterval(async () => {
-          vol = Math.min(0.3, vol + 0.05);
+          vol = Math.min(0.15, vol + 0.05);
           await sound.setVolumeAsync(vol);
-          if (vol >= 0.3) clearInterval(fade);
+          if (vol >= 0.15) clearInterval(fade);
         }, BGM_FADE_DURATION / 20);
       } catch {}
     }

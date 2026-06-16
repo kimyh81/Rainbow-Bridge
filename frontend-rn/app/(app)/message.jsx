@@ -184,6 +184,7 @@ export default function MessageScreen() {
   // gate: 'checking' | 'locked' | 'teaser' | 'open'
   const [gateStatus, setGateStatus] = useState('checking');
   const [recoveryScore, setRecoveryScore] = useState(0);
+  const [contentUnlocked, setContentUnlocked] = useState(true);
   const [phase, setPhase] = useState('loading'); // loading | envelope | letter
   const [message, setMessage] = useState(null);
   const [error, setError] = useState('');
@@ -273,13 +274,15 @@ export default function MessageScreen() {
   async function initGate() {
     try {
       const petId = await AsyncStorage.getItem('pet_id');
-      const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
+      const { gateStatus: gs, score, riskGated, content_unlocked } = await fetchRecoveryGate(petId);
       setRecoveryScore(score);
       setGateStatus(gs);
+      setContentUnlocked(content_unlocked !== false); // undefined면 true(하위호환)
       if (gs === 'open' || gs === 'teaser') {
         if (riskGated) setSafetyOpen(true);
         if (mode === 'first' && gs === 'open') loadFirstPerson();
-        else if (mode !== 'first') loadMessage();
+        // teaser여도 위로 편지가 아직 안 열렸으면(content_unlocked false) 로드하지 않음 (BUG-05)
+        else if (mode !== 'first' && content_unlocked !== false) loadMessage();
       }
     } catch {
       // 게이트 확인 실패 시 fail-closed — 편지를 여는 쪽이 아니라 잠그는 쪽으로(설계 기준)
@@ -521,7 +524,8 @@ export default function MessageScreen() {
       </LinearGradient>
     );
   }
-  if (gateStatus === 'locked') {
+  // teaser여도 위로 편지가 아직 안 열렸으면(content_unlocked false) 잠금 화면으로 (BUG-05)
+  if (gateStatus === 'locked' || (mode !== 'first' && !contentUnlocked)) {
     return (
       <GateLockedScreen
         petName={petName}

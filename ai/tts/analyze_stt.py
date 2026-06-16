@@ -72,6 +72,21 @@ def _cer(ref: str, hyp: str) -> float:
     return _levenshtein(r, h) / len(r)
 
 
+def _tokens(s: str) -> list[str]:
+    """어절(공백) 단위 토큰 — WER 용. NFC + 문장부호 제거 후 공백 분리."""
+    s = unicodedata.normalize("NFC", s)
+    s = re.sub(r"[^\w\s]", " ", s)
+    return s.split()
+
+
+def _wer(ref: str, hyp: str) -> float:
+    """단어(어절) 오류율 — _levenshtein 을 토큰 리스트에 그대로 적용."""
+    r, h = _tokens(ref), _tokens(hyp)
+    if not r:
+        return 0.0
+    return _levenshtein(r, h) / len(r)
+
+
 def _load_model():
     from faster_whisper import WhisperModel
 
@@ -116,15 +131,43 @@ def main() -> None:
         try:
             hyp = _transcribe(model, path)
             cer = _cer(_SAMPLE_TEXT, hyp)
-            rows.append((engine, name, cer, hyp))
-            print(f"[{engine}] {name}  CER={cer:.1%}\n   받아쓰기: {hyp}")
+            wer = _wer(_SAMPLE_TEXT, hyp)
+            rows.append((engine, name, cer, wer, hyp))
+            print(f"[{engine}] {name}  CER={cer:.1%} WER={wer:.1%}\n   받아쓰기: {hyp}")
         except Exception as exc:
             print(f"[warn] {name} 분석 실패: {exc}")
 
     rows.sort(key=lambda r: r[2])
     print("\n== 발음 명료도 순위 (CER 낮을수록 또렷) ==")
-    for engine, name, cer, _ in rows:
-        print(f"  {cer:6.1%}  [{engine:10}] {name}")
+    for engine, name, cer, wer, _ in rows:
+        print(f"  CER {cer:6.1%}  WER {wer:6.1%}  [{engine:10}] {name}")
+
+    # 제출용 JSON — 최종 확정 TTS = Google(ElevenLabs 드랍). 그중 CER 최저를 대표값으로.
+    import json
+
+    confirmed = [r for r in rows if r[0] == "Google"] or rows
+    detail = [
+        {"engine": e, "file": n, "cer": round(c, 4), "wer": round(w, 4)}
+        for e, n, c, w, _ in rows
+    ]
+    if confirmed:
+        e, n, c, w, _ = min(confirmed, key=lambda r: r[2])
+        headline = {"cer": round(c, 4), "wer": round(w, 4)}
+        out = {
+            **headline,
+            "engine": e,
+            "file": n,
+            "ref": _SAMPLE_TEXT,
+            "detail": detail,
+        }
+    else:
+        headline = {"cer": None, "wer": None}
+        out = {**headline, "ref": _SAMPLE_TEXT, "detail": detail}
+    json_path = os.path.join(_OUTPUT_DIR, "tts_eval.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=2)
+    print(f"\n제출용 JSON: {json.dumps(headline, ensure_ascii=False)}")
+    print(f"저장: {json_path}")
 
 
 if __name__ == "__main__":

@@ -715,12 +715,6 @@ export default function MessageScreen() {
                     )}
                   </View>
                 </Animated.View>
-
-                {/* 편지 끝 AI 안내 */}
-                <View style={styles.aiFooter}>
-                  <View style={styles.aiFooterLine} />
-                  <Text style={styles.aiFooterText}>AI가 생성한 메시지입니다</Text>
-                </View>
               </View>
 
               {/* 윤리 고지 — 편지 카드 밖, 버튼 위에 분리 배치 */}
@@ -728,8 +722,8 @@ export default function MessageScreen() {
                 <View style={styles.disclaimerWrap}>
                   <Text style={styles.disclaimer}>
                     {isFirst
-                      ? 'AI가 보호자가 전해준 추억을 바탕으로 재해석한 꿈 속 작별 인사입니다.'
-                      : 'AI가 생성한 추모 글입니다. 반려동물이 직접 한 말이 아닙니다.'}
+                      ? '함께한 기억을 되살려, AI가 한 편의 편지로 담았습니다.\n실제 반려동물이 직접 한 말은 아니에요.'
+                      : '함께한 기억을 되살려, AI가 한 편의 편지로 담았습니다.'}
                   </Text>
                 </View>
               )}

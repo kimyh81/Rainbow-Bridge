@@ -34,8 +34,14 @@ def _recovery(*, allow: bool, unlocked: bool = True):
 
 async def _run(*, request_first_person: bool, allow_first_person: bool):
     """공통 실행 — generate_message 가 받은 first_person 과 응답을 돌려준다."""
+    fp = request_first_person and allow_first_person
     gen_msg = MagicMock(
-        return_value={"content": "추억의 편지", "tone": "warm", "source": "local"}
+        return_value={
+            "content": "추억의 편지",
+            "tone": "warm",
+            "source": "local",
+            "first_person": fp,
+        }
     )
     with (
         patch.object(message_svc, "mongodb", new=_fake_mongo()),

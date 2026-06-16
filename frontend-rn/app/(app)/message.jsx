@@ -190,6 +190,7 @@ export default function MessageScreen() {
   const [petName, setPetName] = useState('소중한 친구');
   const [petSpecies, setPetSpecies] = useState('');
   const [petVideoUrl, setPetVideoUrl] = useState(null);
+  const [petVoicedUrl, setPetVoicedUrl] = useState(null);
   const [petVideoAssetId, setPetVideoAssetId] = useState(null);
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
@@ -243,6 +244,7 @@ export default function MessageScreen() {
     AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
     AsyncStorage.getItem('pet_species').then((v) => v && setPetSpecies(v));
     AsyncStorage.getItem('pet_video_url').then((v) => v && setPetVideoUrl(v));
+    AsyncStorage.getItem('pet_voiced_url').then((v) => v && setPetVoicedUrl(v));
     AsyncStorage.getItem('pet_video_asset_id').then((v) => v && setPetVideoAssetId(v));
     initGate();
     return () => cleanup();
@@ -375,7 +377,7 @@ export default function MessageScreen() {
       ]),
     ]).start(() => {
       setPhase('letter');
-      startSequence(parsedRef.current, message.first_person, message);
+      startSequence(parsedRef.current, message.first_person, message, petVoicedUrl);
     });
   }
 
@@ -444,7 +446,7 @@ export default function MessageScreen() {
     }
   }
 
-  async function startSequence(parsed, isFirstPerson, msgData) {
+  async function startSequence(parsed, isFirstPerson, msgData, voicedUrl) {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
 
     // 전체 텍스트 블록 슬라이드업 (한 줄씩 대신)
@@ -470,29 +472,31 @@ export default function MessageScreen() {
       } catch {}
     }
 
-    // TTS — 콘텐츠 등장 직후 재생
-    try {
-      const petId = await AsyncStorage.getItem('pet_id');
-      const petGender = await AsyncStorage.getItem('pet_gender');
-      if (!petId || !msgData.content) throw new Error('pet_id 또는 content 없음');
-      const tone = msgData.first_person
-        ? (petGender === '남아' ? 'male' : 'female')
-        : 'narration';
-      const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
-      if (!ttsData?.audio_url) throw new Error('audio_url 없음');
-      const audioUri = ttsData.audio_url.startsWith('http')
-        ? ttsData.audio_url
-        : `${API_BASE}${ttsData.audio_url}`;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { volume: 1.0, shouldPlay: false },
-      );
-      ttsRef.current = sound;
-      timersRef.current.push(setTimeout(() => {
-        sound.playAsync().catch((e) => console.warn('[TTS] playAsync 실패:', e));
-      }, 800));
-    } catch (e) {
-      console.warn('[TTS] 생성 실패:', e?.message ?? e);
+    // TTS — voiced_url(영상+TTS 합성) 있는 1인칭 편지는 영상 자체 음성 사용, 중복 방지
+    if (!isFirstPerson || !voicedUrl) {
+      try {
+        const petId = await AsyncStorage.getItem('pet_id');
+        const petGender = await AsyncStorage.getItem('pet_gender');
+        if (!petId || !msgData.content) throw new Error('pet_id 또는 content 없음');
+        const tone = msgData.first_person
+          ? (petGender === '남아' ? 'male' : 'female')
+          : 'narration';
+        const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
+        if (!ttsData?.audio_url) throw new Error('audio_url 없음');
+        const audioUri = ttsData.audio_url.startsWith('http')
+          ? ttsData.audio_url
+          : `${API_BASE}${ttsData.audio_url}`;
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { volume: 1.0, shouldPlay: false },
+        );
+        ttsRef.current = sound;
+        timersRef.current.push(setTimeout(() => {
+          sound.playAsync().catch((e) => console.warn('[TTS] playAsync 실패:', e));
+        }, 800));
+      } catch (e) {
+        console.warn('[TTS] 생성 실패:', e?.message ?? e);
+      }
     }
 
     timersRef.current.push(setTimeout(() => setDone(true), 1200));
@@ -687,11 +691,11 @@ export default function MessageScreen() {
                   <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
                 </View>
 
-                {/* LivePortrait 영상 */}
-                {petVideoUrl && (
-                  <View style={[styles.videoWrap, isFirst && styles.videoWrapFirst]}>
-                    <Video source={{ uri: petVideoUrl }} style={styles.video}
-                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted />
+                {/* LivePortrait 영상 — 1인칭 편지에서만 표시, voiced_url 있으면 소리 있게 재생 */}
+                {(petVoicedUrl || petVideoUrl) && isFirst && (
+                  <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+                    <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
+                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted={!petVoicedUrl} />
                   </View>
                 )}
 

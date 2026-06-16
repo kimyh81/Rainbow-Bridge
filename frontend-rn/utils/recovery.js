@@ -4,8 +4,11 @@ import api from '../api/axiosInstance';
 const CACHE_KEY = 'recovery_cache';
 const CACHE_TTL = 3600000; // 1시간
 
-function scoreToGate(score, riskGated) {
+function scoreToGate(score, riskGated, contentUnlocked) {
   if (riskGated) return 'locked'; // risk_level 2+ → 점수 무관하게 잠김
+  // 백엔드 gate_status와 동일 기준: content_unlocked(체크인 3회+·평균·위기·추세 다중조건)
+  // 미충족이면 점수와 무관하게 locked. (BUG-04: 폴백이 점수만 보던 불일치 수정)
+  if (contentUnlocked === false) return 'locked';
   if (score >= 80) return 'open';
   if (score >= 45) return 'teaser';
   return 'locked';
@@ -32,11 +35,14 @@ export async function fetchRecoveryGate(petId) {
       // 백엔드가 gate_status 3단계 필드를 내려주면 그대로 사용, 없으면 score로 계산
       const riskGated = (data.latest_risk_level ?? 0) >= 2;
       const score = data.recovery_pct ?? 0;
+      const gateStatus = data.gate_status ?? scoreToGate(score, riskGated, data.content_unlocked);
       return {
-        gateStatus: data.gate_status ?? scoreToGate(score, riskGated),
+        gateStatus,
         score,
         riskGated,
         gifUnlocked: data.gif_unlocked ?? (score >= 20 && !riskGated),
+        // 추모 콘텐츠(편지) 해금 여부 — 백엔드 값 우선, 없으면 게이트로 유도
+        content_unlocked: data.content_unlocked ?? (gateStatus !== 'locked'),
       };
     } catch {}
   }
@@ -49,12 +55,14 @@ export async function fetchRecoveryGate(petId) {
       if (cached.ts && Date.now() - cached.ts < CACHE_TTL) {
         const riskGated = (cached.latest_risk_level ?? 0) >= 2;
         const score = cached.recovery_pct ?? 0;
+        // gate_status 우선 사용 — 없으면 recovery_pct로 계산 (dev 필드명 유지)
+        const gateStatus = cached.gate_status ?? scoreToGate(score, riskGated, cached.content_unlocked);
         return {
-          // gate_status 우선 사용 — 없으면 recovery_pct로 계산 (dev 필드명 유지)
-          gateStatus: cached.gate_status ?? scoreToGate(score, riskGated),
+          gateStatus,
           score,
           riskGated,
           gifUnlocked: cached.gif_unlocked ?? (score >= 20 && !riskGated),
+          content_unlocked: cached.content_unlocked ?? (gateStatus !== 'locked'),
         };
       }
     }
@@ -66,17 +74,17 @@ export async function fetchRecoveryGate(petId) {
     if (fd) {
       const days = Math.floor((Date.now() - new Date(fd).getTime()) / 86400000);
       if (days <= 2) {
-        return { gateStatus: 'locked', score: 20, riskGated: false, gifUnlocked: true };
+        return { gateStatus: 'locked', score: 20, riskGated: false, gifUnlocked: true, content_unlocked: false };
       }
       if (days <= 13) {
         // 3~13일: 점수를 선형으로 증가 (30~69점 범위)
         const score = Math.min(79, 30 + (days - 3) * 4);
-        return { gateStatus: 'teaser', score, riskGated: false, gifUnlocked: true };
+        return { gateStatus: 'teaser', score, riskGated: false, gifUnlocked: true, content_unlocked: true };
       }
-      return { gateStatus: 'open', score: 82, riskGated: false, gifUnlocked: true };
+      return { gateStatus: 'open', score: 82, riskGated: false, gifUnlocked: true, content_unlocked: true };
     }
   } catch {}
 
-  // 4순위: 정보 없음 → 찌라시(teaser) 노출로 체크인 유도
-  return { gateStatus: 'teaser', score: 0, riskGated: false, gifUnlocked: false };
+  // 4순위: 정보 없음 → 찌라시(teaser) 노출로 체크인 유도 (편지는 잠금)
+  return { gateStatus: 'teaser', score: 0, riskGated: false, gifUnlocked: false, content_unlocked: false };
 }

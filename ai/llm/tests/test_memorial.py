@@ -160,7 +160,7 @@ def test_guardian_nickname_ignored_in_first_person():
 
     def fake_generate(prompt, *, max_tokens=400, temperature=0.7, json_mode=False):
         captured["prompt"] = prompt
-        return "엄마, 나 봄이야. 강아지별로 이사 가. 조금만 울고 밥 먹어."
+        return "엄마, 나는 봄이야. 강아지별로 이사 가. 조금만 울고 밥 먹어."
 
     pet = {"name": "봄이", "species": "강아지", "period": "12년", "caller_name": "엄마"}
     generate_message(
@@ -339,6 +339,21 @@ def test_resurrection_still_blocked_in_first_person_mode():
     with pytest.raises(GuardrailViolation):
         generate_message(
             PET, {"emotion_score": 5}, generate=bad_generate, first_person=True
+        )
+
+
+def test_first_person_mode_blocks_third_person_output():
+    """first_person=True 인데 LLM이 3인칭 내레이션을 반환하면 차단된다.
+
+    "꿈 속 작별 편지" 화면(first_person=True 표시)에 3인칭 내레이션이 그대로
+    나가는 것을 막기 위한 회귀 테스트.
+    """
+    def third_person_generate(prompt, *, max_tokens=400, temperature=0.7, json_mode=False):
+        return "봄이는 알고 있었습니다. 잘 가요, 봄이. 충분히 사랑받았습니다."
+
+    with pytest.raises(GuardrailViolation):
+        generate_message(
+            PET, {"emotion_score": 5}, generate=third_person_generate, first_person=True
         )
 
 

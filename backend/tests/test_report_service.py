@@ -218,7 +218,7 @@ async def test_get_report_health_logs_reach_recovery_score():
         "play_logs": _FakeCollection([]),
         # 삼성헬스 동기화 결과(걸음 9000·수면 8h)가 적재돼 있는 상황
         "health_logs": _FakeCollection(
-            find_one_result={"steps": 9000, "sleep_hours": 8.0, "date": "2026-06-05"}
+            [{"steps": 9000, "sleep_hours": 8.0, "date": "2026-06-05"}]
         ),
     }
 

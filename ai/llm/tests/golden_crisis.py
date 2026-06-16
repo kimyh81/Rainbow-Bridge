@@ -317,4 +317,13 @@ GOLDEN_CASES: tuple[GoldenCase, ...] = (
         Subject.SELF,
         "정서적 소진 완곡. 신체 증상('감기로 숨쉬기 힘듦')과 겹칠 수 있어 L1(공감)에 한정.",
     ),
+    # --------------------------------------------- 자책감 조합 상향(2026-06-15)
+    GoldenCase(
+        "warning-guilt-escalation",
+        "봄이가 떠난 게 다 내 탓 같아서, 이제 사는 의미가 없어요.",
+        RiskLevel.L2_WARNING,
+        Subject.SELF,
+        "자책감('내 탓') + 수동적 위기신호('사는 의미가 없') 조합 → L2 상향"
+        "(_apply_guilt_escalation). 자책감 단독으론 안 올리되, L1과 겹치면 1393 우선.",
+    ),
 )

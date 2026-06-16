@@ -191,7 +191,7 @@ async def create_message(data: MessageCreate) -> MessageResponse:
 
                 response = MessageResponse(**doc)
                 # 회복 게이트 상태 + 1인칭 실제 적용 여부를 프론트에 전달
-                response.first_person = first_person
+                response.first_person = result.get("first_person", False)
                 # 1인칭 편지 생성 시 d3 입모양 영상 백그라운드 트리거 (voiced_url 준비)
                 if first_person:
                     from app.services.media import trigger_liveportrait_for_pet

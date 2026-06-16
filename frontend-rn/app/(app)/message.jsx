@@ -190,6 +190,7 @@ export default function MessageScreen() {
   const [petName, setPetName] = useState('소중한 친구');
   const [petSpecies, setPetSpecies] = useState('');
   const [petVideoUrl, setPetVideoUrl] = useState(null);
+  const [petVoicedUrl, setPetVoicedUrl] = useState(null);
   const [petVideoAssetId, setPetVideoAssetId] = useState(null);
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
@@ -243,6 +244,7 @@ export default function MessageScreen() {
     AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
     AsyncStorage.getItem('pet_species').then((v) => v && setPetSpecies(v));
     AsyncStorage.getItem('pet_video_url').then((v) => v && setPetVideoUrl(v));
+    AsyncStorage.getItem('pet_voiced_url').then((v) => v && setPetVoicedUrl(v));
     AsyncStorage.getItem('pet_video_asset_id').then((v) => v && setPetVideoAssetId(v));
     initGate();
     return () => cleanup();
@@ -280,8 +282,8 @@ export default function MessageScreen() {
         else if (mode !== 'first') loadMessage();
       }
     } catch {
-      // pet_id 없거나 네트워크 실패 시 로딩 무한 방지
-      setGateStatus('teaser');
+      // 게이트 확인 실패 시 fail-closed — 편지를 여는 쪽이 아니라 잠그는 쪽으로(설계 기준)
+      setGateStatus('locked');
     }
   }
 
@@ -291,6 +293,12 @@ export default function MessageScreen() {
     try {
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');
+      // 1인칭을 요청했는데 백엔드가 1인칭을 거부(first_person !== true)하면, 3인칭을
+      // 1인칭인 척 보여주지 않는다 — 조건 미충족 안내(teaser)로 전환 (윤리 게이트, BUG-08)
+      if (data.first_person !== true) {
+        setGateStatus('teaser');
+        return;
+      }
       await saveMessage(data);
     } catch {
       await saveMessage(makeFallbackMessage(petNameLocal));
@@ -369,7 +377,7 @@ export default function MessageScreen() {
       ]),
     ]).start(() => {
       setPhase('letter');
-      startSequence(parsedRef.current, message.first_person, message);
+      startSequence(parsedRef.current, message.first_person, message, petVoicedUrl);
     });
   }
 
@@ -427,13 +435,18 @@ export default function MessageScreen() {
     try {
       const petId = await AsyncStorage.getItem('pet_id');
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
+      // 1인칭 미충족(first_person !== true)이면 3인칭을 1인칭인 척 노출하지 않음 (BUG-08)
+      if (!data || data.first_person !== true) {
+        setError('아직 별에서 온 편지를 받을 조건이 안 됐어요. 감정 체크인을 조금 더 이어가 주세요.');
+        return;
+      }
       await saveMessage(data);
     } catch {
       setError('편지 생성에 실패했어요. 다시 시도해주세요.');
     }
   }
 
-  async function startSequence(parsed, isFirstPerson, msgData) {
+  async function startSequence(parsed, isFirstPerson, msgData, voicedUrl) {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
 
     // 전체 텍스트 블록 슬라이드업 (한 줄씩 대신)
@@ -459,29 +472,31 @@ export default function MessageScreen() {
       } catch {}
     }
 
-    // TTS — 콘텐츠 등장 직후 재생
-    try {
-      const petId = await AsyncStorage.getItem('pet_id');
-      const petGender = await AsyncStorage.getItem('pet_gender');
-      if (!petId || !msgData.content) throw new Error('pet_id 또는 content 없음');
-      const tone = msgData.first_person
-        ? (petGender === '남아' ? 'male' : 'female')
-        : 'narration';
-      const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
-      if (!ttsData?.audio_url) throw new Error('audio_url 없음');
-      const audioUri = ttsData.audio_url.startsWith('http')
-        ? ttsData.audio_url
-        : `${API_BASE}${ttsData.audio_url}`;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { volume: 1.0, shouldPlay: false },
-      );
-      ttsRef.current = sound;
-      timersRef.current.push(setTimeout(() => {
-        sound.playAsync().catch((e) => console.warn('[TTS] playAsync 실패:', e));
-      }, 800));
-    } catch (e) {
-      console.warn('[TTS] 생성 실패:', e?.message ?? e);
+    // TTS — voiced_url(영상+TTS 합성) 있는 1인칭 편지는 영상 자체 음성 사용, 중복 방지
+    if (!isFirstPerson || !voicedUrl) {
+      try {
+        const petId = await AsyncStorage.getItem('pet_id');
+        const petGender = await AsyncStorage.getItem('pet_gender');
+        if (!petId || !msgData.content) throw new Error('pet_id 또는 content 없음');
+        const tone = msgData.first_person
+          ? (petGender === '남아' ? 'male' : 'female')
+          : 'narration';
+        const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
+        if (!ttsData?.audio_url) throw new Error('audio_url 없음');
+        const audioUri = ttsData.audio_url.startsWith('http')
+          ? ttsData.audio_url
+          : `${API_BASE}${ttsData.audio_url}`;
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { volume: 1.0, shouldPlay: false },
+        );
+        ttsRef.current = sound;
+        timersRef.current.push(setTimeout(() => {
+          sound.playAsync().catch((e) => console.warn('[TTS] playAsync 실패:', e));
+        }, 800));
+      } catch (e) {
+        console.warn('[TTS] 생성 실패:', e?.message ?? e);
+      }
     }
 
     timersRef.current.push(setTimeout(() => setDone(true), 1200));
@@ -676,11 +691,11 @@ export default function MessageScreen() {
                   <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
                 </View>
 
-                {/* LivePortrait 영상 */}
-                {petVideoUrl && (
-                  <View style={[styles.videoWrap, isFirst && styles.videoWrapFirst]}>
-                    <Video source={{ uri: petVideoUrl }} style={styles.video}
-                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted />
+                {/* LivePortrait 영상 — 1인칭 편지에서만 표시, voiced_url 있으면 소리 있게 재생 */}
+                {(petVoicedUrl || petVideoUrl) && isFirst && (
+                  <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+                    <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
+                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted={!petVoicedUrl} />
                   </View>
                 )}
 

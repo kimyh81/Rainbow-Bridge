@@ -25,7 +25,7 @@ function toFullUrl(url) {
 export default function MediaScreen() {
   const [videoUrl, setVideoUrl] = useState(null);
   const [gifUrl, setGifUrl] = useState(null);
-  const [recoveryScore, setRecoveryScore] = useState(null);
+  const [gifUnlocked, setGifUnlocked] = useState(null); // null=로딩중, true=해금, false=잠김
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState('');
@@ -47,10 +47,13 @@ export default function MediaScreen() {
         // assetId 있으면 voiced_url 갱신 + gif 최신 상태 확인
         try {
           const res = await getMediaStatus(savedAssetId);
-          const latestUrl = toFullUrl(res.voiced_url || res.video_url);
+          const latestUrl = toFullUrl(res.video_url);
           if (latestUrl && latestUrl !== savedVideo) {
             setVideoUrl(latestUrl);
             await AsyncStorage.setItem('pet_video_url', latestUrl);
+          }
+          if (res.voiced_url) {
+            await AsyncStorage.setItem('pet_voiced_url', toFullUrl(res.voiced_url));
           }
           if (res.gif_url) {
             const fullGif = toFullUrl(res.gif_url);
@@ -63,10 +66,10 @@ export default function MediaScreen() {
       }
       if (petId) {
         try {
-          const { score } = await fetchRecoveryGate(petId);
-          setRecoveryScore(score ?? 0);
+          const { gifUnlocked: gu } = await fetchRecoveryGate(petId);
+          setGifUnlocked(gu ?? false);
         } catch {
-          setRecoveryScore(0);
+          setGifUnlocked(false);
         }
       }
     })();
@@ -104,14 +107,17 @@ export default function MediaScreen() {
     pollRef.current = setTimeout(async () => {
       try {
         const res = await getMediaStatus(assetId);
-        const url = res.voiced_url || res.video_url;
+        const url = res.video_url;
         if (res.status === 'done' && url) {
           const fullUrl = toFullUrl(url);
           setVideoUrl(fullUrl);
           await AsyncStorage.setItem('pet_video_url', fullUrl);
           await AsyncStorage.setItem('pet_video_asset_id', assetId);
+          // voiced_url(영상+TTS 합성)은 1인칭 편지용으로 별도 저장
+          if (res.voiced_url) {
+            await AsyncStorage.setItem('pet_voiced_url', toFullUrl(res.voiced_url));
+          }
           setLoading(false);
-          // voiced 완료 후 gif도 바로 있으면 세팅, 없으면 폴링
           if (res.gif_url) {
             const fullGif = toFullUrl(res.gif_url);
             setGifUrl(fullGif);
@@ -194,7 +200,7 @@ export default function MediaScreen() {
             </Card>
           ) : null}
 
-          {videoUrl && recoveryScore !== null && recoveryScore < 20 ? (
+          {videoUrl && gifUnlocked === false ? (
             <Card style={styles.teaserCard}>
               <Text style={styles.teaserTitle}>✨ 숨쉬는 사진</Text>
               <Text style={styles.teaserDesc}>
@@ -205,7 +211,7 @@ export default function MediaScreen() {
             </Card>
           ) : null}
 
-          {(recoveryScore === null || recoveryScore >= 20) && gifUrl ? (
+          {gifUnlocked !== false && gifUrl ? (
             <Card style={styles.gifCard}>
               <Text style={styles.badge}>✅ 완성</Text>
               <Text style={styles.gifTitle}>✨ 숨쉬는 사진</Text>

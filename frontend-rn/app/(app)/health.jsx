@@ -101,6 +101,13 @@ export default function HealthScreen() {
       const petId = await AsyncStorage.getItem('pet_id');
       const res = await syncHealth({ pet_id: petId, steps_result, sleep_result });
       setResult(res);
+      // 회복 리포트에서 걸음·수면을 표시할 수 있게 최근 동기화 결과를 캐시
+      try {
+        await AsyncStorage.setItem(
+          'health_latest',
+          JSON.stringify({ date: res.date, steps: res.steps, sleep_hours: res.sleep_hours })
+        );
+      } catch {}
     } catch (e) {
       setError('오류: ' + (e?.message ?? String(e)));
     } finally {

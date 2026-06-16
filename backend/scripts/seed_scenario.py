@@ -143,12 +143,16 @@ PET = {
             "keyword": "이름을 부르면",
             "detail": "하늘아, 하고 부르면 어디서든 달려왔다. 지금도 이름을 부르면 올 것만 같아서 아직 부를 수가 없다",
         },
+        {
+            "keyword": "아픈 날의 일기",
+            "detail": "오늘 하늘이가 밥을 조금 먹었다. 힘들어 보였지만, 내 손을 오래 핥아줬다",
+        },
     ],
     "bucket_list": [
-        "마지막으로 공원 산책 한 번 더 하기",
-        "같이 사진 많이 찍어두기",
-        "고마웠다고, 사랑한다고 꼭 말해주기",
-        "좋아하던 간식 실컷 먹여주기",
+        "매일 산책하기",
+        "예쁜 사진 많이 찍기",
+        "함께 피크닉 가기",
+        "맛있는 간식 먹기",
     ],
 }
 
@@ -164,20 +168,27 @@ def _mongo_col(name: str):
 
 
 def _reset_pet_data(pet_id: str):
-    """기존 체크인·헬스·미션 데이터 삭제."""
+    """기존 체크인·헬스·미션 데이터 삭제 + pet memories/bucket_list 갱신."""
     try:
-        _, emotions = _mongo_col("emotions")
-        _, missions = _mongo_col("missions")
-        _, health = _mongo_col("health_logs")
-        _, usage = _mongo_col("usage_stats")
-        emotions.database.client  # 연결 확인용
-        r1 = emotions.delete_many({"pet_id": pet_id})
-        r2 = missions.delete_many({"pet_id": pet_id})
-        r3 = health.delete_many({"pet_id": pet_id})
-        r4 = usage.delete_many({"pet_id": pet_id})
+        from bson import ObjectId
+        client, _ = _mongo_col("emotions")
+        db = client[MONGO_DB_NAME]
+        r1 = db["emotions"].delete_many({"pet_id": pet_id})
+        r2 = db["missions"].delete_many({"pet_id": pet_id})
+        r3 = db["health_logs"].delete_many({"pet_id": pet_id})
+        r4 = db["usage_stats"].delete_many({"pet_id": pet_id})
+        try:
+            db["pets"].update_one(
+                {"_id": ObjectId(pet_id)},
+                {"$set": {"memories": PET["memories"], "bucket_list": PET["bucket_list"]}},
+            )
+            print("  pet memories/bucket_list 갱신 완료")
+        except Exception:
+            pass
         print(
             f"  RESET: 감정 {r1.deleted_count}·미션 {r2.deleted_count}·헬스 {r3.deleted_count}·사용량 {r4.deleted_count} 삭제"
         )
+        client.close()
     except Exception as e:
         print(f"  RESET 실패: {e.__class__.__name__} — 기존 데이터 위에 추가됩니다")
 

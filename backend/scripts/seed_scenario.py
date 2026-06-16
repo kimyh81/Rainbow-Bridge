@@ -67,11 +67,12 @@ _MISSION_POOL = [
 
 ACCOUNTS = [
     {
-        "email": "demo04@demo.com",
+        "email": "demo03@demo.com",
         "nickname": "김지수",
         "checkins": [5, 6, 6, 7, 7, 8, 9],
         "health_days": 7,
         "missions_days": 24,
+        "hidden_mission": True,
     },
 ]
 

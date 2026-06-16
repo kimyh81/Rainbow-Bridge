@@ -9,7 +9,7 @@ from bson.errors import InvalidId
 from ai.evaluation.report import build_report
 
 from app.db.mongodb import mongodb
-from app.schemas.report import EmotionTrend, PlayTrend, ReportResponse
+from app.schemas.report import EmotionTrend, PlayTrend, ReportResponse, SleepTrend
 from app.services.health_lifestyle import get_lifestyle_pct
 
 
@@ -114,10 +114,18 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
     # 삼성헬스 객관 신호(health_logs 최근 1건) — POST /health/sync 가 날짜별로 적재.
     # 활동(steps)만 회복점수 반영, 수면(sleep_hours)은 교차검증·표시로만(결정문서 §2).
     # 없으면 {} → build_report 가 기존 40/35/25 산식 그대로(하위호환).
-    health_doc = await mongodb.db["health_logs"].find_one(
-        {"pet_id": pet_id}, sort=[("date", -1)]
+    health_docs_all = (
+        await mongodb.db["health_logs"]
+        .find({"pet_id": pet_id})
+        .sort("date", 1)
+        .to_list(30)
     )
-    health = health_doc or {}
+    health = health_docs_all[-1] if health_docs_all else {}
+    sleep_trend_data = [
+        SleepTrend(date=d["date"], hours=float(d["sleep_hours"]))
+        for d in health_docs_all
+        if d.get("sleep_hours") is not None
+    ]
 
     # 생활패턴(15%) — 걸음(40%)+수면(30%)+야간 폰사용(30%) 합성. 없으면 무페널티 제외.
     lifestyle = await get_lifestyle_pct(pet_id)
@@ -163,6 +171,7 @@ async def get_report(pet_id: str, period: str | None = None) -> ReportResponse:
             EmotionTrend(created_at=str(row["created_at"]), score=row["score"])
             for row in report["emotion_trend"]
         ],
+        sleep_trend=sleep_trend_data,
         play_trend=play_trend_data,
         mission_completion_rate=report["mission_completion_rate"],
         recovery_signal=report["recovery_signal"],

@@ -308,6 +308,12 @@ export default function MessageScreen() {
       }
     } catch {}
     try {
+      // 기존 1인칭 메시지 먼저 재사용 — 매번 새 메시지 생성 방지
+      const existing = await getLatestMessage(petId);
+      if (existing && existing.first_person === true && existing.source !== 'unavailable') {
+        await saveMessage(existing);
+        return;
+      }
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');
       // 1인칭을 요청했는데 백엔드가 1인칭을 거부(first_person !== true)하면, 3인칭을

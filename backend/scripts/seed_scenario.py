@@ -215,7 +215,7 @@ def get_or_create_pet(c: httpx.Client, headers: dict) -> str | None:
     if r.status_code == 201:
         pet_id = r.json()["id"]
         c.patch(f"/api/v1/pets/{pet_id}/memorial", headers=headers)
-        print(f"  memorial_mode 활성화")
+        print("  memorial_mode 활성화")
         if PET_PHOTO_PATH:
             with open(PET_PHOTO_PATH, "rb") as f:
                 fname = PET_PHOTO_PATH.replace("\\", "/").split("/")[-1]
@@ -302,7 +302,7 @@ def seed_hidden_mission(c: httpx.Client, headers: dict, pet_id: str, base_days: 
     """
     ok = _insert_missions_mongo(pet_id, base_days)
     if not ok:
-        print(f"  히든미션: MongoDB 연결 불가 — 서버에서 실행 필요")
+        print("  히든미션: MongoDB 연결 불가 — 서버에서 실행 필요")
         return
 
     # 오늘 미션 API 완료 → completed_days >= 2 → 슬라이드쇼 트리거
@@ -318,7 +318,7 @@ def seed_hidden_mission(c: httpx.Client, headers: dict, pet_id: str, base_days: 
             headers=headers,
         )
         if cr.status_code == 200:
-            print(f"  히든미션: 오늘 미션 완료 → 슬라이드쇼 트리거")
+            print("  히든미션: 오늘 미션 완료 → 슬라이드쇼 트리거")
             break
 
 

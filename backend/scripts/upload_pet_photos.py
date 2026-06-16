@@ -1,23 +1,22 @@
 """시나리오 계정 사진 업로드 스크립트
 
 seed_scenario.py 실행 후 사진을 따로 올릴 때 사용합니다.
-PHOTO_DIR 폴더 안의 사진을 전 계정에 한 장씩 업로드합니다.
-(첫 번째 파일을 대표 사진으로 사용)
+PHOTO_DIR 폴더 안의 사진을 전부 모든 계정에 업로드합니다.
+(사진이 많을수록 select_best_pet_photo가 더 좋은 사진을 고를 수 있음)
 
-실행: cd backend && py -3.13 scripts/upload_pet_photos.py
+실행: cd backend && python3 scripts/upload_pet_photos.py
 """
 
 from __future__ import annotations
 
 import os
+
 import httpx
 
 BASE = "https://rainbow-bridge.duckdns.org"
 PASSWORD = "js1234"
 
-# ✏️ 사진 폴더 경로 — 폴더 안 첫 번째 사진이 대표 사진으로 업로드됩니다
 PHOTO_DIR = "scripts/image"
-FIRST_PHOTO = "scripts/image/KakaoTalk_20260616_094919370.jpg"  # 대표 사진 고정
 
 ACCOUNTS = [
     "demo00@demo.com",
@@ -31,9 +30,7 @@ ACCOUNTS = [
 
 def get_photos(folder: str) -> list[str]:
     exts = {".jpg", ".jpeg", ".png"}
-    files = sorted(
-        f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in exts
-    )
+    files = sorted(f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in exts)
     return [os.path.join(folder, f) for f in files]
 
 
@@ -42,9 +39,7 @@ if not photos:
     print(f"사진 없음: {PHOTO_DIR}")
     exit(1)
 
-print(
-    f"사진 {len(photos)}장 발견. 첫 번째 사진을 대표 사진으로 업로드합니다: {photos[0]}"
-)
+print(f"사진 {len(photos)}장 발견. 계정마다 전부 업로드합니다.")
 
 with httpx.Client(base_url=BASE, timeout=60) as c:
     for email in ACCOUNTS:
@@ -62,18 +57,19 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
             continue
         pet_id = pets[0]["id"]
 
-        # 대표 사진 업로드 (고정)
-        photo_path = FIRST_PHOTO
-        with open(photo_path, "rb") as f:
-            fname = os.path.basename(photo_path)
-            pr = c.post(
-                f"/api/v1/pets/{pet_id}/photo",
-                files={"file": (fname, f, "image/jpeg")},
-                headers=headers,
-            )
-        if pr.status_code == 200:
-            print(f"  완료: {pr.json().get('photo_url', '')[:70]}")
-        else:
-            print(f"  실패: {pr.status_code} {pr.text[:80]}")
+        ok = 0
+        for photo_path in photos:
+            with open(photo_path, "rb") as f:
+                fname = os.path.basename(photo_path)
+                pr = c.post(
+                    f"/api/v1/pets/{pet_id}/photo",
+                    files={"file": (fname, f, "image/jpeg")},
+                    headers=headers,
+                )
+            if pr.status_code == 200:
+                ok += 1
+            else:
+                print(f"  실패({fname}): {pr.status_code} {pr.text[:60]}")
+        print(f"  완료: {ok}/{len(photos)}장")
 
 print("\n완료")

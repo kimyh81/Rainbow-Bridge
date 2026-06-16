@@ -13,12 +13,20 @@ class PlayTrend(BaseModel):
     count: int
 
 
+class SleepTrend(BaseModel):
+    date: str
+    hours: float
+
+
 class ReportResponse(BaseModel):
     pet_id: str
     period: Optional[str] = Field(None, description="집계 기간 (예: 2026-06)")
     usage: dict[str, Any] = Field(default_factory=dict, description="LLM 사용 횟수")
     emotion_trend: list[EmotionTrend] = Field(
         default_factory=list, description="감정 추이"
+    )
+    sleep_trend: list[SleepTrend] = Field(
+        default_factory=list, description="수면 시간 추이"
     )
     play_trend: list[PlayTrend] = Field(
         default_factory=list, description="TTS 재생 이벤트 날짜별 횟수"

@@ -31,7 +31,14 @@ def _collection():
 
 
 async def get_missions(pet_id: str) -> list[MissionResponse]:
-    cursor = _collection().find({"pet_id": pet_id}).sort("created_at", -1)
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    cursor = (
+        _collection()
+        .find({"pet_id": pet_id, "created_at": {"$gte": today_start}})
+        .sort("created_at", -1)
+    )
     results = []
     async for doc in cursor:
         doc["id"] = str(doc.pop("_id"))

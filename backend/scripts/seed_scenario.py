@@ -171,6 +171,7 @@ def _reset_pet_data(pet_id: str):
     """기존 체크인·헬스·미션 데이터 삭제 + pet memories/bucket_list 갱신."""
     try:
         from bson import ObjectId
+
         client, _ = _mongo_col("emotions")
         db = client[MONGO_DB_NAME]
         r1 = db["emotions"].delete_many({"pet_id": pet_id})
@@ -180,7 +181,12 @@ def _reset_pet_data(pet_id: str):
         try:
             db["pets"].update_one(
                 {"_id": ObjectId(pet_id)},
-                {"$set": {"memories": PET["memories"], "bucket_list": PET["bucket_list"]}},
+                {
+                    "$set": {
+                        "memories": PET["memories"],
+                        "bucket_list": PET["bucket_list"],
+                    }
+                },
             )
             print("  pet memories/bucket_list 갱신 완료")
         except Exception:

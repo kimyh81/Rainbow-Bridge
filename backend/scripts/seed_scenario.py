@@ -90,9 +90,9 @@ ACCOUNTS = [
     {
         "email": "demo03@demo.com",
         "nickname": "김지수",
-        "checkins": [6, 7, 7, 8],
-        "health_days": 3,
-        "missions_days": 15,
+        "checkins": [5, 6, 6, 7, 7, 8, 9],
+        "health_days": 7,
+        "missions_days": 24,
         "hidden_mission": True,  # 슬라이드쇼 트리거
     },
     {

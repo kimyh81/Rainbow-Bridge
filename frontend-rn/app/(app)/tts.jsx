@@ -129,7 +129,8 @@ export default function TtsScreen() {
   }
 
   if (gateStatus === 'locked' || gateStatus === 'teaser') {
-    const pct = Math.min(100, (recoveryScore / 80) * 100);
+    // teaser 구간(45~79점)을 0~100%로 환산 — 80점(open)에서 100%
+    const pct = Math.max(0, Math.min(100, ((recoveryScore - 45) / 35) * 100));
     const filled = Math.round(pct / 10);
     const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
     return (

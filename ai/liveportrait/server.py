@@ -24,13 +24,16 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import traceback
 import uuid
 from pathlib import Path
 
 import asyncio
+import logging
+import time
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -39,6 +42,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pipeline import DRIVING_MULTIPLIER, LivePortraitError, generate_gif, generate_video  # noqa: E402
 
 app = FastAPI(title="LivePortrait 추론 서비스", version="1.0")
+
+_access_log = logging.getLogger("lp.latency")
+
+
+@app.middleware("http")
+async def log_latency(request: Request, call_next):
+    t = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - t) * 1000
+    _access_log.info("%s %s %d  %.1fms", request.method, request.url.path, response.status_code, ms)
+    return response
+
 
 # GPU 동시 추론 1건 제한 — RTX 3080 단일 GPU, 큐 쌓이면 300s 타임아웃 악순환 방지.
 _gpu_sem = asyncio.Semaphore(1)
@@ -221,6 +236,7 @@ async def _run_gif_job(job_id: str, src_path: Path, out_dir: Path) -> None:
         result_path = await run_in_threadpool(generate_gif, src_path, str(out_dir))
         _gif_jobs[job_id] = {"status": "done", "path": result_path}
     except Exception:
+        traceback.print_exc()
         _gif_jobs[job_id] = {"status": "error", "path": None}
     finally:
         _gpu_sem.release()

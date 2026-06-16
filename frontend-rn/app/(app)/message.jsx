@@ -184,6 +184,7 @@ export default function MessageScreen() {
   // gate: 'checking' | 'locked' | 'teaser' | 'open'
   const [gateStatus, setGateStatus] = useState('checking');
   const [recoveryScore, setRecoveryScore] = useState(0);
+  const [contentUnlocked, setContentUnlocked] = useState(true);
   const [phase, setPhase] = useState('loading'); // loading | envelope | letter
   const [message, setMessage] = useState(null);
   const [error, setError] = useState('');
@@ -273,13 +274,15 @@ export default function MessageScreen() {
   async function initGate() {
     try {
       const petId = await AsyncStorage.getItem('pet_id');
-      const { gateStatus: gs, score, riskGated } = await fetchRecoveryGate(petId);
+      const { gateStatus: gs, score, riskGated, content_unlocked } = await fetchRecoveryGate(petId);
       setRecoveryScore(score);
       setGateStatus(gs);
+      setContentUnlocked(content_unlocked !== false); // undefined면 true(하위호환)
       if (gs === 'open' || gs === 'teaser') {
         if (riskGated) setSafetyOpen(true);
         if (mode === 'first' && gs === 'open') loadFirstPerson();
-        else if (mode !== 'first') loadMessage();
+        // teaser여도 위로 편지가 아직 안 열렸으면(content_unlocked false) 로드하지 않음 (BUG-05)
+        else if (mode !== 'first' && content_unlocked !== false) loadMessage();
       }
     } catch {
       // 게이트 확인 실패 시 fail-closed — 편지를 여는 쪽이 아니라 잠그는 쪽으로(설계 기준)
@@ -521,7 +524,8 @@ export default function MessageScreen() {
       </LinearGradient>
     );
   }
-  if (gateStatus === 'locked') {
+  // teaser여도 위로 편지가 아직 안 열렸으면(content_unlocked false) 잠금 화면으로 (BUG-05)
+  if (gateStatus === 'locked' || (mode !== 'first' && !contentUnlocked)) {
     return (
       <GateLockedScreen
         petName={petName}
@@ -711,12 +715,6 @@ export default function MessageScreen() {
                     )}
                   </View>
                 </Animated.View>
-
-                {/* 편지 끝 AI 안내 */}
-                <View style={styles.aiFooter}>
-                  <View style={styles.aiFooterLine} />
-                  <Text style={styles.aiFooterText}>AI가 생성한 메시지입니다</Text>
-                </View>
               </View>
 
               {/* 윤리 고지 — 편지 카드 밖, 버튼 위에 분리 배치 */}
@@ -724,8 +722,8 @@ export default function MessageScreen() {
                 <View style={styles.disclaimerWrap}>
                   <Text style={styles.disclaimer}>
                     {isFirst
-                      ? 'AI가 보호자가 전해준 추억을 바탕으로 재해석한 꿈 속 작별 인사입니다.'
-                      : 'AI가 생성한 추모 글입니다. 반려동물이 직접 한 말이 아닙니다.'}
+                      ? '함께한 기억을 되살려, AI가 한 편의 편지로 담았습니다.\n실제 반려동물이 직접 한 말은 아니에요.'
+                      : '함께한 기억을 되살려, AI가 한 편의 편지로 담았습니다.'}
                   </Text>
                 </View>
               )}

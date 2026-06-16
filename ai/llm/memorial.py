@@ -120,8 +120,11 @@ def _violates_guardrail(
             return f"부활/환생 표현 감지: '{marker}'"
 
     if first_person:
-        if not _has_pet_first_person(content, pet_name):
-            return f"1인칭 모드 요청이지만 반려동물({pet_name}) 1인칭 화법 미사용"
+        # 1인칭 모드: 펫이 나는/내가 등을 사용하면 통과.
+        # 펫은 자신의 이름과 "나는"을 같은 문장에 쓰지 않는 게 자연스러우므로
+        # 이름 동시 등장 조건 없이 1인칭 표현 존재 여부만 확인한다.
+        if not _FIRST_PERSON_RE.search(content):
+            return f"1인칭 모드 요청이지만 1인칭 화법(나는/내가 등) 미사용"
     elif _has_pet_first_person(content, pet_name):
         return f"반려동물({pet_name}) 1인칭 화법 감지"
 

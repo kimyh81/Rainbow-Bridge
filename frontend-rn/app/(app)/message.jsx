@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -193,6 +193,7 @@ export default function MessageScreen() {
   const [petVideoUrl, setPetVideoUrl] = useState(null);
   const [petVoicedUrl, setPetVoicedUrl] = useState(null);
   const [petVideoAssetId, setPetVideoAssetId] = useState(null);
+  const [petPhotoUrl, setPetPhotoUrl] = useState(null);
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [lines, setLines] = useState([]);
@@ -247,6 +248,7 @@ export default function MessageScreen() {
     AsyncStorage.getItem('pet_video_url').then((v) => v && setPetVideoUrl(v));
     AsyncStorage.getItem('pet_voiced_url').then((v) => v && setPetVoicedUrl(v));
     AsyncStorage.getItem('pet_video_asset_id').then((v) => v && setPetVideoAssetId(v));
+    AsyncStorage.getItem('pet_photo_url').then((v) => v && setPetPhotoUrl(v));
     initGate();
     return () => cleanup();
   }, []);
@@ -695,11 +697,16 @@ export default function MessageScreen() {
                   <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
                 </View>
 
-                {/* LivePortrait 영상 — 1인칭 편지에서만 표시, voiced_url 있으면 소리 있게 재생 */}
-                {(petVoicedUrl || petVideoUrl) && isFirst && (
+                {/* 1인칭 편지 상단 — LP 영상(voiced/video) 우선, 없으면 프로필 사진 */}
+                {isFirst && (petVoicedUrl || petVideoUrl) && (
                   <View style={[styles.videoWrap, styles.videoWrapFirst]}>
                     <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
                       resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted={!petVoicedUrl} />
+                  </View>
+                )}
+                {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (
+                  <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+                    <Image source={{ uri: petPhotoUrl }} style={styles.video} resizeMode="cover" />
                   </View>
                 )}
 

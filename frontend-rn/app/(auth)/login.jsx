@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '@/api/auth';
 import { getMyPets } from '@/api/pets';
+import { API_URL } from '@/api/axiosInstance';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -67,6 +68,9 @@ export default function LoginScreen() {
             const endPart = parts[1]?.trim();
             if (startPart) await AsyncStorage.setItem('pet_start_date', startPart);
             if (endPart) await AsyncStorage.setItem('pet_farewell_date', endPart);
+          }
+          if (pet.photo_url) {
+            await AsyncStorage.setItem('pet_photo_url', `${API_URL}${pet.photo_url}`);
           }
           hasPet = true;
         }

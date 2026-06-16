@@ -10,7 +10,7 @@ import SafetyModal from '@/components/SafetyModal';
 import Button from '@/components/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateMessage, getLatestMessage } from '@/api/messages';
-import { generateMedia, getMediaStatus, recordPlay } from '@/api/media';
+import { getLatestMedia, getMediaStatus, recordPlay } from '@/api/media';
 import { generateTts } from '@/api/tts';
 import { COLORS } from '@/constants/colors';
 import { gwa, iga, eunneun } from '@/utils/josa';
@@ -294,24 +294,17 @@ export default function MessageScreen() {
     const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
     // voiced_url 복원 — 로그인 후 AsyncStorage 초기화돼도 DB에서 복원
     try {
-      let assetId = await AsyncStorage.getItem('pet_video_asset_id');
-      if (!assetId) {
-        const media = await generateMedia(petId);
-        assetId = media.asset_id;
-        if (assetId) await AsyncStorage.setItem('pet_video_asset_id', assetId);
+      const media = await getLatestMedia(petId);
+      if (media.asset_id) await AsyncStorage.setItem('pet_video_asset_id', media.asset_id);
+      if (media.voiced_url) {
+        const full = media.voiced_url.startsWith('http') ? media.voiced_url : `${API_BASE}${media.voiced_url}`;
+        setPetVoicedUrl(full);
+        await AsyncStorage.setItem('pet_voiced_url', full);
       }
-      if (assetId) {
-        const status = await getMediaStatus(assetId);
-        if (status.voiced_url) {
-          const full = status.voiced_url.startsWith('http') ? status.voiced_url : `${API_BASE}${status.voiced_url}`;
-          setPetVoicedUrl(full);
-          await AsyncStorage.setItem('pet_voiced_url', full);
-        }
-        if (status.video_url) {
-          const full = status.video_url.startsWith('http') ? status.video_url : `${API_BASE}${status.video_url}`;
-          setPetVideoUrl(full);
-          await AsyncStorage.setItem('pet_video_url', full);
-        }
+      if (media.video_url) {
+        const full = media.video_url.startsWith('http') ? media.video_url : `${API_BASE}${media.video_url}`;
+        setPetVideoUrl(full);
+        await AsyncStorage.setItem('pet_video_url', full);
       }
     } catch {}
     try {

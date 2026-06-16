@@ -44,24 +44,39 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "rainbow_bridge")
 # 미션 풀 — 날짜별로 순환 사용
 _MISSION_POOL = [
     ("오늘 산책하기", "15분이라도 밖에 나가 바람을 쐬어보세요.", "activity", "small"),
-    ("소중한 사람에게 연락하기", "가까운 가족이나 친구에게 안부를 전해보세요.", "connection", "small"),
-    ("반려동물과의 추억 기록하기", "소중한 기억을 글이나 사진으로 남겨보세요.", "record", "small"),
+    (
+        "소중한 사람에게 연락하기",
+        "가까운 가족이나 친구에게 안부를 전해보세요.",
+        "connection",
+        "small",
+    ),
+    (
+        "반려동물과의 추억 기록하기",
+        "소중한 기억을 글이나 사진으로 남겨보세요.",
+        "record",
+        "small",
+    ),
     ("따뜻한 음료 마시기", "잠깐 쉬며 따뜻한 차 한 잔 마셔보세요.", "rest", "gentle"),
-    ("좋아하는 음악 듣기", "마음이 편한 음악을 들으며 잠시 쉬어가세요.", "rest", "gentle"),
+    (
+        "좋아하는 음악 듣기",
+        "마음이 편한 음악을 들으며 잠시 쉬어가세요.",
+        "rest",
+        "gentle",
+    ),
 ]
 
 ACCOUNTS = [
     {
         "email": "demo00@demo.com",
         "nickname": "김지수",
-        "checkins": [],           # 체크인 없음
+        "checkins": [],  # 체크인 없음
         "health_days": 0,
         "missions_days": 0,
     },
     {
         "email": "demo01@demo.com",
         "nickname": "김지수",
-        "checkins": [6, 7, 8],    # 상향 추세 → 감정추세 점수 ↑
+        "checkins": [6, 7, 8],  # 상향 추세 → 감정추세 점수 ↑
         "health_days": 2,
         "missions_days": 10,
     },
@@ -78,7 +93,7 @@ ACCOUNTS = [
         "checkins": [6, 7, 7, 8],
         "health_days": 3,
         "missions_days": 15,
-        "hidden_mission": True,   # 슬라이드쇼 트리거
+        "hidden_mission": True,  # 슬라이드쇼 트리거
     },
     {
         "email": "demo04@demo.com",
@@ -140,8 +155,10 @@ PET = {
 
 # ── MongoDB 직접 삽입 유틸 ────────────────────────────────────────────────────
 
+
 def _mongo_col(name: str):
     from pymongo import MongoClient
+
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     return client, client[MONGO_DB_NAME][name]
 
@@ -158,7 +175,9 @@ def _reset_pet_data(pet_id: str):
         r2 = missions.delete_many({"pet_id": pet_id})
         r3 = health.delete_many({"pet_id": pet_id})
         r4 = usage.delete_many({"pet_id": pet_id})
-        print(f"  RESET: 감정 {r1.deleted_count}·미션 {r2.deleted_count}·헬스 {r3.deleted_count}·사용량 {r4.deleted_count} 삭제")
+        print(
+            f"  RESET: 감정 {r1.deleted_count}·미션 {r2.deleted_count}·헬스 {r3.deleted_count}·사용량 {r4.deleted_count} 삭제"
+        )
     except Exception as e:
         print(f"  RESET 실패: {e.__class__.__name__} — 기존 데이터 위에 추가됩니다")
 
@@ -167,22 +186,26 @@ def _insert_missions_mongo(pet_id: str, days: int):
     """MongoDB에 과거 days일치 미션 완료 레코드 직접 삽입."""
     try:
         client, col = _mongo_col("missions")
-        today = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
         for i in range(days):
             past = today - timedelta(days=i + 1)
             m = _MISSION_POOL[i % len(_MISSION_POOL)]
-            col.insert_one({
-                "pet_id": pet_id,
-                "title": m[0],
-                "description": m[1],
-                "category": m[2],
-                "rationale": None,
-                "difficulty": m[3],
-                "completed": True,
-                "skipped": False,
-                "created_at": past,
-                "completed_at": past,
-            })
+            col.insert_one(
+                {
+                    "pet_id": pet_id,
+                    "title": m[0],
+                    "description": m[1],
+                    "category": m[2],
+                    "rationale": None,
+                    "difficulty": m[3],
+                    "completed": True,
+                    "skipped": False,
+                    "created_at": past,
+                    "completed_at": past,
+                }
+            )
         client.close()
         print(f"  MongoDB: 과거 {days}일치 미션 삽입")
         return True
@@ -192,6 +215,7 @@ def _insert_missions_mongo(pet_id: str, days: int):
 
 
 # ── API 헬퍼 ─────────────────────────────────────────────────────────────────
+
 
 def register_and_login(c: httpx.Client, email: str, nickname: str) -> str | None:
     r = c.post(

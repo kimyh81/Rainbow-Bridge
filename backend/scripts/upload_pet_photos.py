@@ -30,7 +30,9 @@ ACCOUNTS = [
 
 def get_photos(folder: str) -> list[str]:
     exts = {".jpg", ".jpeg", ".png"}
-    files = sorted(f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in exts)
+    files = sorted(
+        f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in exts
+    )
     return [os.path.join(folder, f) for f in files]
 
 

@@ -10,7 +10,7 @@ import SafetyModal from '@/components/SafetyModal';
 import Button from '@/components/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateMessage, getLatestMessage } from '@/api/messages';
-import { recordPlay } from '@/api/media';
+import { generateMedia, getMediaStatus, recordPlay } from '@/api/media';
 import { generateTts } from '@/api/tts';
 import { COLORS } from '@/constants/colors';
 import { gwa, iga, eunneun } from '@/utils/josa';
@@ -292,6 +292,28 @@ export default function MessageScreen() {
   async function loadFirstPerson() {
     const petId = await AsyncStorage.getItem('pet_id');
     const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
+    // voiced_url 복원 — 로그인 후 AsyncStorage 초기화돼도 DB에서 복원
+    try {
+      let assetId = await AsyncStorage.getItem('pet_video_asset_id');
+      if (!assetId) {
+        const media = await generateMedia(petId);
+        assetId = media.asset_id;
+        if (assetId) await AsyncStorage.setItem('pet_video_asset_id', assetId);
+      }
+      if (assetId) {
+        const status = await getMediaStatus(assetId);
+        if (status.voiced_url) {
+          const full = status.voiced_url.startsWith('http') ? status.voiced_url : `${API_BASE}${status.voiced_url}`;
+          setPetVoicedUrl(full);
+          await AsyncStorage.setItem('pet_voiced_url', full);
+        }
+        if (status.video_url) {
+          const full = status.video_url.startsWith('http') ? status.video_url : `${API_BASE}${status.video_url}`;
+          setPetVideoUrl(full);
+          await AsyncStorage.setItem('pet_video_url', full);
+        }
+      }
+    } catch {}
     try {
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');

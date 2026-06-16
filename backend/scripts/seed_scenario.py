@@ -67,47 +67,11 @@ _MISSION_POOL = [
 
 ACCOUNTS = [
     {
-        "email": "demo00@demo.com",
-        "nickname": "김지수",
-        "checkins": [],  # 체크인 없음
-        "health_days": 0,
-        "missions_days": 0,
-    },
-    {
-        "email": "demo01@demo.com",
-        "nickname": "김지수",
-        "checkins": [6, 7, 8],  # 상향 추세 → 감정추세 점수 ↑
-        "health_days": 2,
-        "missions_days": 10,
-    },
-    {
-        "email": "demo02@demo.com",
-        "nickname": "김지수",
-        "checkins": [6, 7, 7, 8],
-        "health_days": 3,
-        "missions_days": 15,
-    },
-    {
-        "email": "demo03@demo.com",
-        "nickname": "김지수",
-        "checkins": [6, 7, 7, 8],
-        "health_days": 3,
-        "missions_days": 15,
-        "hidden_mission": True,  # 슬라이드쇼 트리거
-    },
-    {
         "email": "demo04@demo.com",
         "nickname": "김지수",
         "checkins": [5, 6, 6, 7, 7, 8, 9],
         "health_days": 7,
         "missions_days": 24,
-    },
-    {
-        "email": "demo05@demo.com",
-        "nickname": "김지수",
-        "checkins": [],
-        "health_days": 0,
-        "missions_days": 0,
     },
 ]
 

@@ -182,7 +182,21 @@ export default function MediaScreen() {
             </Button>
           )}
 
-          {videoUrl ? (
+          {/* GIF 있으면 GIF 메인, 없으면 LP MP4 */}
+          {gifUnlocked !== false && gifUrl ? (
+            <Card style={styles.resultCard}>
+              <Text style={styles.badge}>✅ 완성</Text>
+              <Text style={styles.resultTitle}>✨ 숨쉬는 사진이 준비됐어요</Text>
+              <Image
+                source={{ uri: gifUrl }}
+                style={styles.gif}
+                resizeMode="contain"
+              />
+              <Text style={styles.disclaimer}>
+                AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.
+              </Text>
+            </Card>
+          ) : videoUrl ? (
             <Card style={styles.resultCard}>
               <Text style={styles.badge}>✅ 완성</Text>
               <Text style={styles.resultTitle}>🎞️ 추모 영상이 준비됐어요</Text>
@@ -209,18 +223,6 @@ export default function MediaScreen() {
                   ? '아이가 기다리고 있어요\n조금만 더 회복하면 만날 수 있어요.'
                   : '천천히 오고 있어요\n조금 더 함께하면 살며시 도착할 거예요.'}
               </Text>
-            </Card>
-          ) : null}
-
-          {gifUnlocked !== false && gifUrl ? (
-            <Card style={styles.gifCard}>
-              <Text style={styles.badge}>✅ 완성</Text>
-              <Text style={styles.gifTitle}>✨ 숨쉬는 사진</Text>
-              <Image
-                source={{ uri: gifUrl }}
-                style={styles.gif}
-                resizeMode="contain"
-              />
             </Card>
           ) : null}
         </ScrollView>

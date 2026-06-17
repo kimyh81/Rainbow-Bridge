@@ -410,44 +410,46 @@ def seed_health(c: httpx.Client, headers: dict, pet_id: str, days: int):
         time.sleep(0.2)
 
 
-def seed_health_fixed(c: httpx.Client, headers: dict, pet_id: str, records: list):
-    """고정 헬스 데이터 삽입 — (steps, sleep_h, late_min) 리스트, 오늘부터 역순."""
-    today = date.today()
-    for i, (steps, sleep_h, late) in enumerate(records):
-        d = (today - timedelta(days=i)).isoformat()
-        start = f"{d}T08:00:00+09:00"
-        end = f"{d}T08:10:00+09:00"
-        sleep_start = f"{d}T00:00:00+09:00"
-        sleep_end = f"{d}T{int(sleep_h):02d}:{int((sleep_h % 1) * 60):02d}:00+09:00"
-        c.post(
-            "/api/v1/health/sync",
-            json={
-                "pet_id": pet_id,
-                "steps_result": {
-                    "records": [{"count": steps, "startTime": start, "endTime": end}]
-                },
-                "sleep_result": {
-                    "records": [
-                        {"startTime": sleep_start, "endTime": sleep_end, "stages": []}
-                    ]
-                },
-            },
-            headers=headers,
-        )
-        c.post(
-            "/api/v1/usage-stats",
-            json=[
+def _insert_health_fixed_mongo(
+    pet_id: str, records: list, c: httpx.Client, headers: dict
+):
+    """고정 헬스 데이터를 MongoDB에 직접 삽입 (과거 날짜 포함).
+
+    health/sync API는 항상 오늘 날짜로 upsert하므로 과거 날짜는 MongoDB 직접 삽입.
+    usage_stats(야간폰)는 날짜 지정 API 방식 유지.
+    """
+    try:
+        client, col = _mongo_col("health_logs")
+        today = date.today()
+        for i, (steps, sleep_h, late) in enumerate(records):
+            d = (today - timedelta(days=i)).isoformat()
+            col.update_one(
+                {"pet_id": pet_id, "date": d},
                 {
-                    "date": d,
-                    "category": "SNS",
-                    "minutes": random.randint(20, 60),
-                    "late_night_minutes": late,
-                }
-            ],
-            headers=headers,
-        )
-        print(f"  헬스 {d}: {steps}보 / 수면 {sleep_h}h / 야간폰 {late}분")
-        time.sleep(0.2)
+                    "$set": {
+                        "steps": steps,
+                        "sleep_hours": sleep_h,
+                        "synced_at": datetime.now(timezone.utc),
+                    }
+                },
+                upsert=True,
+            )
+            c.post(
+                "/api/v1/usage-stats",
+                json=[
+                    {
+                        "date": d,
+                        "category": "SNS",
+                        "minutes": random.randint(20, 60),
+                        "late_night_minutes": late,
+                    }
+                ],
+                headers=headers,
+            )
+            print(f"  헬스 {d}: {steps}보 / 수면 {sleep_h}h / 야간폰 {late}분")
+        client.close()
+    except Exception as e:
+        print(f"  헬스 MongoDB 직접 삽입 실패: {e.__class__.__name__}")
 
 
 def seed_hidden_mission(c: httpx.Client, headers: dict, pet_id: str, base_days: int):
@@ -498,7 +500,7 @@ with httpx.Client(base_url=BASE, timeout=90) as c:
 
         seed_checkins(c, headers, pet_id, acc["checkins"])
         if acc.get("health_records"):
-            seed_health_fixed(c, headers, pet_id, acc["health_records"])
+            _insert_health_fixed_mongo(pet_id, acc["health_records"], c, headers)
         else:
             seed_health(c, headers, pet_id, acc["health_days"])
 

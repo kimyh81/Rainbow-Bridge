@@ -111,13 +111,13 @@ ACCOUNTS = [
         "checkins": [6, 7, 8],  # 상향 추세 → 감정추세 점수 ↑
         "health_days": 0,  # health_records 사용
         "health_records": [  # (steps, sleep_h, late_min) — 오늘부터 역순
-            (7500, 6.5,  5),   # 오늘
-            (6500, 6.0, 15),   # 2일 전
-            (5500, 5.5, 30),   # 3일 전
-            (4500, 5.0, 45),   # 4일 전
-            (3500, 4.5, 60),   # 5일 전
-            (2500, 4.0, 75),   # 6일 전
-            (1500, 3.5, 90),   # 7일 전 (최악)
+            (7500, 6.5, 5),  # 오늘
+            (6500, 6.0, 15),  # 2일 전
+            (5500, 5.5, 30),  # 3일 전
+            (4500, 5.0, 45),  # 4일 전
+            (3500, 4.5, 60),  # 5일 전
+            (2500, 4.0, 75),  # 6일 전
+            (1500, 3.5, 90),  # 7일 전 (최악)
         ],
         "missions_days": 10,
     },
@@ -436,7 +436,14 @@ def seed_health_fixed(c: httpx.Client, headers: dict, pet_id: str, records: list
         )
         c.post(
             "/api/v1/usage-stats",
-            json=[{"date": d, "category": "SNS", "minutes": random.randint(20, 60), "late_night_minutes": late}],
+            json=[
+                {
+                    "date": d,
+                    "category": "SNS",
+                    "minutes": random.randint(20, 60),
+                    "late_night_minutes": late,
+                }
+            ],
             headers=headers,
         )
         print(f"  헬스 {d}: {steps}보 / 수면 {sleep_h}h / 야간폰 {late}분")

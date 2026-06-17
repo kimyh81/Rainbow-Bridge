@@ -77,6 +77,27 @@ async def get_asset(asset_id: str, user_id: int | None = None) -> dict | None:
     }
 
 
+async def trigger_gif_for_pet(pet_id: str) -> None:
+    """recovery_score 20점 달성 시 GIF 보상 백그라운드 생성. 이미 gif_url 있으면 skip."""
+    try:
+        doc = await _collection().find_one(
+            {"pet_id": pet_id, "source_url": {"$ne": None}},
+            sort=[("created_at", -1)],
+        )
+        if not doc:
+            return
+        if doc.get("gif_url"):
+            return  # 이미 생성됨 — 중복 방지
+        asset_id = str(doc["_id"])
+        source_path = Path(doc["source_url"].lstrip("/"))
+        if source_path.exists():
+            asyncio.create_task(
+                run_liveportrait_gif(asset_id, str(source_path), set_status=False)
+            )
+    except Exception:
+        logger.warning("GIF 보상 트리거 실패 pet_id=%s", pet_id, exc_info=True)
+
+
 async def trigger_liveportrait_for_pet(pet_id: str) -> None:
     """1인칭 편지 허용 시 d3 입모양 영상 백그라운드 생성. 이미 video_url 있으면 skip."""
     try:

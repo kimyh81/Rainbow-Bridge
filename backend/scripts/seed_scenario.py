@@ -120,6 +120,7 @@ ACCOUNTS = [
             (900, 3.2, 95),  # 6일 전 (최악, 야간폰 최고)
         ],
         "missions_days": 10,
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo02@demo.com",

@@ -1,3 +1,4 @@
+import asyncio
 from ai.evaluation.recovery_signal import recovery_score_from_axes
 from datetime import date, datetime, timezone
 import app.core.ai_path  # noqa: F401  프로젝트 루트를 sys.path에 추가
@@ -63,6 +64,17 @@ async def create_emotion(data: EmotionCreate) -> EmotionResponse:
             f"많이 힘드시군요. 혼자 감당하기 어려울 때는 "
             f"자살예방상담전화 {CRISIS_HOTLINE}로 연락해 주세요. 24시간 운영합니다."
         )
+
+    # 20점 달성 GIF 보상 트리거 (fire-and-forget)
+    try:
+        recovery = await get_recovery(data.pet_id)
+        if recovery.gif_unlocked:
+            from app.services.media import trigger_gif_for_pet
+
+            asyncio.create_task(trigger_gif_for_pet(data.pet_id))
+    except Exception:
+        pass
+
     return response
 
 

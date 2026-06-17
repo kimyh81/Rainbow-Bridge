@@ -41,6 +41,39 @@ PET_PHOTO_PATH: str | None = None  # 예) "/home/user/haneuli.jpg"
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "rainbow_bridge")
 
+# ── 시나리오 편지 (고정 대본) ────────────────────────────────────────────────
+MESSAGE_3RD = """지수야,
+
+하늘이는 네가 생각하는 것보다 훨씬 더 많은 걸 간직하고 있어. 처음 품에 안기던 날, 작고 하얀 몸으로 네 온기를 느끼던 그 순간부터. 하늘이한테 그게 집이었어.
+
+비 오는 날이면 꼭 네 옆으로 와서 웅크렸잖아. 빗소리가 무서웠던 게 아니야. 그냥 네 곁이 제일 좋았던 거야. 산책 나갈 때마다 매번 처음인 것처럼 꼬리를 흔들었던 건, 너랑 걷는 그 길이 진짜 설렜기 때문이야.
+
+"기다려" 하면 작은 발을 꼭 모으고, 눈을 반짝이며 기다렸어. 그 눈빛 기억하지? 하늘이는 항상 네가 주는 것들이 기뻤어.
+
+아팠던 날도 네 손을 핥으면 힘이 났어. 말로는 못 했지만, 그게 하늘이 방식의 "괜찮아"였어.
+
+마지막 아침도 평소랑 똑같았어. 밥 먹고, 햇살 드는 자리에 누웠어. 그게 마지막인지 몰랐지만, 그날도 행복했어. 너랑 함께였으니까.
+
+피크닉은 못 갔지만, 너랑 매일이 충분히 특별했어.
+하늘이는 충분히 사랑받았어. 고마워, 지수야."""
+
+MESSAGE_1ST = """지수야, 나야. 하늘이.
+
+처음 만났던 날 기억해? 나 진짜 작았잖아. 네 품에 처음 안겼을 때, 이 냄새가 내 집이구나 했어.
+
+비 올 때마다 네 옆에 바짝 붙었던 거, 사실 핑계였어. 빗소리 무서운 척했지만, 그냥 더 오래 옆에 있고 싶었거든.
+
+"기다려" 할 때 발 꼭 모으고 기다리면서 속으로 '빨리 줘, 빨리 줘' 했는데, 넌 몰랐지? 근데 기다리는 것도 좋았어. 네가 보고 있었으니까.
+
+아팠던 날, 밥을 조금밖에 못 먹었는데 네 손 핥으면 이상하게 힘이 났어. 네 손 냄새가 좋았나 봐.
+
+마지막 아침도 그냥 평소랑 똑같았어. 밥 먹고, 햇살 드는 자리에 눕고, 네가 있었어. 그걸로 충분했어.
+
+이름 불러줘서 고마워. 어디서든 달려갔잖아, 나.
+
+보고 싶어, 지수야. 잘 지내.
+하늘이가."""
+
 # 미션 풀 — 날짜별로 순환 사용
 _MISSION_POOL = [
     ("오늘 산책하기", "15분이라도 밖에 나가 바람을 쐬어보세요.", "activity", "small"),
@@ -86,6 +119,7 @@ ACCOUNTS = [
         "checkins": [5, 6, 7, 7, 8, 8, 9],
         "health_days": 7,
         "missions_days": 22,
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo03@demo.com",
@@ -94,6 +128,7 @@ ACCOUNTS = [
         "health_days": 7,
         "missions_days": 24,
         "hidden_mission": True,  # 슬라이드쇼 트리거
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo04@demo.com",
@@ -101,6 +136,7 @@ ACCOUNTS = [
         "checkins": [5, 6, 6, 7, 7, 8, 9],
         "health_days": 7,
         "missions_days": 24,
+        "message": {"content": MESSAGE_1ST, "first_person": True},
     },
     {
         "email": "demo05@demo.com",
@@ -229,6 +265,37 @@ def _insert_missions_mongo(pet_id: str, days: int):
     except Exception as e:
         print(f"  MongoDB 미션 삽입 실패: {e.__class__.__name__} — 서버에서 실행하세요")
         return False
+
+
+def _insert_message_mongo(
+    pet_id: str,
+    content: str,
+    first_person: bool,
+    content_unlocked: bool,
+    allow_first_person: bool,
+):
+    """미리 작성된 편지를 MongoDB에 직접 삽입 (기존 메시지 삭제 후)."""
+    try:
+        client, col = _mongo_col("messages")
+        col.delete_many({"pet_id": pet_id})
+        col.insert_one(
+            {
+                "pet_id": pet_id,
+                "content": content,
+                "tone": "warm",
+                "source": "local",
+                "risk_level": 0,
+                "first_person": first_person,
+                "content_unlocked": content_unlocked,
+                "allow_first_person": allow_first_person,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        client.close()
+        kind = "1인칭" if first_person else "3인칭"
+        print(f"  편지 삽입 완료 ({kind})")
+    except Exception as e:
+        print(f"  편지 삽입 실패: {e.__class__.__name__} — 서버에서 실행하세요")
 
 
 # ── API 헬퍼 ─────────────────────────────────────────────────────────────────
@@ -395,5 +462,15 @@ with httpx.Client(base_url=BASE, timeout=90) as c:
             f"  → gate={d.get('gate_status')} score={d.get('recovery_pct')} "
             f"content={d.get('content_unlocked')} allow_1st={d.get('allow_first_person')}"
         )
+
+        # 미리 작성된 편지 삽입 (message 필드 있는 계정만)
+        if acc.get("message"):
+            _insert_message_mongo(
+                pet_id=pet_id,
+                content=acc["message"]["content"],
+                first_person=acc["message"]["first_person"],
+                content_unlocked=bool(d.get("content_unlocked")),
+                allow_first_person=bool(d.get("allow_first_person")),
+            )
 
 print("\n완료")

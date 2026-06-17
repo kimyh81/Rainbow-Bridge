@@ -726,15 +726,21 @@ export default function MessageScreen() {
                 <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
               </View>
 
-              {/* 1인칭 편지 상단 — LP 영상(voiced/video) 우선, 없으면 프로필 사진 */}
-              {isFirst && (petVoicedUrl || petVideoUrl) && (
-                <View style={[styles.videoWrap, styles.videoWrapFirst]}>
-                  <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
-                    resizeMode={ResizeMode.COVER} isLooping={!petVoicedUrl} shouldPlay isMuted={!petVoicedUrl} />
+              {/* 편지 상단 — 1인칭: voiced/video 우선 | 3인칭: video만 | 없으면 프로필 사진 */}
+              {(petVoicedUrl || petVideoUrl) && (
+                <View style={[styles.videoWrap, isFirst && styles.videoWrapFirst]}>
+                  <Video
+                    source={{ uri: (isFirst && petVoicedUrl) ? petVoicedUrl : petVideoUrl }}
+                    style={styles.video}
+                    resizeMode={ResizeMode.COVER}
+                    isLooping={!(isFirst && petVoicedUrl)}
+                    shouldPlay
+                    isMuted={!(isFirst && petVoicedUrl)}
+                  />
                 </View>
               )}
-              {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (
-                <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+              {!petVoicedUrl && !petVideoUrl && petPhotoUrl && (
+                <View style={[styles.videoWrap, isFirst && styles.videoWrapFirst]}>
                   <Image source={{ uri: petPhotoUrl }} style={styles.video} resizeMode="cover" />
                 </View>
               )}

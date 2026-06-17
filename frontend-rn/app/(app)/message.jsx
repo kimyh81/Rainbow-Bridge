@@ -485,8 +485,8 @@ export default function MessageScreen() {
     // 다큐멘터리 자막 스타일: 편지지 하단에서 시작해 천천히 위로 롤링
     textRollAnim.setValue(360);
     const roll = Animated.timing(textRollAnim, {
-      toValue: -1100,
-      duration: 68000,
+      toValue: -1500,
+      duration: 120000,
       easing: Easing.linear,
       useNativeDriver: true,
     });
@@ -520,11 +520,17 @@ export default function MessageScreen() {
         const tone = msgData.first_person
           ? (petGender === '남아' ? 'male' : 'female')
           : 'narration';
-        const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
-        if (!ttsData?.audio_url) throw new Error('audio_url 없음');
-        const audioUri = ttsData.audio_url.startsWith('http')
-          ? ttsData.audio_url
-          : `${API_BASE}${ttsData.audio_url}`;
+        let audioUri;
+        if (tone === 'narration') {
+          // 3인칭 편지 — 미리 생성된 고품질 TTS 파일 사용
+          audioUri = `${API_BASE}/uploads/tts/letter_3rd_dyn.wav`;
+        } else {
+          const ttsData = await generateTts({ pet_id: petId, text: msgData.content, tone });
+          if (!ttsData?.audio_url) throw new Error('audio_url 없음');
+          audioUri = ttsData.audio_url.startsWith('http')
+            ? ttsData.audio_url
+            : `${API_BASE}${ttsData.audio_url}`;
+        }
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { volume: 1.0, shouldPlay: false },

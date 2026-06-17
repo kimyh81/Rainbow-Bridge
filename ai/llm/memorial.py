@@ -172,11 +172,13 @@ def generate_message(
     note = str(emotion.get("note", "") or "")
 
     # (1) 위기 선체크 — 등급별 응답 정책(safety.decide_action).
-    #     L2(경고)·L3(긴급) 모두 메시지 생성 중단, 1393 안내만.
-    #     assess_crisis = 규칙(L0) + LLM 분류(L1) 융합 → 간접 표현("약을 많이 먹으면...")도 감지.
-    crisis = assess_crisis(note, generate=generate)
+    #     규칙 레이어(L0)만 사용 — generate 를 crisis 감지에 넘기지 않음
+    #     (L1 LLM 이 message generate 와 같은 함수를 공유하면 테스트 격리 불가).
+    #     L3(긴급): 생성 전면 차단 + 1393.
+    #     L2(경고): 생성하되 crisis_message 에 1393 동봉.
+    crisis = assess_crisis(note)
     action = decide_action(crisis.risk_level)
-    if action in (CrisisAction.BLOCK, CrisisAction.HOTLINE):
+    if action == CrisisAction.BLOCK:
         notice = crisis_notice()
         return {
             "content": notice,
@@ -224,7 +226,8 @@ def generate_message(
         memories=pet.get("memories"),
         bucket_list=bucket_list,
         tone=tone,
-        first_person=first_person,
+        # L2(경고)에서는 감정 취약 상태 — 1인칭 편지 승격 억제.
+        first_person=first_person and action != CrisisAction.HOTLINE,
         rag_hits=rag_hits,
         recovery_trend=recovery_trend,
     )
@@ -247,7 +250,8 @@ def generate_message(
                 prompt, max_tokens=_MAX_TOKENS, temperature=_TEMPERATURE
             ).strip()
             violation = _violates_guardrail(
-                content, pet_name=pet.get("name", ""), first_person=first_person
+                content, pet_name=pet.get("name", ""),
+                first_person=first_person and action != CrisisAction.HOTLINE,
             )
             if violation is not None:
                 last_violation = violation
@@ -259,7 +263,11 @@ def generate_message(
                 result["support_message"] = WELFARE_INTRO
                 result["welfare_resources"] = list(WELFARE_RESOURCES)
                 result["risk_level"] = int(crisis.risk_level)
-            if first_person:
+            # L2(경고) — 생성은 진행하되 1393 안내를 crisis_message 로 동봉.
+            if action == CrisisAction.HOTLINE:
+                result["crisis_message"] = crisis_notice()
+                result["risk_level"] = int(crisis.risk_level)
+            if first_person and action != CrisisAction.HOTLINE:
                 result["first_person"] = True
             return result
     except LLMError:

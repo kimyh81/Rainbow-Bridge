@@ -92,9 +92,9 @@ def generate_anniversary_care(
     action = CrisisAction.GENERATE
     crisis = None
     if note:
-        crisis = assess_crisis(note, generate=generate)
+        crisis = assess_crisis(note)
         action = decide_action(crisis.risk_level)
-        if action in (CrisisAction.BLOCK, CrisisAction.HOTLINE):  # L2·L3 — 메시지 중단, 1393 만
+        if action == CrisisAction.BLOCK:  # L3 — 메시지 중단, 1393 만
             notice = crisis_notice()
             return {
                 "message": notice,
@@ -150,5 +150,9 @@ def generate_anniversary_care(
     if action == CrisisAction.GENERATE_WITH_SUPPORT and crisis is not None:
         result["support_message"] = WELFARE_INTRO
         result["welfare_resources"] = list(WELFARE_RESOURCES)
+        result["risk_level"] = int(crisis.risk_level)
+    # L2(경고) — 생성은 진행하되 1393 안내를 crisis_message 로 동봉.
+    if action == CrisisAction.HOTLINE and crisis is not None:
+        result["crisis_message"] = crisis_notice()
         result["risk_level"] = int(crisis.risk_level)
     return result

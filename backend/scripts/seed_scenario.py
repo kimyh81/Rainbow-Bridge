@@ -109,7 +109,16 @@ ACCOUNTS = [
         "email": "demo01@demo.com",
         "nickname": "김지수",
         "checkins": [6, 7, 8],  # 상향 추세 → 감정추세 점수 ↑
-        "health_days": 2,
+        "health_days": 0,  # health_records 사용
+        "health_records": [  # (steps, sleep_h, late_min) — 오늘부터 역순
+            (7500, 6.5,  5),   # 오늘
+            (6500, 6.0, 15),   # 2일 전
+            (5500, 5.5, 30),   # 3일 전
+            (4500, 5.0, 45),   # 4일 전
+            (3500, 4.5, 60),   # 5일 전
+            (2500, 4.0, 75),   # 6일 전
+            (1500, 3.5, 90),   # 7일 전 (최악)
+        ],
         "missions_days": 10,
     },
     {
@@ -401,6 +410,39 @@ def seed_health(c: httpx.Client, headers: dict, pet_id: str, days: int):
         time.sleep(0.2)
 
 
+def seed_health_fixed(c: httpx.Client, headers: dict, pet_id: str, records: list):
+    """고정 헬스 데이터 삽입 — (steps, sleep_h, late_min) 리스트, 오늘부터 역순."""
+    today = date.today()
+    for i, (steps, sleep_h, late) in enumerate(records):
+        d = (today - timedelta(days=i)).isoformat()
+        start = f"{d}T08:00:00+09:00"
+        end = f"{d}T08:10:00+09:00"
+        sleep_start = f"{d}T00:00:00+09:00"
+        sleep_end = f"{d}T{int(sleep_h):02d}:{int((sleep_h % 1) * 60):02d}:00+09:00"
+        c.post(
+            "/api/v1/health/sync",
+            json={
+                "pet_id": pet_id,
+                "steps_result": {
+                    "records": [{"count": steps, "startTime": start, "endTime": end}]
+                },
+                "sleep_result": {
+                    "records": [
+                        {"startTime": sleep_start, "endTime": sleep_end, "stages": []}
+                    ]
+                },
+            },
+            headers=headers,
+        )
+        c.post(
+            "/api/v1/usage-stats",
+            json=[{"date": d, "category": "SNS", "minutes": random.randint(20, 60), "late_night_minutes": late}],
+            headers=headers,
+        )
+        print(f"  헬스 {d}: {steps}보 / 수면 {sleep_h}h / 야간폰 {late}분")
+        time.sleep(0.2)
+
+
 def seed_hidden_mission(c: httpx.Client, headers: dict, pet_id: str, base_days: int):
     """demo03 전용 — 과거 미션 + 슬라이드쇼 트리거.
 
@@ -448,7 +490,10 @@ with httpx.Client(base_url=BASE, timeout=90) as c:
             _reset_pet_data(pet_id)
 
         seed_checkins(c, headers, pet_id, acc["checkins"])
-        seed_health(c, headers, pet_id, acc["health_days"])
+        if acc.get("health_records"):
+            seed_health_fixed(c, headers, pet_id, acc["health_records"])
+        else:
+            seed_health(c, headers, pet_id, acc["health_days"])
 
         if acc.get("hidden_mission"):
             seed_hidden_mission(c, headers, pet_id, acc["missions_days"])

@@ -109,6 +109,25 @@ def _find_ffmpeg() -> str:
         ) from e
 
 
+def _strip_audio(video_path: Path) -> Path:
+    """드라이빙 영상에서 오디오 트랙을 제거합니다. 이미 무음이면 원본 반환."""
+    ffmpeg = _find_ffmpeg()
+    probe = subprocess.run(
+        [ffmpeg, "-i", str(video_path)],
+        capture_output=True, text=True, encoding="utf-8", errors="ignore",
+    )
+    if "Audio:" not in probe.stderr:
+        return video_path
+    out = video_path.with_name(f"{video_path.stem}_noaudio.mp4")
+    if out.exists():
+        return out
+    result = subprocess.run(
+        [ffmpeg, "-y", "-i", str(video_path), "-an", "-c:v", "copy", str(out)],
+        capture_output=True, text=True, encoding="utf-8", errors="ignore",
+    )
+    return out if result.returncode == 0 else video_path
+
+
 def merge_audio(
     video_path: str | Path,
     audio_path: str | Path,
@@ -150,7 +169,8 @@ def merge_audio(
         ffmpeg, "-y",
         "-stream_loop", "-1", "-i", str(video_path),
         "-i", str(audio_path),
-        "-map", "0:v:0", "-map", "1:a:0",
+        "-filter_complex", "[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[a]",
+        "-map", "0:v:0", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
         "-c:a", "aac", "-b:a", "192k",
         "-movflags", "+faststart",
@@ -318,6 +338,7 @@ def generate_video(
     driving_video = Path(driving_video) if driving_video else DEFAULT_DRIVING
     if not driving_video.exists():
         raise FileNotFoundError(f"driving 영상 없음: {driving_video}")
+    driving_video = _strip_audio(driving_video)
 
     if MODE == "replicate":
         return _generate_replicate(source_image, driving_video, output_dir)

@@ -49,6 +49,14 @@ async def create_asset(pet_id: str, source_path: str, user_id: int) -> str:
     return str(result.inserted_id)
 
 
+async def get_latest_done_asset(pet_id: str) -> dict | None:
+    """pet_id로 가장 최근 완료된 media_asset 조회."""
+    return await _collection().find_one(
+        {"pet_id": pet_id, "status": "done", "video_url": {"$ne": None}},
+        sort=[("created_at", -1)],
+    )
+
+
 async def get_asset(asset_id: str, user_id: int | None = None) -> dict | None:
     oid = _to_object_id(asset_id)
     if oid is None:

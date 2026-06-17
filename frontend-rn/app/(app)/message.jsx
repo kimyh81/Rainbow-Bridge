@@ -215,6 +215,8 @@ export default function MessageScreen() {
   const ttsRef = useRef(null);
   const timersRef = useRef([]);
   const parsedRef = useRef([]);
+  const textRollAnim = useRef(new Animated.Value(0)).current;
+  const rollAnimRef = useRef(null);
 
   // ✉️ 흔들림 애니메이션
   const paperFloat = useRef(new Animated.Value(0)).current;
@@ -268,6 +270,7 @@ export default function MessageScreen() {
         }
         timersRef.current.forEach(clearTimeout);
         timersRef.current = [];
+        rollAnimRef.current?.stop();
       };
     }, [])
   );
@@ -472,12 +475,22 @@ export default function MessageScreen() {
   async function startSequence(parsed, isFirstPerson, msgData, voicedUrl) {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
 
-    // 전체 텍스트 블록 슬라이드업 (한 줄씩 대신)
     setVisibleCount(parsed.length);
-    Animated.parallel([
-      Animated.timing(contentSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
-      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-    ]).start();
+    // 텍스트 fade in (0.4초)
+    Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+
+    // 다큐멘터리 자막 스타일: 편지지 하단에서 시작해 천천히 위로 롤링
+    textRollAnim.setValue(360);
+    const roll = Animated.timing(textRollAnim, {
+      toValue: -1100,
+      duration: 68000,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    rollAnimRef.current = roll;
+    roll.start(({ finished }) => {
+      if (finished) setDone(true);
+    });
 
     // BGM
     const bgmFile = isFirstPerson ? BGM_1ST : BGM_3RD;
@@ -522,7 +535,6 @@ export default function MessageScreen() {
       }
     }
 
-    timersRef.current.push(setTimeout(() => setDone(true), 1200));
   }
 
   const isFirst = message?.first_person;
@@ -688,47 +700,44 @@ export default function MessageScreen() {
               { opacity: paperOpacity, transform: [{ translateY: paperTranslate }] },
               phase === 'envelope' && styles.paperHidden,
             ]}>
-            <ScrollView
-              style={styles.paperScroll}
-              contentContainerStyle={styles.paperScrollContent}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={phase === 'letter'}
-            >
-              {/* 편지 단계 — ✉️ 제목 헤더 */}
-              {phase === 'letter' && (
-                <View style={styles.letterTitleWrap}>
-                  <Animated.Text style={[styles.letterIcon, { transform: [
-                    { translateY: paperFloat.interpolate({ inputRange: [0, 1], outputRange: [-3, 3] }) },
-                    { rotate: paperFloat.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) },
-                  ]}]}>✉️</Animated.Text>
-                  <Text style={styles.letterTitle}>{petName}{iga(petName)} 편지를 남겼어요</Text>
-                  <Text style={styles.letterSub}>{petName}{iga(petName)} 하고 싶었던 말을 전해드릴게요.</Text>
+
+            {/* 편지 단계 — ✉️ 제목 헤더 */}
+            {phase === 'letter' && (
+              <View style={styles.letterTitleWrap}>
+                <Animated.Text style={[styles.letterIcon, { transform: [
+                  { translateY: paperFloat.interpolate({ inputRange: [0, 1], outputRange: [-3, 3] }) },
+                  { rotate: paperFloat.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) },
+                ]}]}>✉️</Animated.Text>
+                <Text style={styles.letterTitle}>{petName}{iga(petName)} 편지를 남겼어요</Text>
+                <Text style={styles.letterSub}>{petName}{iga(petName)} 하고 싶었던 말을 전해드릴게요.</Text>
+              </View>
+            )}
+
+            {/* 편지지 — 고정 틀, 내부 텍스트만 롤링 */}
+            <View style={[styles.paper, isFirst && styles.paperFirst, styles.paperFixed]}>
+              {/* 편지지 상단 */}
+              <View style={styles.paperHeader}>
+                {isFirst && <Text style={styles.speciesIcon}>{icon}</Text>}
+                <Text style={[styles.petLabel, isFirst && styles.petLabelFirst]}>· {petName} ·</Text>
+                <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
+              </View>
+
+              {/* 1인칭 편지 상단 — LP 영상(voiced/video) 우선, 없으면 프로필 사진 */}
+              {isFirst && (petVoicedUrl || petVideoUrl) && (
+                <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+                  <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
+                    resizeMode={ResizeMode.COVER} isLooping={!petVoicedUrl} shouldPlay isMuted={!petVoicedUrl} />
+                </View>
+              )}
+              {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (
+                <View style={[styles.videoWrap, styles.videoWrapFirst]}>
+                  <Image source={{ uri: petPhotoUrl }} style={styles.video} resizeMode="cover" />
                 </View>
               )}
 
-              <View style={[styles.paper, isFirst && styles.paperFirst]}>
-                {/* 편지지 상단 */}
-                <View style={styles.paperHeader}>
-                  {isFirst && <Text style={styles.speciesIcon}>{icon}</Text>}
-                  <Text style={[styles.petLabel, isFirst && styles.petLabelFirst]}>· {petName} ·</Text>
-                  <View style={[styles.headerLine, isFirst && styles.headerLineFirst]} />
-                </View>
-
-                {/* 1인칭 편지 상단 — LP 영상(voiced/video) 우선, 없으면 프로필 사진 */}
-                {isFirst && (petVoicedUrl || petVideoUrl) && (
-                  <View style={[styles.videoWrap, styles.videoWrapFirst]}>
-                    <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
-                      resizeMode={ResizeMode.COVER} isLooping={!petVoicedUrl} shouldPlay isMuted={!petVoicedUrl} />
-                  </View>
-                )}
-                {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (
-                  <View style={[styles.videoWrap, styles.videoWrapFirst]}>
-                    <Image source={{ uri: petPhotoUrl }} style={styles.video} resizeMode="cover" />
-                  </View>
-                )}
-
-                {/* 편지 본문 — 전체 블록 슬라이드업 */}
-                <Animated.View style={{ opacity: contentFade, transform: [{ translateY: contentSlide }] }}>
+              {/* 텍스트 롤링 영역 — overflow hidden 으로 편지지 밖으로 나가지 않음 */}
+              <View style={styles.rollViewport}>
+                <Animated.View style={{ opacity: contentFade, transform: [{ translateY: textRollAnim }] }}>
                   <View style={styles.bodyContent}>
                     {lines.map((line, i) =>
                       i < visibleCount ? (
@@ -738,17 +747,19 @@ export default function MessageScreen() {
                       ) : null
                     )}
                   </View>
+                  {/* 편지 끝 AI 안내 — 텍스트와 함께 롤링 */}
+                  <View style={styles.aiFooter}>
+                    <View style={styles.aiFooterLine} />
+                    <Text style={styles.aiFooterText}>AI가 생성한 메시지입니다</Text>
+                  </View>
                 </Animated.View>
-
-                {/* 편지 끝 AI 안내 */}
-                <View style={styles.aiFooter}>
-                  <View style={styles.aiFooterLine} />
-                  <Text style={styles.aiFooterText}>AI가 생성한 메시지입니다</Text>
-                </View>
               </View>
+            </View>
 
-              {/* 윤리 고지 — 편지 카드 밖, 버튼 위에 분리 배치 */}
-              {done && (
+            {/* 하단 버튼 영역 — 롤링 완료(done) 후 표시 */}
+            {done && (
+              <View style={styles.letterActions}>
+                {/* 윤리 고지 */}
                 <View style={styles.disclaimerWrap}>
                   <Text style={styles.disclaimer}>
                     {isFirst
@@ -756,27 +767,23 @@ export default function MessageScreen() {
                       : 'AI가 생성한 추모 글입니다. 반려동물이 직접 한 말이 아닙니다.'}
                   </Text>
                 </View>
-              )}
 
-              {done && (
+                {/* 영상 보기 버튼 */}
+                {petVideoUrl && (
+                  <TouchableOpacity
+                    style={styles.watchVideoBtn}
+                    onPress={handleWatchVideo}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.watchVideoBtnText}>🎬  영상 보기</Text>
+                  </TouchableOpacity>
+                )}
+
                 <Button variant="ghost" onPress={regenerate} style={styles.regenBtn}>
                   🌸 다시 재생
                 </Button>
-              )}
 
-              {/* 영상 보기 버튼 — pet_video_url이 있을 때만 표시 */}
-              {done && petVideoUrl && (
-                <TouchableOpacity
-                  style={styles.watchVideoBtn}
-                  onPress={handleWatchVideo}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.watchVideoBtnText}>🎬  영상 보기</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* 회복 게이트 — content_unlocked / allow_first_person */}
-              {done && (
+                {/* 회복 게이트 — content_unlocked / allow_first_person */}
                 <View style={styles.gateSection}>
                   {message?.content_unlocked === true && (
                     <TouchableOpacity
@@ -820,40 +827,40 @@ export default function MessageScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-              )}
 
-              {/* 상담 자원 섹션 — risk_level 1/2 이상이고 welfare_resources 있을 때 */}
-              {done && (featuredResources.length > 0 || extraResources.length > 0) && (
-                <View style={styles.welfareSection}>
-                  {message.support_message && (
-                    <View style={styles.supportBanner}>
-                      <Text style={styles.supportText}>{message.support_message}</Text>
-                    </View>
-                  )}
-                  {message.crisis_message && (
-                    <View style={styles.crisisBanner}>
-                      <Text style={styles.crisisText}>{message.crisis_message}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.welfareSectionTitle}>상담 자원 안내</Text>
-                  {featuredResources.map((r, i) => <ResourceCard key={`f-${i}`} resource={r} />)}
-                  {extraResources.length > 0 && (
-                    <>
-                      <TouchableOpacity
-                        style={styles.expandToggle}
-                        onPress={() => setWelfareExpanded(e => !e)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.expandToggleText}>
-                          {welfareExpanded ? '접기 ▲' : `더 보기 (${extraResources.length}곳) ▼`}
-                        </Text>
-                      </TouchableOpacity>
-                      {welfareExpanded && extraResources.map((r, i) => <ResourceCard key={`nf-${i}`} resource={r} />)}
-                    </>
-                  )}
-                </View>
-              )}
-            </ScrollView>
+                {/* 상담 자원 섹션 */}
+                {(featuredResources.length > 0 || extraResources.length > 0) && (
+                  <View style={styles.welfareSection}>
+                    {message.support_message && (
+                      <View style={styles.supportBanner}>
+                        <Text style={styles.supportText}>{message.support_message}</Text>
+                      </View>
+                    )}
+                    {message.crisis_message && (
+                      <View style={styles.crisisBanner}>
+                        <Text style={styles.crisisText}>{message.crisis_message}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.welfareSectionTitle}>상담 자원 안내</Text>
+                    {featuredResources.map((r, i) => <ResourceCard key={`f-${i}`} resource={r} />)}
+                    {extraResources.length > 0 && (
+                      <>
+                        <TouchableOpacity
+                          style={styles.expandToggle}
+                          onPress={() => setWelfareExpanded(e => !e)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.expandToggleText}>
+                            {welfareExpanded ? '접기 ▲' : `더 보기 (${extraResources.length}곳) ▼`}
+                          </Text>
+                        </TouchableOpacity>
+                        {welfareExpanded && extraResources.map((r, i) => <ResourceCard key={`nf-${i}`} resource={r} />)}
+                      </>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </Animated.View>
         )}
       </SafeAreaView>
@@ -943,6 +950,7 @@ const styles = StyleSheet.create({
     elevation: 12,
     overflow: 'hidden',
   },
+  paperFixed: { flex: 1 },
   paperFirst: { backgroundColor: '#FDF3DC', borderWidth: 1, borderColor: '#E8C97A' },
   paperHeader: { alignItems: 'center', marginBottom: 20, gap: 10 },
   speciesIcon: { fontSize: 28, marginBottom: 4 },
@@ -962,6 +970,8 @@ const styles = StyleSheet.create({
   line: { fontSize: 16, color: '#3A2A1A', lineHeight: 27, textAlign: 'center', fontWeight: '400' },
   lineFirst: { color: '#4A2E0A', fontStyle: 'italic', fontWeight: '400' },
   footerLine: { width: 48, height: 1, backgroundColor: '#D4C0A0' },
+  rollViewport: { flex: 1, overflow: 'hidden' },
+  letterActions: { gap: 16, paddingTop: 12 },
   disclaimerWrap: { alignItems: 'center', paddingHorizontal: 16 },
   disclaimer: { fontSize: 11, color: 'rgba(255,255,255,0.50)', textAlign: 'center', lineHeight: 17 },
   regenBtn: { alignSelf: 'center' },

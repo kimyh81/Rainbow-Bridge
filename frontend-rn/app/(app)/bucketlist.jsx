@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView, Keyboard, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '@/constants/colors';
@@ -15,13 +15,28 @@ const PLACEHOLDERS = ['예) 함께 산책하기', '예) 좋아하는 간식 먹�
 
 export default function BucketlistScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState([]);
   const [newText, setNewText] = useState('');
   const [petName, setPetName] = useState('소중한 친구');
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     load();
   }, []);
+
+  // 키보드 높이를 직접 감지해 입력창을 그만큼 올린다.
+  // SDK 54 edge-to-edge에서 KeyboardAvoidingView가 헤더 있는 화면의 입력창을
+  // 제대로 못 올리는 문제 대응(회귀 방지). safe-area 하단 중복분은 빼서 입력창 위 갭을 막는다.
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) =>
+      setKbHeight(Math.max(0, e.endCoordinates.height - insets.bottom))
+    );
+    const hideSub = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [insets.bottom]);
 
   async function load() {
     try {
@@ -66,10 +81,6 @@ export default function BucketlistScreen() {
       style={styles.gradient}
     >
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.scroll}
@@ -131,8 +142,8 @@ export default function BucketlistScreen() {
             </View>
           </ScrollView>
 
-          {/* 입력창: KeyboardAvoidingView가 키보드 위로 자동 배치 */}
-          <View style={styles.addRow}>
+          {/* 입력창: 키보드 높이(kbHeight)만큼 위로 올려 가림 방지 */}
+          <View style={[styles.addRow, { marginBottom: kbHeight }]}>
             <TextInput
               style={styles.addInput}
               value={newText}
@@ -154,7 +165,6 @@ export default function BucketlistScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          </KeyboardAvoidingView>
         </SafeAreaView>
     </LinearGradient>
   );

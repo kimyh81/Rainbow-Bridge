@@ -218,7 +218,6 @@ function MemorialHome({ gateStatus, hasGif, hasVideo, hasLetter, anniversaryCare
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>더 보기</Text>
       <View style={styles.subRow}>
         <SmallCard emoji="🎞️" title="추모 영상 만들기" route="/(app)/media" />
-        <SmallCard emoji="🔊" title="음성으로 듣기" route="/(app)/tts" />
       </View>
     </>
   );
@@ -520,16 +519,17 @@ const styles = StyleSheet.create({
   // SmallCard
   subRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   smallCard: {
-    flex: 1, backgroundColor: '#FFFFFF',
-    borderRadius: 16, borderWidth: 1.5, borderColor: '#E5DCF0',
-    paddingVertical: 18, paddingHorizontal: 14, alignItems: 'center',
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14, borderWidth: 1.5, borderColor: '#E5DCF0',
+    paddingVertical: 13, paddingHorizontal: 16,
     shadowColor: '#8A7D9E',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 1,
   },
-  smallCardEmoji: { fontSize: 26, marginBottom: 6 },
-  smallCardTitle: { fontSize: 12, fontWeight: '700', color: '#5B4E75', textAlign: 'center' },
-  smallCardArrow: { fontSize: 14, color: '#C4A8D8', marginTop: 6 },
+  smallCardEmoji: { fontSize: 20 },
+  smallCardTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: '#5B4E75' },
+  smallCardArrow: { fontSize: 16, color: '#C4A8D8' },
 
   // 무지개다리 버튼 (조용하게)
   farewellBtn: {

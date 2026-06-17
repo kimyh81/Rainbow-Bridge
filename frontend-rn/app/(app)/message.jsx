@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
-  videoWrapFirst: { borderColor: '#C9A84C', width: 140, height: 140, borderRadius: 70 },
+  videoWrapFirst: { borderColor: '#C9A84C', width: '100%', height: 220, borderRadius: 12, alignSelf: 'center' },
   video: { width: '100%', height: '100%' },
   bodyContent: { gap: 16, paddingBottom: 4 },
   line: { fontSize: 18, color: '#3A2A1A', lineHeight: 30, textAlign: 'center', fontWeight: '400' },

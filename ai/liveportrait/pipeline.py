@@ -169,7 +169,7 @@ def merge_audio(
         ffmpeg, "-y",
         "-stream_loop", "-1", "-i", str(video_path),
         "-i", str(audio_path),
-        "-filter_complex", "[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[a]",
+        "-filter_complex", "[1:a]dynaudnorm=f=150:g=15[a]",
         "-map", "0:v:0", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
         "-c:a", "aac", "-b:a", "192k",

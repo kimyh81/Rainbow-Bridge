@@ -18,6 +18,7 @@ from app.services.media import (
     create_asset,
     delete_asset,
     get_asset,
+    get_latest_done_asset,
     run_liveportrait,
     run_liveportrait_gif,
     run_perso,
@@ -128,6 +129,21 @@ async def download_media(
         media_type="video/mp4",
         filename=f"{asset_id}_{type}.mp4",
     )
+
+
+@router.get("/pet/{pet_id}/latest")
+async def get_latest_media(pet_id: str, user: dict = Depends(get_current_user)):
+    """pet_id로 가장 최근 완료된 media_asset 반환 — 로그인 후 voiced_url 복원용."""
+    asset = await get_latest_done_asset(pet_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="완료된 영상이 없습니다.")
+    return {
+        "asset_id": str(asset["_id"]),
+        "video_url": asset.get("video_url"),
+        "voiced_url": asset.get("voiced_url"),
+        "gif_url": asset.get("gif_url"),
+        "status": asset.get("status"),
+    }
 
 
 @router.post("/generate/{pet_id}", status_code=202)

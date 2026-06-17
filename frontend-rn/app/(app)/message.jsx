@@ -10,7 +10,7 @@ import SafetyModal from '@/components/SafetyModal';
 import Button from '@/components/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateMessage, getLatestMessage } from '@/api/messages';
-import { recordPlay } from '@/api/media';
+import { getLatestMedia, getMediaStatus, recordPlay } from '@/api/media';
 import { generateTts } from '@/api/tts';
 import { COLORS } from '@/constants/colors';
 import { gwa, iga, eunneun } from '@/utils/josa';
@@ -295,7 +295,28 @@ export default function MessageScreen() {
   async function loadFirstPerson() {
     const petId = await AsyncStorage.getItem('pet_id');
     const petNameLocal = await AsyncStorage.getItem('pet_name') || '소중한 친구';
+    // voiced_url 복원 — 로그인 후 AsyncStorage 초기화돼도 DB에서 복원
     try {
+      const media = await getLatestMedia(petId);
+      if (media.asset_id) await AsyncStorage.setItem('pet_video_asset_id', media.asset_id);
+      if (media.voiced_url) {
+        const full = media.voiced_url.startsWith('http') ? media.voiced_url : `${API_BASE}${media.voiced_url}`;
+        setPetVoicedUrl(full);
+        await AsyncStorage.setItem('pet_voiced_url', full);
+      }
+      if (media.video_url) {
+        const full = media.video_url.startsWith('http') ? media.video_url : `${API_BASE}${media.video_url}`;
+        setPetVideoUrl(full);
+        await AsyncStorage.setItem('pet_video_url', full);
+      }
+    } catch {}
+    try {
+      // 기존 1인칭 메시지 먼저 재사용 — 매번 새 메시지 생성 방지
+      const existing = await getLatestMessage(petId);
+      if (existing && existing.first_person === true && existing.source !== 'unavailable') {
+        await saveMessage(existing);
+        return;
+      }
       const data = await generateMessage({ pet_id: petId, request_first_person: true });
       if (!data || data.source === 'unavailable') throw new Error('unavailable');
       // 1인칭을 요청했는데 백엔드가 1인칭을 거부(first_person !== true)하면, 3인칭을
@@ -470,9 +491,9 @@ export default function MessageScreen() {
         await sound.playAsync();
         let vol = 0;
         const fade = setInterval(async () => {
-          vol = Math.min(0.7, vol + 0.05);
+          vol = Math.min(0.15, vol + 0.05);
           await sound.setVolumeAsync(vol);
-          if (vol >= 0.7) clearInterval(fade);
+          if (vol >= 0.15) clearInterval(fade);
         }, BGM_FADE_DURATION / 20);
       } catch {}
     }
@@ -701,7 +722,7 @@ export default function MessageScreen() {
                 {isFirst && (petVoicedUrl || petVideoUrl) && (
                   <View style={[styles.videoWrap, styles.videoWrapFirst]}>
                     <Video source={{ uri: petVoicedUrl || petVideoUrl }} style={styles.video}
-                      resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted={!petVoicedUrl} />
+                      resizeMode={ResizeMode.COVER} isLooping={!petVoicedUrl} shouldPlay isMuted={!petVoicedUrl} />
                   </View>
                 )}
                 {isFirst && !petVoicedUrl && !petVideoUrl && petPhotoUrl && (

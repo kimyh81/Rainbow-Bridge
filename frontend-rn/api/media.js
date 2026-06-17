@@ -27,6 +27,12 @@ export async function recordPlay(assetId) {
   return res.data;
 }
 
+// pet_id로 최신 완료 asset 조회 — 로그인 후 voiced_url 복원용
+export async function getLatestMedia(petId) {
+  const res = await api.get(`/api/v1/media/pet/${petId}/latest`);
+  return res.data;
+}
+
 // 사진 삭제 — 서버 파일 + DB 문서 함께 제거
 export async function deleteMedia(assetId) {
   await api.delete(`/api/v1/media/${assetId}`);

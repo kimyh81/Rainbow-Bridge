@@ -2,7 +2,7 @@
 
 > 팀원이 자기 작업 상태를 직접 갱신하는 문서입니다.
 > 상태 바꾸면 `docs: 진행도 업데이트` 로 커밋해 주세요.
-> **최종 수정:** 2026-06-15 (모세종)
+> **최종 수정:** 2026-06-17 (모세종)
 
 ## 상태 표기
 - ⬜ 시작 전  |  🟡 진행 중  |  🔵 리뷰 중(PR)  |  ✅ 완료  |  ⛔ 막힘(blocked)
@@ -59,8 +59,8 @@
 ### ④ 음성 톤 선택 + TTS 낭독
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
-| TTS 엔진 | 정환주 | ✅ | **WaveSpeedAI 메인** + Qwen3 GPU + Google Cloud + gTTS 4단계 폴백 (PR #275, 06-14). URL 자동 핸드오프 완성 (PR #285) |
-| API 연동 | 모세종·정환주 | ✅ | POST /tts → WaveSpeed wav (+ 3단계 폴백). 메시지 생성 시 narration TTS 사전 생성 (PR #277, 06-14) |
+| TTS 엔진 | 정환주 | ✅ | **WaveSpeedAI 메인** + Qwen3 GPU + Google Cloud + gTTS 4단계 폴백 (PR #275, 06-14). URL 자동 핸드오프 완성 (PR #285). **CER 자체평가(large-v3): 3인칭 1.0% / 1인칭 5.5%** ✅ |
+| API 연동 | 모세종·정환주 | ✅ | POST /tts → WaveSpeed wav (+ 3단계 폴백). 메시지 생성 시 narration TTS 사전 생성 (PR #277, 06-14). 3인칭 고정 wav(`letter_3rd_dyn.wav`) dynaudnorm 적용 |
 | 화면 | 민경이 | ✅ | TtsPage 완성, audio_url null 크래시 수정 (PR #259) |
 
 ### ⑤ 일상 복귀 미션 추천
@@ -111,9 +111,10 @@
 | 파트 | 담당 | 상태 | 비고 |
 |------|------|------|------|
 | 사진 업로드 API | 모세종 | ✅ | POST /media/upload, GET /media/{asset_id} |
-| LivePortrait 파이프라인 | 장민수 | ✅ | animals 모드, driving_multiplier 0.4, TomCarper calm 드라이빙 영상, 동기화 상관계수 0.84 |
-| 영상+TTS 합치기(FFmpeg) | 장민수 | ✅ | merge_audio() — 영상 loop+음성 길이 맞춤, libx264/aac |
+| LivePortrait 파이프라인 | 장민수 | ✅ | animals 모드, driving_multiplier 0.5, TomCarper calm 드라이빙 영상. **립싱크 자체평가(5-B): corr 0.896 / lag +40ms** ✅ |
+| 영상+TTS 합치기(FFmpeg) | 장민수·모세종 | ✅ | merge_audio() — 영상 loop+음성 길이 맞춤, libx264/aac. BGM(dynaudnorm) 합성. voiced_url API 자동 조회 (PR #365) |
 | remote 추론(GPU 서버) | 장민수 | ✅ | MP4 완료 후 GIF 백그라운드 생성, Cloudflare Tunnel 연결 (PR #250, 06-12) |
+| 1인칭 편지 voiced LP 영상 | 모세종·장민수 | ✅ | maltese_wav2kp_bgm.mp4 — MuseTalk+LP+TTS+BGM 합성. demo04 voiced_url 세팅 완료 |
 | PERSO 립싱크(선택형) | 장민수 | ❌ | **드랍** — 동물 얼굴 감지 구조적 불가 (방법 2 실험 결과) |
 | 다운로드 제공 | 김윤한 | ✅ | GET /media/{asset_id}/download |
 

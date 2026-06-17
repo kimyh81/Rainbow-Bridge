@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Text, StyleSheet, ScrollView, View, Image } from 'react-native';
+import { Text, StyleSheet, ScrollView, View, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
@@ -11,6 +11,7 @@ import { generateMedia, getMediaStatus } from '@/api/media';
 import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
 import { fetchRecoveryGate } from '@/utils/recovery';
+import { useRenderFps } from '@/utils/useRenderFps';
 
 const POLL_INTERVAL = 5000;
 const POLL_MAX = 60;
@@ -31,6 +32,8 @@ export default function MediaScreen() {
   const [error, setError] = useState('');
   const pollRef = useRef(null);
   const pollGifRef = useRef(null);
+  // 재생 성능(FPS) 측정 — 평가용(소람님 SyncNet 보조 지표)
+  const { measuring, result: fpsResult, start: startFps, stop: stopFps } = useRenderFps();
 
   useEffect(() => {
     // 앱 재진입 시 이전 결과 복원
@@ -197,6 +200,28 @@ export default function MediaScreen() {
               <Text style={styles.disclaimer}>
                 AI가 보호자가 전해준 기억을 바탕으로 재해석한 추모 영상이에요.
               </Text>
+
+              {/* 재생 성능(FPS) 측정 — 평가용, 개발 빌드에서만 노출 */}
+              {__DEV__ ? (
+                <View style={styles.fpsBox}>
+                  <TouchableOpacity
+                    style={styles.fpsBtn}
+                    onPress={measuring ? stopFps : startFps}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.fpsBtnText}>
+                      {measuring ? '⏹ 측정 종료' : '📊 재생 성능 측정 (FPS)'}
+                    </Text>
+                  </TouchableOpacity>
+                  {fpsResult ? (
+                    <Text style={styles.fpsResult} selectable>
+                      {JSON.stringify(fpsResult)}
+                    </Text>
+                  ) : measuring ? (
+                    <Text style={styles.fpsHint}>측정 중… 영상을 몇 초간 재생한 뒤 종료하세요.</Text>
+                  ) : null}
+                </View>
+              ) : null}
             </Card>
           ) : null}
 
@@ -246,6 +271,14 @@ const styles = StyleSheet.create({
   resultTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 12 },
   video: { width: '100%', aspectRatio: 1, borderRadius: 12, backgroundColor: '#000' },
   disclaimer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10, lineHeight: 18 },
+  fpsBox: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#D9EBE4', gap: 8 },
+  fpsBtn: {
+    alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 10, backgroundColor: '#E6F2EC', borderWidth: 1, borderColor: '#A8D5C2',
+  },
+  fpsBtnText: { fontSize: 13, fontWeight: '700', color: '#2D7A4F' },
+  fpsResult: { fontSize: 12, color: '#37474F', fontFamily: 'monospace' },
+  fpsHint: { fontSize: 12, color: COLORS.textSecondary },
   teaserCard: { backgroundColor: '#F9F5FF', borderColor: '#E5DCF0', borderWidth: 1, marginTop: 16, alignItems: 'center', paddingVertical: 24 },
   teaserTitle: { fontSize: 15, fontWeight: '700', color: '#8A6BAA', marginBottom: 10 },
   teaserDesc: { fontSize: 13, color: '#A89FBC', textAlign: 'center', lineHeight: 22 },

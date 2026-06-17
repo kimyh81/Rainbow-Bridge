@@ -100,3 +100,6 @@ nohup.out
 
 # ===== AI 검증 스크립트 실행 로그 (validate_*.py 출력 덤프 · 테스트 아님 · 커밋 금지) =====
 validate_*_result.txt
+
+# ===== TTS health 폴링 로그 (analyze_tts_log.py --watch 자동생성 · 계속 증가 · 커밋 금지) =====
+ai/tts/health.csv

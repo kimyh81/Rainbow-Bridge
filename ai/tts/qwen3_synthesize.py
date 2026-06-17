@@ -87,6 +87,24 @@ _VOICES: dict[str, dict] = {
         eq_fc=4000.0,
         atempo=0.95,
     ),
+    # 시연영상 전용 — woman 화자(seed 21424) 그대로 두고 덜 가라앉게만 조정:
+    # pitch low→normal, atempo 0.95→1.0. 서비스 narration(woman)은 손대지 않음.
+    # scenario_lines 의 letter_3rd 등에서만 사용.
+    "woman_bright": dict(
+        gender="woman",
+        age="child",
+        warmth=1,
+        bright=1,
+        pitch="normal",  # low→normal (덜 가라앉게)
+        emotion="calm",
+        clarity=1,
+        pace="normal",
+        temp=0.5,
+        seed=21424,      # woman 과 동일 화자 (목소리 유지)
+        eq_db=0.0,
+        eq_fc=4000.0,
+        atempo=1.0,      # 0.95→1.0 (덜 처지게)
+    ),
 }
 # 호출부가 고를 수 있는 보이스 키(공개).
 AVAILABLE_VOICES = tuple(_VOICES)

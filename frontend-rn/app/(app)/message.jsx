@@ -12,6 +12,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { generateMessage, getLatestMessage } from '@/api/messages';
 import { getLatestMedia, getMediaStatus, recordPlay } from '@/api/media';
 import { generateTts } from '@/api/tts';
+import { API_URL } from '@/api/axiosInstance';
 import { COLORS } from '@/constants/colors';
 import { gwa, iga, eunneun } from '@/utils/josa';
 import { fetchRecoveryGate } from '@/utils/recovery';
@@ -248,8 +249,35 @@ export default function MessageScreen() {
     AsyncStorage.getItem('pet_name').then((v) => v && setPetName(v));
     AsyncStorage.getItem('pet_species').then((v) => v && setPetSpecies(v));
     AsyncStorage.getItem('pet_video_url').then((v) => v && setPetVideoUrl(v));
-    AsyncStorage.getItem('pet_voiced_url').then((v) => v && setPetVoicedUrl(v));
     AsyncStorage.getItem('pet_video_asset_id').then((v) => v && setPetVideoAssetId(v));
+    // voiced_url: AsyncStorage 우선, 없으면 API에서 최신 asset 조회
+    (async () => {
+      const [cached, petId] = await Promise.all([
+        AsyncStorage.getItem('pet_voiced_url'),
+        AsyncStorage.getItem('pet_id'),
+      ]);
+      if (cached) {
+        setPetVoicedUrl(cached);
+      } else if (petId) {
+        try {
+          const latest = await getLatestMedia(petId);
+          if (latest?.voiced_url) {
+            const full = latest.voiced_url.startsWith('http')
+              ? latest.voiced_url
+              : `${API_URL}${latest.voiced_url}`;
+            setPetVoicedUrl(full);
+            await AsyncStorage.setItem('pet_voiced_url', full);
+          }
+          if (!cached && latest?.video_url) {
+            const full = latest.video_url.startsWith('http')
+              ? latest.video_url
+              : `${API_URL}${latest.video_url}`;
+            setPetVideoUrl(full);
+            await AsyncStorage.setItem('pet_video_url', full);
+          }
+        } catch {}
+      }
+    })();
     AsyncStorage.getItem('pet_photo_url').then((v) => v && setPetPhotoUrl(v));
     initGate();
     return () => cleanup();

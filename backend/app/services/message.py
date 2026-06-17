@@ -168,6 +168,7 @@ async def create_message(data: MessageCreate) -> MessageResponse:
                     "tone": result.get("tone", tone),
                     "source": result.get("source", "local"),
                     "risk_level": result.get("risk_level", 0),
+                    "first_person": result.get("first_person", False),
                     "content_unlocked": content_unlocked,
                     "allow_first_person": allow_first_person,
                     "created_at": datetime.now(timezone.utc),

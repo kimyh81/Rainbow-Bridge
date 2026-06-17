@@ -35,12 +35,12 @@ ACCOUNTS = [
 
 # 계정별 최근 N일치 데이터 설정
 HEALTH_CONFIG = {
-    "demo00@demo.com": {"days": 0},
-    "demo01@demo.com": {"days": 3},
-    "demo02@demo.com": {"days": 5},
-    "demo03@demo.com": {"days": 5},
+    "demo00@demo.com": {"days": 7},
+    "demo01@demo.com": {"days": 7},
+    "demo02@demo.com": {"days": 7},
+    "demo03@demo.com": {"days": 7},
     "demo04@demo.com": {"days": 7},
-    "demo05@demo.com": {"days": 0},
+    "demo05@demo.com": {"days": 7},
 }
 
 # 날짜별 수면/걸음 패턴 (회복 흐름을 보여주도록 상승세로)

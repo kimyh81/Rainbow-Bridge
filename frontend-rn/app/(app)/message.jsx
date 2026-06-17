@@ -772,8 +772,8 @@ export default function MessageScreen() {
                   </Text>
                 </View>
 
-                {/* 영상 보기 버튼 */}
-                {petVideoUrl && (
+                {/* 영상 보기 버튼 — voiced 또는 일반 영상 있을 때 */}
+                {(petVoicedUrl || petVideoUrl) && (
                   <TouchableOpacity
                     style={styles.watchVideoBtn}
                     onPress={handleWatchVideo}
@@ -936,7 +936,8 @@ const styles = StyleSheet.create({
   paperWrap: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 32,
+    paddingTop: 16,
+    paddingBottom: 56,
   },
   paperScroll: { flex: 1 },
   paperScrollContent: { flexGrow: 1, gap: 20, paddingBottom: 32, paddingTop: 8 },
@@ -968,10 +969,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
-  videoWrapFirst: { borderColor: '#C9A84C', width: 140, height: 140, borderRadius: 70 },
+  videoWrapFirst: { borderColor: '#C9A84C', width: '100%', height: 220, borderRadius: 12, alignSelf: 'center' },
   video: { width: '100%', height: '100%' },
   bodyContent: { gap: 16, paddingBottom: 4 },
-  line: { fontSize: 16, color: '#3A2A1A', lineHeight: 27, textAlign: 'center', fontWeight: '400' },
+  line: { fontSize: 18, color: '#3A2A1A', lineHeight: 30, textAlign: 'center', fontWeight: '400' },
   lineFirst: { color: '#4A2E0A', fontStyle: 'italic', fontWeight: '400' },
   footerLine: { width: 48, height: 1, backgroundColor: '#D4C0A0' },
   rollViewport: { flex: 1, overflow: 'hidden' },

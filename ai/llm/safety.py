@@ -291,6 +291,11 @@ _SIGNAL_TABLE: Final[tuple[tuple[str, str, RiskLevel], ...]] = (
     ("나도따라가", "following", RiskLevel.L2_WARNING),
     ("나도데려가", "following", RiskLevel.L2_WARNING),
     ("곁으로가고싶", "following", RiskLevel.L2_WARNING),
+    # 간접 약물 복용 — "약을 많이 먹으면 (반려동물)를 만날 수 있을까?" 형태.
+    # "약을많이먹으면만날" 패턴은 중간에 반려동물 이름이 끼어 불일치 → 짧게 처리.
+    # L0 는 L2 로 잡고, assess_crisis 의 LLM 레이어(L1)가 전체 맥락 보고 L3 상향.
+    ("약을많이먹으면", "following", RiskLevel.L2_WARNING),
+    ("약많이먹으면", "following", RiskLevel.L2_WARNING),
     ("깨지않았으면", "direct", RiskLevel.L2_WARNING),
     ("깨어나지않았으면", "direct", RiskLevel.L2_WARNING),
     ("끝났으면좋겠", "direct", RiskLevel.L2_WARNING),
@@ -322,6 +327,7 @@ _SIGNAL_TABLE: Final[tuple[tuple[str, str, RiskLevel], ...]] = (
     ("더는버틸힘없", "passive", RiskLevel.L1_CONCERN),
     ("일어나는것도의미가없", "passive", RiskLevel.L1_CONCERN),
     ("사는게의미가없", "passive", RiskLevel.L1_CONCERN),
+    ("사는게그냥의미가없", "passive", RiskLevel.L1_CONCERN),  # "그냥" 삽입 완곡형
     # 완곡·이벤트 회피와 겹치는 표현 — L2(1393 우선)는 과함, L1(공감)으로.
     # ('그만 쉬고 싶다'=단순 피로, '내일이 안 왔으면'=시험·일 회피 가능)
     ("그만쉬고싶", "passive", RiskLevel.L1_CONCERN),
@@ -339,6 +345,17 @@ _SIGNAL_TABLE: Final[tuple[tuple[str, str, RiskLevel], ...]] = (
     ("숨쉬는것도힘들", "passive", RiskLevel.L1_CONCERN),
     ("숨쉬기도힘들", "passive", RiskLevel.L1_CONCERN),
     ("숨쉬는것조차", "passive", RiskLevel.L1_CONCERN),
+    # 소진·탈진형 극한 표현 — 규칙 미탐 보강(2026-06-16 Case 38 발견).
+    # "몇 달을 버텼는데 더는 못 하겠어요"처럼 직접 자해 언급 없이 소진 한계를
+    # 표현하는 패턴. '더는/더이상' 동반형으로만 한정해 일반 불만("못하겠다")과 구분.
+    # 펫로스 앱 맥락에서 "더는 못 하겠어요" = 삶의 지속 불가 선언에 가까우므로
+    # "더이상버틸힘이없"과 동일하게 처리하되, 강도 표시어(정말·너무 등) 동반 시
+    # 점수가 L2(45) 이상이 되도록 direct(50) 카테고리로 둔다.
+    ("더는못하겠", "direct", RiskLevel.L2_WARNING),
+    ("더이상못하겠", "direct", RiskLevel.L2_WARNING),
+    # "정말/진짜 한계예요" — 단순 '한계'는 오탐 과다(체력의 한계 등)라 강도 부사로 한정.
+    ("정말한계", "passive", RiskLevel.L1_CONCERN),
+    ("진짜한계", "passive", RiskLevel.L1_CONCERN),
 )
 
 # 반려동물 죽음·이별을 가리키는 단서(공백 제거 기준).

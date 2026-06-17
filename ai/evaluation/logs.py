@@ -26,7 +26,6 @@ COLLECTION: Final[str] = "llm_logs"
 KIND_MESSAGE: Final[str] = "message"  # ③ 추모 메시지
 KIND_MISSION: Final[str] = "mission"  # ⑤ 미션 추천
 KIND_CRISIS: Final[str] = "crisis"  # ⑦ 위기 감지
-KIND_FUNERAL: Final[str] = "funeral"  # 2단계 장례 상담
 KIND_VET_PROTOCOL: Final[str] = "vet_protocol"  # 수의사 처치 안내 RAG (triage 생성기능 드랍 후 재용도)
 
 

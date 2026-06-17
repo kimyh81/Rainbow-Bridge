@@ -31,9 +31,9 @@ from .safety import (
     EMPATHY_FOCUS_NOTE,
     WELFARE_INTRO,
     WELFARE_RESOURCES,
+    assess_crisis,
     crisis_notice,
     decide_action,
-    detect_crisis,
 )
 
 
@@ -172,8 +172,11 @@ def generate_message(
     note = str(emotion.get("note", "") or "")
 
     # (1) 위기 선체크 — 등급별 응답 정책(safety.decide_action).
-    #     L3(긴급)이면 생성 전면 중단, 1393 안내만. (L2 는 생성도 함께 — 아래 참고)
-    crisis = detect_crisis(note)
+    #     규칙 레이어(L0)만 사용 — generate 를 crisis 감지에 넘기지 않음
+    #     (L1 LLM 이 message generate 와 같은 함수를 공유하면 테스트 격리 불가).
+    #     L3(긴급): 생성 전면 차단 + 1393.
+    #     L2(경고): 생성하되 crisis_message 에 1393 동봉.
+    crisis = assess_crisis(note)
     action = decide_action(crisis.risk_level)
     if action == CrisisAction.BLOCK:
         notice = crisis_notice()
@@ -184,11 +187,6 @@ def generate_message(
             "crisis_message": notice,
             "risk_level": int(crisis.risk_level),
         }
-
-    # 🚨 1인칭 펫 편지는 risk_level<=1 에서만. L2(경고)면 생성은 하되 강제로 3인칭으로
-    #    낮춥니다 — 위기 신호가 있는 보호자에게 반려동물 1인칭 편지는 금지(안전 최우선).
-    if action == CrisisAction.HOTLINE:
-        first_person = False
 
     # (2) RAG 검색 — note + 추억 + 버킷리스트 키워드로 관련 위로글 top-3 검색.
     #     실패(DB 미적재·네트워크 오류 등) 시 graceful fallback.
@@ -228,15 +226,17 @@ def generate_message(
         memories=pet.get("memories"),
         bucket_list=bucket_list,
         tone=tone,
-        first_person=first_person,
+        # L2(경고)에서는 감정 취약 상태 — 1인칭 편지 승격 억제.
+        first_person=first_person and action != CrisisAction.HOTLINE,
         rag_hits=rag_hits,
         recovery_trend=recovery_trend,
     )
     messages = memorial_prompt.build_messages(**prompt_kwargs)
     prompt = f"{messages[0]['content']}\n\n{messages[1]['content']}"
-    # L1(우려)·L2(경고)는 공감 우선. 추가로 자책감이 감지되면(등급 무관) 공감 톤만
+    # L1(우려)는 공감 우선. 추가로 자책감이 감지되면(등급 무관) 공감 톤만
     # 얹는다 — 복지자원·1393 은 붙이지 않음(자책감은 펫로스 애도에 흔해 과민 안내 방지).
-    if action in (CrisisAction.GENERATE_WITH_SUPPORT, CrisisAction.HOTLINE) or crisis.guilt:
+    # L2(경고)·L3(긴급)는 위 early return 에서 이미 처리됨.
+    if action == CrisisAction.GENERATE_WITH_SUPPORT or crisis.guilt:
         prompt += EMPATHY_FOCUS_NOTE
 
     # (4)+(5) 호출 후 가드 검사, 위반 시 재생성.
@@ -250,7 +250,8 @@ def generate_message(
                 prompt, max_tokens=_MAX_TOKENS, temperature=_TEMPERATURE
             ).strip()
             violation = _violates_guardrail(
-                content, pet_name=pet.get("name", ""), first_person=first_person
+                content, pet_name=pet.get("name", ""),
+                first_person=first_person and action != CrisisAction.HOTLINE,
             )
             if violation is not None:
                 last_violation = violation
@@ -262,11 +263,11 @@ def generate_message(
                 result["support_message"] = WELFARE_INTRO
                 result["welfare_resources"] = list(WELFARE_RESOURCES)
                 result["risk_level"] = int(crisis.risk_level)
-            # L2(경고) — 생성은 하되 1393 안내를 함께(우선 표시).
-            elif action == CrisisAction.HOTLINE:
+            # L2(경고) — 생성은 진행하되 1393 안내를 crisis_message 로 동봉.
+            if action == CrisisAction.HOTLINE:
                 result["crisis_message"] = crisis_notice()
                 result["risk_level"] = int(crisis.risk_level)
-            if first_person:
+            if first_person and action != CrisisAction.HOTLINE:
                 result["first_person"] = True
             return result
     except LLMError:

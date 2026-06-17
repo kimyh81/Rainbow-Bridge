@@ -1,11 +1,11 @@
 """위기 등급별 응답 라우팅 검증 — L0/L1/L2/L3 차등 + 복지자원 + 공감 우선.
 
-safety.decide_action 정책이 3개 생성 기능(③ 메시지·funeral·anniversary)에
+safety.decide_action 정책이 2개 생성 기능(③ 메시지·anniversary)에
 일관되게 적용되는지 확인하는 수동 점검 도구. 가짜 generate 로 동작 → API 불필요·즉시.
 
   L0 정상 → 평소 생성
   L1 우려 → 생성 + 복지자원 동봉 + 공감 우선 지침 주입
-  L2 경고 → 생성 + 1393 안내 함께(crisis_message) + 공감 우선
+  L2 경고 → 생성 중단, 1393 만(source=safety) — L3과 동일 정책
   L3 긴급 → 생성 전면 중단, 1393 만(source=safety)
 
 사용 (레포 루트에서): python -m ai.llm.validate_crisis_routing
@@ -24,7 +24,7 @@ from .safety import (
     decide_action,
     detect_crisis,
 )
-from . import anniversary, funeral, memorial
+from . import anniversary, memorial
 
 # Windows 터미널 인코딩 우회 — UTF-8 강제
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -60,17 +60,12 @@ def _call_memorial(note, f):
     )
 
 
-def _call_funeral(note, f):
-    return funeral.generate_funeral_guidance("after_death", _PET, note=note, generate=f)
-
-
 def _call_anniversary(note, f):
     return anniversary.generate_anniversary_care(_PET, 30, note=note, generate=f)
 
 
 _FUNCS = (
     ("memorial", _call_memorial),
-    ("funeral", _call_funeral),
     ("anniversary", _call_anniversary),
 )
 
@@ -116,13 +111,9 @@ def _check_routing(out, fails: list[str]) -> None:
             is_safety = src == "safety"
 
             # 기대치
-            if lvl_key == "L3":  # 생성 중단, 1393 만
+            if lvl_key in ("L3", "L2"):  # L2·L3 모두 생성 중단, 1393 만
                 ok = is_safety and CRISIS_HOTLINE in body and not has_support
                 detail = f"source={src} 1393={'O' if CRISIS_HOTLINE in body else 'X'}"
-            elif lvl_key == "L2":  # 생성 + 1393 동봉 + 공감
-                ok = (not is_safety) and (CRISIS_HOTLINE in crisis_msg) and empathy
-                hit = "O" if CRISIS_HOTLINE in crisis_msg else "X"
-                detail = f"생성={not is_safety} 1393동봉={hit} 공감주입={empathy}"
             elif lvl_key == "L1":  # 생성 + 복지자원 + 공감
                 resources = r.get("welfare_resources") or []
                 ok = (

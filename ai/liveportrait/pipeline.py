@@ -362,21 +362,52 @@ def _generate_remote(source: Path, output_dir: Path) -> Path:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"{source.stem}_remote.mp4"
+
+    # 1. 비동기 job 시작 (즉시 반환 — Cloudflare 100초 제한 이내)
     try:
         with open(source, "rb") as img:
             resp = requests.post(
-                f"{REMOTE_URL}/generate",
+                f"{REMOTE_URL}/generate/async",
                 files={"source": (source.name, img, "application/octet-stream")},
-                timeout=300,  # GPU 추론 ~1분, 여유 있게
+                timeout=30,
             )
         resp.raise_for_status()
     except requests.RequestException as e:
-        raise LivePortraitError(f"원격 GPU 서비스 호출 실패: {e}") from e
+        raise LivePortraitError(f"원격 GPU 서비스(generate/async) 호출 실패: {e}") from e
 
-    if not resp.content:
-        raise LivePortraitError("원격 GPU 서비스가 빈 응답을 반환했습니다.")
-    out_path.write_bytes(resp.content)
-    return out_path
+    job_id = resp.json().get("job_id")
+    if not job_id:
+        raise LivePortraitError("GPU 서버가 job_id를 반환하지 않았습니다.")
+
+    # 2. 폴링 — 30초 간격, 최대 10회(5분)
+    for _ in range(10):
+        time.sleep(30)
+        try:
+            status_resp = requests.get(
+                f"{REMOTE_URL}/generate/status/{job_id}", timeout=10
+            )
+            status_resp.raise_for_status()
+            status = status_resp.json().get("status")
+        except requests.RequestException as e:
+            raise LivePortraitError(f"MP4 job 상태 조회 실패: {e}") from e
+
+        if status == "done":
+            # 3. MP4 다운로드
+            try:
+                result_resp = requests.get(
+                    f"{REMOTE_URL}/generate/result/{job_id}", timeout=30
+                )
+                result_resp.raise_for_status()
+            except requests.RequestException as e:
+                raise LivePortraitError(f"MP4 결과 다운로드 실패: {e}") from e
+            if not result_resp.content:
+                raise LivePortraitError("원격 GPU 서비스가 빈 MP4를 반환했습니다.")
+            out_path.write_bytes(result_resp.content)
+            return out_path
+        elif status == "error":
+            raise LivePortraitError("GPU 서버에서 MP4 생성 실패 (server error)")
+
+    raise LivePortraitError("MP4 생성 타임아웃 (5분 초과)")
 
 
 def _generate_local(source: Path, driving: Path, output_dir: Path) -> Path:

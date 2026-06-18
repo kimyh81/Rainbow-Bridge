@@ -4,8 +4,8 @@
 
 [![Status](https://img.shields.io/badge/status-prototype_완성-brightgreen)]()
 [![Period](https://img.shields.io/badge/기간-2026.06.01~06.19-blue)]()
-[![Commits](https://img.shields.io/badge/commits-1430-yellow)]()
-[![PRs](https://img.shields.io/badge/PRs-356-orange)]()
+[![Commits](https://img.shields.io/badge/commits-1439-yellow)]()
+[![PRs](https://img.shields.io/badge/PRs-365-orange)]()
 [![CI](https://github.com/mosejong/rainbow-bridge/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/mosejong/rainbow-bridge/actions)
 
 ---
@@ -180,11 +180,13 @@ docker exec rainbow_backend python scripts/seed_scenario.py
 
 | 계정 | 시나리오 | 비밀번호 |
 |------|----------|----------|
-| demo00@demo.com | 잠금 (초기 상태) | js1234 |
+| demo00@demo.com | locked — 이별 4일차, 회복 전 비교용 | js1234 |
 | demo01@demo.com | teaser — 회복 진행 중, 삼성헬스 리포트 | js1234 |
 | demo02@demo.com | open — 3인칭 편지·GIF 해금 | js1234 |
 | demo03@demo.com | open — 슬라이드쇼 영상 해금 | js1234 |
 | demo04@demo.com | open — 1인칭 편지 + LP 발화 영상 | js1234 |
+| demo05@demo.com | teaser — 20일차 회복, 비교용 | js1234 |
+| super@super.com | **전체 기능 해금** — 녹화 데모용 (score 94) | 123456 |
 
 ### 5. 프론트엔드 (로컬 개발)
 
@@ -272,8 +274,8 @@ rainbow-bridge/
 
 | 항목 | 수치 |
 |------|------|
-| 총 커밋 수 | 1,430+ |
-| 머지된 PR 수 | 356+ |
+| 총 커밋 수 | 1,439+ |
+| 머지된 PR 수 | 365+ |
 | API 엔드포인트 | 40+ |
 | 테스트 커버리지 | 핵심 서비스 pytest 적용 |
 | 프로토타입 기능 완성률 | 8/8 (100%) |

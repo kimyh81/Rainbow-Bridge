@@ -95,6 +95,19 @@
 
 ---
 
+## 2026-06-17 (Day 17)
+
+| 이름 | 한 일 (요약) | 상세 |
+|------|------------|------|
+| 모세종 | — | [→](members/모세종.md) |
+| 김윤한 | — | [→](members/김윤한.md) |
+| 반소람 | — | [→](members/반소람.md) |
+| 정환주 | — | [→](members/정환주.md) |
+| 민경이 | — | [→](members/민경이.md) |
+| 장민수 | wav_lipsync.py v6 완성(auto_detect_kp, 새 사진 교체), 강사님 파이프라인(MuseTalk v1.5→LP animals) 파악, therapist_talking.mp4 다운로드 | [→](members/장민수.md#2026-06-17-day-17) |
+
+---
+
 ## 2026-06-16 (Day 16)
 
 | 이름 | 한 일 (요약) | 상세 |

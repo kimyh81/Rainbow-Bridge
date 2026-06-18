@@ -1,12 +1,12 @@
 """발표 시나리오 계정 시드 스크립트
 
 계정별 게이트 상태 (비밀번호: js1234):
-  demo00 — locked        (체크인 0)
-  demo01 — teaser        (체크인 3, 헬스 2, 미션 10일) score ~45
-  demo02 — open          (체크인 4, 헬스 3, 미션 15일) score ~57 — 3인칭 편지·GIF
-  demo03 — open+히든미션  (체크인 4, 헬스 3, 미션 15일) — 슬라이드쇼
-  demo04 — open+1인칭    (체크인 7, 헬스 7, 미션 24일) score ~82
-  demo05 — 예비
+  demo00 — 4일차 슬픔   (체크인 4, 미션 4일) — 발표 비교용: 회복 전 상태
+  demo01 — teaser       (체크인 3, 헬스 7, 미션 10일) score ~45
+  demo02 — open         (체크인 4, 헬스 3, 미션 15일) score ~57 — 3인칭 편지·GIF
+  demo03 — open+히든미션 (체크인 4, 헬스 3, 미션 15일) — 슬라이드쇼
+  demo04 — open+1인칭   (체크인 7, 헬스 7, 미션 24일) score ~82
+  demo05 — 20일차 회복  (체크인 20, 미션 20일) score ~90 — 발표 비교용: 회복 후 상태
 
 실행 (서버에서): cd backend && python scripts/seed_scenario.py
 로컬 실행:       cd backend && py -3.13 scripts/seed_scenario.py
@@ -41,6 +41,38 @@ PET_PHOTO_PATH: str | None = None  # 예) "/home/user/haneuli.jpg"
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "rainbow_bridge")
 
+# ── 시나리오 편지 (고정 대본) ────────────────────────────────────────────────
+MESSAGE_3RD = """지수 씨에게,
+
+하늘이와 함께한 시간들이 하늘이에게도 분명 소중한 기억이었을 거예요.
+
+처음 작고 하얀 몸으로 품에 안기던 날부터, 집 앞 공원 산책길을 매번 설레는 듯 꼬리를 흔들며 걷던 날들까지. 하늘이는 지수 씨 곁에서 자신만의 행복을 쌓아갔을 거예요.
+
+비 오는 날이면 어김없이 옆으로 다가와 웅크렸던 하늘이. "기다려" 하면 작은 발을 꼭 모으고 눈을 빛내며 기다리던 그 모습도, 아팠던 날 지수 씨 손을 오래 핥아주던 모습도 — 하늘이는 나름의 방식으로 곁에 있어줬겠죠.
+
+마지막 아침도 평소처럼 밥 먹고 햇살 드는 자리에 눈을 감았던 하늘이. 그 일상 하나하나가 하늘이에게는 충분한 행복이었을 거예요.
+
+피크닉은 가지 못했지만, 지수 씨와 함께한 매일이 하늘이의 가장 좋은 시간이었을 거예요.
+
+하늘이는 충분히 사랑받았어요. 그 기억은 변하지 않아요."""
+
+MESSAGE_1ST = """지수야, 나야. 하늘이.
+
+처음 만났던 날 기억해? 나 진짜 작았잖아. 네 품에 처음 안겼을 때, 이 냄새가 내 집이구나 했어.
+
+비 올 때마다 네 옆에 바짝 붙었던 거, 사실 핑계였어. 빗소리 무서운 척했지만, 그냥 더 오래 옆에 있고 싶었거든.
+
+"기다려" 할 때 발 꼭 모으고 기다리면서 속으로 '빨리 줘, 빨리 줘' 했는데, 넌 몰랐지? 근데 기다리는 것도 좋았어. 네가 보고 있었으니까.
+
+아팠던 날, 밥을 조금밖에 못 먹었는데 네 손 핥으면 이상하게 힘이 났어. 네 손 냄새가 좋았나 봐.
+
+마지막 아침도 그냥 평소랑 똑같았어. 밥 먹고, 햇살 드는 자리에 눕고, 네가 있었어. 그걸로 충분했어.
+
+이름 불러줘서 고마워. 어디서든 달려갔잖아, 나.
+
+보고 싶어, 지수야. 잘 지내.
+하늘이가."""
+
 # 미션 풀 — 날짜별로 순환 사용
 _MISSION_POOL = [
     ("오늘 산책하기", "15분이라도 밖에 나가 바람을 쐬어보세요.", "activity", "small"),
@@ -69,23 +101,40 @@ ACCOUNTS = [
     {
         "email": "demo00@demo.com",
         "nickname": "김지수",
-        "checkins": [],  # 체크인 없음
+        "checkins": [2, 3, 3, 4],  # 이별 4일차 — 슬픔 정점, 회복 시작 전
         "health_days": 0,
-        "missions_days": 0,
+        "health_records": [  # (steps, sleep_h, late_min) — 오늘부터 역순
+            (1200, 4.0, 95),  # 4일차 (오늘)
+            (800, 3.5, 105),  # 3일차
+            (600, 3.2, 110),  # 2일차
+            (400, 2.8, 120),  # 1일차
+        ],
+        "missions_days": 4,
     },
     {
         "email": "demo01@demo.com",
         "nickname": "김지수",
         "checkins": [6, 7, 8],  # 상향 추세 → 감정추세 점수 ↑
-        "health_days": 2,
+        "health_days": 0,  # health_records 사용
+        "health_records": [  # (steps, sleep_h, late_min) — 오늘부터 역순
+            (5200, 6.8, 8),  # 오늘
+            (4100, 6.3, 18),  # 1일 전
+            (2400, 4.9, 70),  # 2일 전 — 피곤, 야간폰 ↑
+            (3200, 5.4, 42),  # 3일 전
+            (1300, 3.8, 88),  # 4일 전 — 못 잠, 야간폰 ↑
+            (2100, 4.5, 60),  # 5일 전
+            (900, 3.2, 95),  # 6일 전 (최악, 야간폰 최고)
+        ],
         "missions_days": 10,
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo02@demo.com",
         "nickname": "김지수",
-        "checkins": [6, 7, 7, 8],
-        "health_days": 3,
-        "missions_days": 15,
+        "checkins": [5, 6, 7, 7, 8, 8, 9],
+        "health_days": 7,
+        "missions_days": 22,
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo03@demo.com",
@@ -94,6 +143,7 @@ ACCOUNTS = [
         "health_days": 7,
         "missions_days": 24,
         "hidden_mission": True,  # 슬라이드쇼 트리거
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
     {
         "email": "demo04@demo.com",
@@ -101,13 +151,58 @@ ACCOUNTS = [
         "checkins": [5, 6, 6, 7, 7, 8, 9],
         "health_days": 7,
         "missions_days": 24,
+        "message": {"content": MESSAGE_1ST, "first_person": True},
     },
     {
         "email": "demo05@demo.com",
         "nickname": "김지수",
-        "checkins": [],
+        "checkins": [
+            2,
+            2,
+            3,
+            3,
+            3,
+            4,
+            4,
+            5,
+            5,
+            5,
+            6,
+            6,
+            7,
+            7,
+            7,
+            8,
+            8,
+            8,
+            9,
+            9,
+        ],  # 이별 20일차 — 점진적 회복 곡선
         "health_days": 0,
-        "missions_days": 0,
+        "health_records": [  # (steps, sleep_h, late_min) — 오늘(20일차)부터 역순
+            (9500, 7.5, 8),  # 20일차 (오늘)
+            (9000, 7.2, 10),  # 19일차
+            (8500, 7.0, 12),  # 18일차
+            (8000, 6.8, 15),  # 17일차
+            (7500, 6.5, 20),  # 16일차
+            (7000, 6.5, 25),  # 15일차
+            (6500, 6.2, 30),  # 14일차
+            (6000, 6.0, 35),  # 13일차
+            (5500, 5.8, 45),  # 12일차
+            (5000, 5.5, 55),  # 11일차
+            (4500, 5.2, 65),  # 10일차
+            (4000, 5.0, 70),  # 9일차
+            (3500, 4.8, 75),  # 8일차
+            (3000, 4.5, 80),  # 7일차
+            (2500, 4.2, 85),  # 6일차
+            (2000, 4.0, 90),  # 5일차
+            (1500, 3.8, 95),  # 4일차
+            (1200, 3.5, 100),  # 3일차
+            (800, 3.2, 108),  # 2일차
+            (500, 3.0, 115),  # 1일차
+        ],
+        "missions_days": 20,
+        "message": {"content": MESSAGE_3RD, "first_person": False},
     },
 ]
 
@@ -231,6 +326,37 @@ def _insert_missions_mongo(pet_id: str, days: int):
         return False
 
 
+def _insert_message_mongo(
+    pet_id: str,
+    content: str,
+    first_person: bool,
+    content_unlocked: bool,
+    allow_first_person: bool,
+):
+    """미리 작성된 편지를 MongoDB에 직접 삽입 (기존 메시지 삭제 후)."""
+    try:
+        client, col = _mongo_col("messages")
+        col.delete_many({"pet_id": pet_id})
+        col.insert_one(
+            {
+                "pet_id": pet_id,
+                "content": content,
+                "tone": "warm",
+                "source": "local",
+                "risk_level": 0,
+                "first_person": first_person,
+                "content_unlocked": content_unlocked,
+                "allow_first_person": allow_first_person,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        client.close()
+        kind = "1인칭" if first_person else "3인칭"
+        print(f"  편지 삽입 완료 ({kind})")
+    except Exception as e:
+        print(f"  편지 삽입 실패: {e.__class__.__name__} — 서버에서 실행하세요")
+
+
 # ── API 헬퍼 ─────────────────────────────────────────────────────────────────
 
 
@@ -335,6 +461,48 @@ def seed_health(c: httpx.Client, headers: dict, pet_id: str, days: int):
         time.sleep(0.2)
 
 
+def _insert_health_fixed_mongo(
+    pet_id: str, records: list, c: httpx.Client, headers: dict
+):
+    """고정 헬스 데이터를 MongoDB에 직접 삽입 (과거 날짜 포함).
+
+    health/sync API는 항상 오늘 날짜로 upsert하므로 과거 날짜는 MongoDB 직접 삽입.
+    usage_stats(야간폰)는 날짜 지정 API 방식 유지.
+    """
+    try:
+        client, col = _mongo_col("health_logs")
+        today = date.today()
+        for i, (steps, sleep_h, late) in enumerate(records):
+            d = (today - timedelta(days=i)).isoformat()
+            col.update_one(
+                {"pet_id": pet_id, "date": d},
+                {
+                    "$set": {
+                        "steps": steps,
+                        "sleep_hours": sleep_h,
+                        "synced_at": datetime.now(timezone.utc),
+                    }
+                },
+                upsert=True,
+            )
+            c.post(
+                "/api/v1/usage-stats",
+                json=[
+                    {
+                        "date": d,
+                        "category": "SNS",
+                        "minutes": random.randint(20, 60),
+                        "late_night_minutes": late,
+                    }
+                ],
+                headers=headers,
+            )
+            print(f"  헬스 {d}: {steps}보 / 수면 {sleep_h}h / 야간폰 {late}분")
+        client.close()
+    except Exception as e:
+        print(f"  헬스 MongoDB 직접 삽입 실패: {e.__class__.__name__}")
+
+
 def seed_hidden_mission(c: httpx.Client, headers: dict, pet_id: str, base_days: int):
     """demo03 전용 — 과거 미션 + 슬라이드쇼 트리거.
 
@@ -382,7 +550,10 @@ with httpx.Client(base_url=BASE, timeout=90) as c:
             _reset_pet_data(pet_id)
 
         seed_checkins(c, headers, pet_id, acc["checkins"])
-        seed_health(c, headers, pet_id, acc["health_days"])
+        if acc.get("health_records"):
+            _insert_health_fixed_mongo(pet_id, acc["health_records"], c, headers)
+        else:
+            seed_health(c, headers, pet_id, acc["health_days"])
 
         if acc.get("hidden_mission"):
             seed_hidden_mission(c, headers, pet_id, acc["missions_days"])
@@ -395,5 +566,15 @@ with httpx.Client(base_url=BASE, timeout=90) as c:
             f"  → gate={d.get('gate_status')} score={d.get('recovery_pct')} "
             f"content={d.get('content_unlocked')} allow_1st={d.get('allow_first_person')}"
         )
+
+        # 미리 작성된 편지 삽입 (message 필드 있는 계정만)
+        if acc.get("message"):
+            _insert_message_mongo(
+                pet_id=pet_id,
+                content=acc["message"]["content"],
+                first_person=acc["message"]["first_person"],
+                content_unlocked=bool(d.get("content_unlocked")),
+                allow_first_person=bool(d.get("allow_first_person")),
+            )
 
 print("\n완료")

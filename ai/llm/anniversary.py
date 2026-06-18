@@ -24,9 +24,9 @@ from .safety import (
     EMPATHY_FOCUS_NOTE,
     WELFARE_INTRO,
     WELFARE_RESOURCES,
+    assess_crisis,
     crisis_notice,
     decide_action,
-    detect_crisis,
 )
 
 
@@ -92,7 +92,7 @@ def generate_anniversary_care(
     action = CrisisAction.GENERATE
     crisis = None
     if note:
-        crisis = detect_crisis(note)
+        crisis = assess_crisis(note)
         action = decide_action(crisis.risk_level)
         if action == CrisisAction.BLOCK:  # L3 — 메시지 중단, 1393 만
             notice = crisis_notice()
@@ -127,8 +127,9 @@ def generate_anniversary_care(
         note=note,
     )
     prompt = f"{messages[0]['content']}\n\n{messages[1]['content']}"
-    # L1(우려)·L2(경고) — 케어 메시지에서 공감을 먼저 하도록 지침 추가.
-    if action in (CrisisAction.GENERATE_WITH_SUPPORT, CrisisAction.HOTLINE):
+    # L1(우려) — 케어 메시지에서 공감을 먼저 하도록 지침 추가.
+    # L2(경고)·L3(긴급)는 위 early return 에서 이미 처리됨.
+    if action == CrisisAction.GENERATE_WITH_SUPPORT:
         prompt += EMPATHY_FOCUS_NOTE
     # LLM 인프라 실패 시: 안내문으로 graceful 대체(source=unavailable). 앱 안 터지게.
     try:
@@ -150,8 +151,8 @@ def generate_anniversary_care(
         result["support_message"] = WELFARE_INTRO
         result["welfare_resources"] = list(WELFARE_RESOURCES)
         result["risk_level"] = int(crisis.risk_level)
-    # L2(경고) — 케어 메시지는 하되 1393 안내를 함께(우선 표시).
-    elif action == CrisisAction.HOTLINE and crisis is not None:
+    # L2(경고) — 생성은 진행하되 1393 안내를 crisis_message 로 동봉.
+    if action == CrisisAction.HOTLINE and crisis is not None:
         result["crisis_message"] = crisis_notice()
         result["risk_level"] = int(crisis.risk_level)
     return result

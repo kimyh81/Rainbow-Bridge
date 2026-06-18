@@ -77,6 +77,27 @@ async def get_asset(asset_id: str, user_id: int | None = None) -> dict | None:
     }
 
 
+async def trigger_gif_for_pet(pet_id: str) -> None:
+    """recovery_score 20점 달성 시 GIF 보상 백그라운드 생성. 이미 gif_url 있으면 skip."""
+    try:
+        doc = await _collection().find_one(
+            {"pet_id": pet_id, "source_url": {"$ne": None}},
+            sort=[("created_at", -1)],
+        )
+        if not doc:
+            return
+        if doc.get("gif_url"):
+            return  # 이미 생성됨 — 중복 방지
+        asset_id = str(doc["_id"])
+        source_path = Path(doc["source_url"].lstrip("/"))
+        if source_path.exists():
+            asyncio.create_task(
+                run_liveportrait_gif(asset_id, str(source_path), set_status=False)
+            )
+    except Exception:
+        logger.warning("GIF 보상 트리거 실패 pet_id=%s", pet_id, exc_info=True)
+
+
 async def trigger_liveportrait_for_pet(pet_id: str) -> None:
     """1인칭 편지 허용 시 d3 입모양 영상 백그라운드 생성. 이미 video_url 있으면 skip."""
     try:
@@ -125,17 +146,33 @@ def _remote_generate_gif(source_path: str, output_dir: Path) -> Path:
 
 
 def _remote_generate_video(source_path: str, output_dir: Path) -> Path:
-    """GPU 서버 /generate → MP4 다운로드."""
+    """GPU 서버 /generate/async → 폴링 → MP4 다운로드 (Cloudflare 100초 타임아웃 우회)."""
     api = settings.LIVEPORTRAIT_REMOTE_URL.rstrip("/")
     if not api:
         raise ValueError(
             "LIVEPORTRAIT_REMOTE_URL 미설정 — remote 모드에서는 GPU 서버 URL이 필요합니다."
         )
+
     with open(source_path, "rb") as f:
-        resp = requests.post(f"{api}/generate", files={"source": f}, timeout=120)
+        resp = requests.post(f"{api}/generate/async", files={"source": f}, timeout=30)
     resp.raise_for_status()
+    job_id = resp.json()["job_id"]
+
+    for _ in range(10):  # 30초 × 10 = 최대 5분 폴링
+        time.sleep(30)
+        st = requests.get(f"{api}/generate/status/{job_id}", timeout=10)
+        status = st.json().get("status")
+        if status == "done":
+            break
+        if status == "error":
+            raise RuntimeError("GPU 서버에서 MP4 생성 실패")
+    else:
+        raise RuntimeError("MP4 생성 타임아웃 (5분 초과)")
+
+    result = requests.get(f"{api}/generate/result/{job_id}", timeout=30)
+    result.raise_for_status()
     out_path = output_dir / f"{Path(source_path).stem}_remote.mp4"
-    out_path.write_bytes(resp.content)
+    out_path.write_bytes(result.content)
     return out_path
 
 

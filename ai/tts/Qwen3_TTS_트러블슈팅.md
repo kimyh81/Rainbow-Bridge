@@ -149,7 +149,7 @@ ai\tts\start_tts.bat
 
 **URL 백엔드 등록** (`[URL]` 교체)
 ```powershell
-Invoke-RestMethod -Uri https://rainbow-bridge.duckdns.org/api/v1/tts/register-url -Method Post -Headers @{"X-TTS-Secret"="rainbow-tts-secret-2026"} -ContentType "application/json" -Body (@{url="https://[URL].trycloudflare.com"}|ConvertTo-Json)
+Invoke-RestMethod -Uri https://rainbow-bridge.duckdns.org/api/v1/tts/register-url -Method Post -Headers @{"X-TTS-Secret"="<팀_TTS_시크릿>"} -ContentType "application/json" -Body (@{url="https://[URL].trycloudflare.com"}|ConvertTo-Json)
 # ok: True 면 등록 완료
 ```
 

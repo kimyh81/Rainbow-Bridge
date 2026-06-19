@@ -1,0 +1,8 @@
+{
+  "correlation": 0.896,
+  "lag_ms": 40.0,
+  "n_frames": 1868,
+  "fps": 25.0,
+  "pass": true,
+  "video": "maltese_wav2kp_final.mp4"
+}

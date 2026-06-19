@@ -1,3 +1,21 @@
+## 📌 이 Fork에 대하여 (kimyh81)
+
+이 레포는 [Rainbow Bridge](https://github.com/mosejong/Rainbow-Bridge) 팀 프로젝트를
+개인 포트폴리오용으로 fork한 것입니다. (Rainbow Bridge · Team 5)
+
+**담당 역할**: 백엔드 개발 / 인프라 구축 및 운영 (BE / Infra)
+
+- FastAPI 기반 백엔드 API 개발 (REST API, 비동기 처리)
+- NCP(Naver Cloud Platform) 서버 구축 및 Docker 기반 배포
+- TTS 폴백체인 구축 (Qwen3 → Wavespeed → Google TTS)
+- Redis 기반 TTS URL 등록 및 캐시 관리
+- CI/CD 파이프라인 구축 (GitHub Actions, PR 머지 시 자동 배포)
+- 서버 운영 및 장애 대응 (포트 충돌, 503 에러 핸들링, MongoDB 복구 등)
+- recovery_score 산정 로직 개선, 미션 누적 카운트 기능 구현
+
+**기술 스택**: FastAPI, MongoDB, Redis, Docker, NCP, GitHub Actions
+
+---
 # 🌈 레인보우 브릿지 (Rainbow Bridge)
 
 > 반려동물의 시한부 선고부터 이별·회복까지, **보호자 곁에서 함께하는 AI 케어 서비스**

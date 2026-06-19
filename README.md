@@ -8,7 +8,7 @@
 [![PRs](https://img.shields.io/badge/PRs-365-orange)]()
 [![CI](https://github.com/mosejong/rainbow-bridge/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/mosejong/rainbow-bridge/actions)
 
-<img src="./최강무적5팀.png" alt="최강무적 5팀" width="600">
+<img src="./최강무적5팀.png" alt="최강무적 5팀" width="100%">
 
 ---
 

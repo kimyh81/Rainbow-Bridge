@@ -1,121 +1,101 @@
-# 레인보우 브릿지 발표까지 로드맵
+# 발표 준비 로드맵 — 6월 19일 데드라인
 
-> **작성:** 2026-06-06 · 모세종
-> **목표:** 발표 데모 완성
-> **모세종 역할 (지금부터):** 기능 개발 ❌ → **각자 완성한 기능을 서버에 연결·테스트**만 담당
-
----
-
-## 모세종이 받아야 하는 것들
-
-> 아래 항목이 팀원에게서 넘어와야 모세종이 연결·배포할 수 있음.
-> **각자 완성해서 PR 올리면 모세종이 테스트하고 머지.**
-
-| 받을 것 | 담당 | 기한 | 상태 |
-|---------|------|------|------|
-| ElevenLabs TTS 연동 코드 (`tts.synthesize()` ElevenLabs 분기) | 정환주 | 06-08 | ⬜ |
-| GPU 터널 + LivePortrait remote 추론 동작 확인 | 정환주·장민수 | 06-08 | 🟡 |
-| 수의사 로그인·조언 API (`/vets/register`, `/login`, `/advice`) | 김윤한 | 06-09 | 🟡 |
-| 수의사 웹 화면 (`VITE_TARGET=hospital`) | 민경이 | 06-09 | 🟡 |
-| vet_protocol RAG + pytest CI 수정 | 반소람 | 06-09 | 🟡 |
-| ⑧ 리포트 `build_report()` 연결 가능한 상태 | 정환주 | 06-10 | ⬜ |
+> 오늘(6/5) 기준. 배포 완료 · PR #82~#107 처리 완료.
+> 남은 기간: **14일**
 
 ---
 
-## 팀원별 할 일
+## 🗓️ 주차별 계획
 
-### 정환주
-**읽을 것:** [`ai/tts/ENGINE_NOTES.md`](../ai/tts/ENGINE_NOTES.md), [`docs/LIPSYNC_EXPERIMENT.md`](LIPSYNC_EXPERIMENT.md)
+### 1주차 (6/6~6/8) — 기능 완성
+| 작업 | 담당 | 비고 |
+|------|------|------|
+| E2E 시연 1회 완주 · 버그 목록 작성 | 민경이 | 프론트 작업하면서 전체 흐름 검증 |
+| 수의사 회원가입·로그인 API | 김윤한 | Vet 모델 이미 있음, API만 추가 |
+| VetAdvice 저장 API | 김윤한 | 스키마 이미 있음 |
+| 수의사 웹 로그인·조언 화면 | 민경이 | VITE_TARGET=hospital |
+| 립싱크 방법 3 결과 취합 | 장민수·정환주 | 환주님 서버 0.8 세팅 완료 |
+| 기념일 케어 백엔드 연동 | 모세종·반소람 | D+30·D+100 알림 API |
 
-1. ElevenLabs API 키 발급 → 한국어 목소리 샘플 직접 들어보기
-2. 성격 4종 voice_id 확정 (활발/순둥이/도도/노령)
-3. `tts.synthesize()` ElevenLabs 분기 구현 → PR
-4. GPU 터널 연결 → 장민수 `server.py` 연결 확인
-5. `save_log` 훅 LLM 호출부 연결
+### 2주차 (6/9~6/15) — 시나리오 완성
+| 작업 | 담당 | 비고 |
+|------|------|------|
+| 발표 시나리오 스크립트 초안 | 모세종 | 흐름: 수의사→보호자→펫로스케어 |
+| E2E 버그 수정 | 전원 | 1주차 목록 기반 |
+| 시연 데모 영상 녹화 | 장민수·민경이 | 립싱크 결과 포함 |
+| LIPSYNC_EXPERIMENT.md 결과 완성 | 장민수 | 방법 1·3·4 결과 채우기 |
+| 다운로드 제공 API | 김윤한 | ⬜ 남은 항목 |
 
-> ⚠️ PERSO 드랍 확정. PERSO 관련 추가 작업 없음.
-> LIPSYNC_EXPERIMENT.md 결론 읽고 LivePortrait 방향 숙지할 것.
-
----
-
-### 김윤한
-**읽을 것:** [`docs/PROGRESS.md`](PROGRESS.md)
-
-1. `chromadb>=0.5` requirements.txt 추가 → PR #114 CI 수정
-2. 수의사 API 완성 (`/register`, `/login`, `/advice`) → PR
-
----
-
-### 반소람
-**읽을 것:** [`ai/TODO.md`](../ai/TODO.md)
-
-1. pytest CI ImportError 수정 → PR
-2. vet_protocol RAG 구현 → PR
-3. TTS 톤↔메시지 톤 4종 매핑 정환주와 합의
-
----
-
-### 민경이
-**읽을 것:** [`docs/PROGRESS.md`](PROGRESS.md)
-
-1. 수의사 웹 화면 완성 (`VITE_TARGET=hospital`) → PR
-2. TTS 성격 선택 UI 추가 여부 → 모세종과 협의
-
----
-
-### 장민수
-**읽을 것:** [`docs/PERSO_STRATEGY.md`](PERSO_STRATEGY.md), [`docs/LIPSYNC_EXPERIMENT.md`](LIPSYNC_EXPERIMENT.md)
-
-1. 정환주 GPU 터널 연결되면 LivePortrait remote 추론 동작 확인
-2. 결과 LIPSYNC_EXPERIMENT.md에 기록
-
-> ⚠️ PERSO 드랍 확정. LIPSYNC_EXPERIMENT.md 결론 읽을 것.
-
----
-
-## 모세종 할 일 (통합·테스트)
-
-| 할 일 | 트리거 |
-|------|--------|
-| ⑧ 리포트 API `build_report()` 실연결 | 정환주 핸드오프 후 |
-| ElevenLabs TTS 서버 연결·테스트 | 정환주 PR 머지 후 |
-| 수의사 API 서버 배포·테스트 | 김윤한 PR 머지 후 |
-| E2E 전체 흐름 테스트 | 모든 기능 머지 후 |
-| 발표 시나리오 스크립트 작성 | Phase 2 완료 후 |
-| 발표 데모 계정·샘플 데이터 준비 | 발표 1주 전 |
-
----
-
-## 발표까지 체크리스트
-
-### Phase 1 (~06-08)
-- [ ] ElevenLabs TTS 연동 (정환주)
-- [ ] GPU 터널 + LivePortrait remote (정환주·장민수)
-- [ ] PR #114 CI 수정 (김윤한)
-
-### Phase 2 (~06-12)
-- [ ] 수의사 API + 웹 화면 (김윤한·민경이)
-- [ ] vet_protocol RAG (반소람)
-- [ ] ⑧ 리포트 API 실연결 (모세종)
-- [ ] E2E 전체 통과
-
-### Phase 3 (~06-18)
-- [ ] 발표 시나리오 스크립트
-- [ ] 데모 계정·샘플 데이터 준비
-- [ ] 리허설 1회
-- [ ] 버그 픽스
-
-### 발표 (06-19)
-- [ ] 시연 데모
-
----
-
-## 핵심 문서
-
-| 문서 | 내용 |
+### 마지막 (6/16~6/18) — 마무리
+| 작업 | 담당 |
 |------|------|
-| [`PERSO_STRATEGY.md`](PERSO_STRATEGY.md) | PERSO 드랍, 새 파이프라인 |
-| [`LIPSYNC_EXPERIMENT.md`](LIPSYNC_EXPERIMENT.md) | 립싱크 실험 결과 + 결론 |
-| [`ai/tts/ENGINE_NOTES.md`](../ai/tts/ENGINE_NOTES.md) | ElevenLabs 방향 |
-| [`PROGRESS.md`](PROGRESS.md) | 기능별 현재 상태 |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | 전체 구조 |
+| 발표 리허설 1회 | 전원 |
+| 최종 버그 픽스 | 모세종·김윤한 |
+| 발표 자료(PPT/노션) 완성 | 모세종 |
+
+---
+
+## 📌 담당자별 요청 사항
+
+### 김윤한님
+- [ ] 수의사 회원가입·로그인 API (`POST /api/v1/vets/register`, `POST /api/v1/vets/login`)
+- [ ] VetAdvice 저장 API (`POST /api/v1/diaries/{diary_id}/advice`)
+- [ ] 미디어 다운로드 제공 API
+
+### 민경이님
+- [ ] 수의사 웹 화면 — 로그인 + 보호자 펫 목록 + 한 줄 조언 입력
+  - `VITE_TARGET=hospital` 빌드 분기 활용
+
+### 반소람님
+- [ ] 기념일 케어 백엔드 연동 협의 (모세종님과)
+- [ ] funeral·mission RAG 연결 (memorial 검증 후)
+
+### 정환주님
+- [ ] 립싱크 방법 3 결과 (장민수님 사진 받으면 바로)
+- [ ] GPU 서버 driving_multiplier 실험 후 0.4 복원
+
+### 장민수님
+- [ ] 정환주님 GPU 서버에 사진 전달 → 방법 3 결과 확인
+- [ ] LIPSYNC_EXPERIMENT.md 방법 1·3·4 결과 채우기
+- [ ] 멀티모달 마무리 후 → 프론트 지원 (웹·앱 둘 다, 민경이님 부하 분산)
+
+### 민경이님 (추가)
+- [ ] E2E 시연 1회 완주 + 버그 목록 (수의사 화면 작업하면서)
+
+### 모세종님 (본인)
+- [ ] 발표 시나리오 스크립트 초안
+- [ ] 기념일 케어 백엔드 연동 (반소람님 협의)
+- [ ] 멀티모달 파트 지원 — 립싱크 실험 결과 취합·대안 판단 (장민수님 언블로킹)
+- [ ] `rdb.py` `os.getenv` → `settings.DATABASE_URL` 일원화 (선택)
+
+---
+
+## 🎯 발표 시연 시나리오 (초안)
+
+```
+1. 수의사(병원 웹) 로그인
+   → 보호자 반려동물 증상 기록 확인
+   → 수의사 조언 한 줄 남기기
+
+2. 보호자(앱) 로그인
+   → 반려동물 프로필 등록
+   → 감정 체크인
+   → 추모 메시지 생성 (RAG + Gemini)
+   → TTS 음성 재생
+   → 사진 업로드 → LivePortrait 영상 생성
+
+3. 펫로스 케어
+   → 미션 추천
+   → 기념일 알림 (D+30)
+   → 위기 감지 시 1393 안내
+```
+
+---
+
+## ⚠️ 리스크
+
+| 항목 | 리스크 | 대응 |
+|------|--------|------|
+| 립싱크 | 동물 얼굴 미지원 가능성 | 방법 3·4 결과 보고 판단, 안 되면 정지 영상으로 대체 |
+| LivePortrait remote | 발표 당일 ngrok 터널 끊길 수 있음 | 미리 녹화한 데모 영상 준비 |
+| 서버 | NCP 크레딧 소진 시 자동 종료 | 발표 전날 크레딧 잔액 확인 |

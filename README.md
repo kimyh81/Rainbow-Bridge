@@ -269,6 +269,8 @@ rainbow-bridge/
 | 민경이 | 프론트엔드 | `frontend-rn/` | 전체 앱 화면 구현 (React Native + Expo) |
 | 장민수 | 멀티모달 | `ai/liveportrait/` | LivePortrait 파이프라인, 슬라이드쇼·GIF 생성 |
 
+<img src="최강무적5팀.png" width="100%" alt="팀 5 단체 사진" />
+
 ---
 
 ## 📊 개발 지표
